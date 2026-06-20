@@ -34,10 +34,12 @@ nano jarvis/.env
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | **Requerida.** Obtén en console.anthropic.com |
-| `JARVIS_MODEL` | `claude-haiku-4-5-20251001` | Modelo Claude a usar |
+| `ANTHROPIC_API_KEY` | — | Requerida para backends `anthropic` y `adk`+Claude |
+| `GOOGLE_API_KEY` | — | Requerida para backends `gemini` y `adk`+Gemini |
+| `JARVIS_MODEL` | `claude-haiku-4-5-20251001` | Modelo Claude (backends anthropic/adk) |
+| `JARVIS_GEMINI_MODEL` | `gemini-2.0-flash` | Modelo Gemini (backend gemini) |
 | `JARVIS_NAME` | `Jarvis` | Nombre del asistente |
-| `JARVIS_BACKEND` | `anthropic` | Backend: `anthropic` o `adk` |
+| `JARVIS_BACKEND` | `anthropic` | Backend: `anthropic`, `adk` o `gemini` |
 | `JARVIS_VOICE_ENABLED` | `false` | Activa voz (requiere dependencias extra) |
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
 
@@ -130,6 +132,7 @@ Comandos dentro del chat:
 | `set_clipboard` | Escribir texto en el portapapeles |
 | `send_notification` | Notificación de escritorio (low / normal / critical) |
 | `run_shell_command` | Ejecutar comando shell arbitrario (con confirmación) |
+| `setup_autostart` | Activar o desactivar el arranque automático con el sistema |
 
 ## Backends
 
@@ -141,14 +144,39 @@ Loop agéntico manual: envía mensajes al modelo, ejecuta herramientas y repite 
 python -m jarvis --backend anthropic
 ```
 
-### Google ADK + LiteLLM
+### Google ADK + Claude (`adk`)
 
 ADK orquesta el loop internamente vía `Runner` + `InMemorySessionService`, usando LiteLLM como puente hacia la API de Anthropic.
+
+Auto-detección: si solo tienes `GOOGLE_API_KEY` (sin `ANTHROPIC_API_KEY`), el backend `adk` cambia automáticamente a Gemini.
 
 ```bash
 pip install google-adk litellm
 python -m jarvis --backend adk
 ```
+
+### Google ADK + Gemini (`gemini`)
+
+Usa Gemini de forma nativa sin LiteLLM. Solo requiere `GOOGLE_API_KEY`.
+
+```bash
+pip install google-adk
+# En .env: GOOGLE_API_KEY=tu-key, JARVIS_GEMINI_MODEL=gemini-2.0-flash
+python -m jarvis --backend gemini
+```
+
+## Modo bandeja del sistema
+
+Inicia Jarvis como ícono en la barra de tareas con una ventana de chat:
+
+```bash
+pip install pystray Pillow
+python -m jarvis --tray
+# o combinar con cualquier backend:
+python -m jarvis --tray --backend gemini
+```
+
+Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocultarse sin cerrar el proceso.
 
 ## Seguridad
 
