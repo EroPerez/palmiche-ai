@@ -28,6 +28,7 @@ _DEFAULT_WAKE_WORD = "palmiche"
 # ---------------------------------------------------------------------------
 
 def _make_icon_image(size: int = 64):
+    """Generate a circular RGBA icon for the system tray."""
     from PIL import Image, ImageDraw
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -45,6 +46,7 @@ class _ChatWindow:
     """Tkinter chat window with waveform animation and wake-word support."""
 
     def __init__(self, agent, name: str, wake_word: str = _DEFAULT_WAKE_WORD):
+        """Store agent reference and UI state; call run() to build and start the window."""
         self.agent = agent
         self.name = name
         self.wake_word = wake_word
@@ -57,6 +59,7 @@ class _ChatWindow:
     # ------------------------------------------------------------------ build
 
     def _build(self):
+        """Construct and configure all tkinter widgets, then start the wake-word listener."""
         import tkinter as tk
         from tkinter import scrolledtext
         from .animation import WaveformAnimation
@@ -140,12 +143,14 @@ class _ChatWindow:
     # ---------------------------------------------------------------- I/O
 
     def _append(self, text: str, tag: str = ""):
+        """Append *text* with *tag* styling to the read-only chat display."""
         self._display.config(state="normal")
         self._display.insert("end", text, tag)
         self._display.config(state="disabled")
         self._display.see("end")
 
     def _on_send(self, _event=None):
+        """Read the input field, echo the user message, and dispatch agent call in a thread."""
         msg = self._entry.get().strip()
         if not msg:
             return
@@ -159,6 +164,7 @@ class _ChatWindow:
         ).start()
 
     def _call_agent(self, msg: str):
+        """Run agent.chat() in a daemon thread and schedule the reply on the main thread."""
         try:
             reply = self.agent.chat(msg)
             tag   = "jarvis"
@@ -168,6 +174,7 @@ class _ChatWindow:
         self.root.after(0, self._on_reply, reply, tag)
 
     def _on_reply(self, reply: str, tag: str):
+        """Display the agent reply and reset the UI to idle state (main thread)."""
         self._append(f"{self.name}: {reply}\n\n", tag)
         self._entry.config(state="normal")
         self._entry.focus_set()
@@ -196,16 +203,19 @@ class _ChatWindow:
     # -------------------------------------------------------- window control
 
     def show(self):
+        """Restore the window from minimized/hidden state and bring it to the front."""
         if self.root:
             self.root.deiconify()
             self.root.lift()
             self.root.focus_force()
 
     def hide(self):
+        """Withdraw the window without stopping the tray icon or agent."""
         if self.root:
             self.root.withdraw()
 
     def destroy(self):
+        """Stop the wake-word listener, animation, and destroy the tkinter window."""
         if self._wake_listener:
             self._wake_listener.stop()
         if self._anim:
@@ -225,10 +235,12 @@ class _ChatWindow:
 # ---------------------------------------------------------------------------
 
 def _make_pystray_icon(name: str, pystray_mod):
+    """Create a pystray Icon instance with the Jarvis circular icon image."""
     return pystray_mod.Icon("jarvis", _make_icon_image(), name)
 
 
 def _build_menu(name: str, pystray_mod, on_open, on_quit):
+    """Build the right-click context menu with Open and Quit items."""
     return pystray_mod.Menu(
         pystray_mod.MenuItem(f"Abrir {name}", on_open, default=True),
         pystray_mod.MenuItem("Salir", on_quit),
@@ -266,6 +278,7 @@ def run_tray(
 
 
 def _run_linux(agent, name: str, wake_word: str) -> None:
+    """Linux path: pystray in a background thread, tkinter mainloop on the main thread."""
     import pystray
 
     win = _ChatWindow(agent, name, wake_word)
@@ -291,6 +304,7 @@ def _run_linux(agent, name: str, wake_word: str) -> None:
 
 
 def _run_macos(agent, name: str, wake_word: str) -> None:
+    """macOS path: pystray on the main thread via setup(); tkinter built inside setup()."""
     import pystray
 
     win_holder: list = [None]

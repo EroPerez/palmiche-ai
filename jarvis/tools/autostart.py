@@ -36,6 +36,7 @@ def setup_autostart(enable: bool = True, tray: bool = True, backend: str = "anth
 
 
 def _autostart_linux(enable: bool, cmd_parts: list) -> str:
+    """Write or remove a GNOME autostart .desktop file under ~/.config/autostart/."""
     autostart_dir = Path.home() / ".config" / "autostart"
     desktop_file = autostart_dir / "jarvis-ai.desktop"
 
@@ -62,6 +63,7 @@ def _autostart_linux(enable: bool, cmd_parts: list) -> str:
 
 
 def _autostart_macos(enable: bool, cmd_parts: list) -> str:
+    """Write or remove a macOS LaunchAgent plist and load/unload it via launchctl."""
     plist_dir = Path.home() / "Library" / "LaunchAgents"
     plist_file = plist_dir / "ai.palmiche.jarvis.plist"
 

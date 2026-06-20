@@ -28,6 +28,7 @@ class WakeWordListener:
         on_wake: Optional[Callable] = None,
         language: str = "es-ES",
     ):
+        """Configure the wake word, optional callback, and recognition language."""
         self.wake_word = wake_word.lower()
         self.on_wake = on_wake
         self.language = language
@@ -57,11 +58,13 @@ class WakeWordListener:
         return True
 
     def stop(self):
+        """Signal the listener thread to exit on its next iteration."""
         self._running = False
 
     # ------------------------------------------------------------------ loop
 
     def _loop(self):
+        """Continuously listen for audio and fire on_wake when the wake word is heard."""
         import speech_recognition as sr
 
         recognizer = sr.Recognizer()
@@ -113,5 +116,6 @@ class WakeWordListener:
 
 
 def _sleep(seconds: float):
+    """Sleep for *seconds* — isolated so the import stays out of the hot loop."""
     import time
     time.sleep(seconds)

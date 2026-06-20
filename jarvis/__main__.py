@@ -5,6 +5,7 @@ import argparse
 
 
 def parse_args():
+    """Parse and return CLI arguments."""
     parser = argparse.ArgumentParser(
         description="Jarvis - Tu asistente AI personal para la laptop",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -72,6 +73,7 @@ def _build_agent(backend: str):
 
 
 def main():
+    """Entry point: parse args, validate API keys, build agent, and run the selected mode."""
     args = parse_args()
 
     from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY, JARVIS_NAME, VOICE_ENABLED, JARVIS_BACKEND, JARVIS_WAKE_WORD

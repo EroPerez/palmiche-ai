@@ -39,6 +39,7 @@ class WaveformAnimation:
     FPS    = 30
 
     def __init__(self, canvas: tk.Canvas):
+        """Attach the animation to *canvas*; call build() after the canvas is laid out."""
         self._canvas = canvas
         self._bars: list[int] = []
         self._t = 0.0
@@ -82,6 +83,7 @@ class WaveformAnimation:
     # ----------------------------------------------------------------- ticker
 
     def _tick(self):
+        """Advance one animation frame and schedule the next tick via canvas.after()."""
         if not self._built:
             return
 
@@ -118,6 +120,7 @@ class WaveformAnimation:
         self._after_id = self._canvas.after(interval, self._tick)
 
     def stop(self):
+        """Cancel the pending after() callback and halt animation."""
         if self._after_id is not None:
             self._canvas.after_cancel(self._after_id)
             self._after_id = None

@@ -15,6 +15,7 @@ HISTORY_FILE: Path = Path(
     os.getenv("JARVIS_HISTORY_FILE", "~/.jarvis_history.json")
 ).expanduser()
 def _get_positive_int(name: str, default: int) -> int:
+    """Read an env var as a positive int, falling back to *default* on invalid values."""
     raw = os.getenv(name, str(default))
     try:
         value = int(raw)

@@ -431,6 +431,7 @@ DESTRUCTIVE_TOOLS = {"power_action", "run_shell_command", "setup_autostart"}
 
 
 def execute_tool(name: str, inputs: dict) -> str:
+    """Dispatch *name* to the appropriate tool handler, enforcing confirmation for destructive tools."""
     if name in DESTRUCTIVE_TOOLS and not inputs.get("confirmed", False):
         return (
             f"Confirmación requerida para '{name}'. "

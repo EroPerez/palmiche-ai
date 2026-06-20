@@ -30,6 +30,7 @@ from .prompts import SYSTEM_PROMPT
 # ---------------------------------------------------------------------------
 
 def _to_ollama_tools(definitions: list) -> list:
+    """Convert Anthropic tool definitions to Ollama/OpenAI function-calling format."""
     return [
         {
             "type": "function",
@@ -54,6 +55,7 @@ class JarvisOllamaAgent:
     """Jarvis agent running against a local Ollama instance."""
 
     def __init__(self):
+        """Initialize agent, connect to Ollama, and verify the configured model is available."""
         self.history = ConversationHistory()
         self._host = JARVIS_OLLAMA_HOST.rstrip("/")
         self._model = JARVIS_OLLAMA_MODEL
@@ -63,6 +65,7 @@ class JarvisOllamaAgent:
     # ----------------------------------------------------------------- setup
 
     def _verify_connection(self):
+        """Ping Ollama's /api/tags endpoint and confirm the target model is pulled."""
         try:
             r = requests.get(f"{self._host}/api/tags", timeout=5)
             r.raise_for_status()
@@ -87,6 +90,7 @@ class JarvisOllamaAgent:
     # ------------------------------------------------------------------ chat
 
     def chat(self, user_message: str) -> str:
+        """Send a message and run the tool-use loop until the model returns plain text."""
         self.history.add("user", user_message)
 
         # Build message list: system + history
