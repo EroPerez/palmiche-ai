@@ -1,0 +1,10 @@
+anthropic>=0.40.0
+rich>=13.0.0
+python-dotenv>=1.0.0
+psutil>=5.9.0
+pyperclip>=1.8.0
+requests>=2.31.0
+
+# ADK backend (opcional, activar con JARVIS_BACKEND=adk en .env):
+# google-adk>=1.0.0
+# litellm>=1.0.0
