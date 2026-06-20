@@ -1,4 +1,5 @@
 def get_clipboard() -> str:
+    """Return a preview (up to 500 chars) of the current clipboard content."""
     try:
         import pyperclip
         content = pyperclip.paste()
@@ -13,6 +14,7 @@ def get_clipboard() -> str:
 
 
 def set_clipboard(text: str) -> str:
+    """Copy *text* to the clipboard and return the character count written."""
     try:
         import pyperclip
         pyperclip.copy(text)

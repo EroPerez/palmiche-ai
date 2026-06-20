@@ -32,6 +32,7 @@ class JarvisADKAgent:
     """
 
     def __init__(self, use_gemini: bool = False):
+        """Set up the ADK Runner with the appropriate model backend and a fresh session."""
         try:
             from google.adk.agents import Agent
             from google.adk.runners import Runner
@@ -94,12 +95,15 @@ class JarvisADKAgent:
 
     @property
     def model_label(self) -> str:
+        """Return a human-readable identifier for the active model."""
         return JARVIS_GEMINI_MODEL if self._use_gemini else f"anthropic/{JARVIS_MODEL}"
 
     def chat(self, user_message: str) -> str:
+        """Send a message and return the agent's response (blocks until complete)."""
         return asyncio.run(self._chat_async(user_message))
 
     async def _chat_async(self, user_message: str) -> str:
+        """Async implementation: stream ADK events and collect the final text response."""
         from google.genai import types
 
         self.history.add("user", user_message)

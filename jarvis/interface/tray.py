@@ -267,7 +267,7 @@ def run_tray(
         raise ImportError(
             "pystray no está instalado.\n"
             "Instala con: pip install pystray Pillow"
-        )
+        ) from None
 
     if _SYSTEM == "Linux":
         _run_linux(agent, name, wake_word)
@@ -311,9 +311,13 @@ def _run_macos(agent, name: str, wake_word: str) -> None:
 
     def setup(icon):
         icon.visible = True
-        w = _ChatWindow(agent, name, wake_word)
-        win_holder[0] = w
-        w.run()
+        try:
+            w = _ChatWindow(agent, name, wake_word)
+            win_holder[0] = w
+            w.run()
+        except Exception as exc:
+            icon.stop()
+            raise RuntimeError(f"Error al iniciar la ventana de chat: {exc}") from exc
 
     def on_open(icon, item):
         w = win_holder[0]
@@ -326,6 +330,9 @@ def _run_macos(agent, name: str, wake_word: str) -> None:
             w.root.after(0, w.destroy)
         icon.stop()
 
-    ico = _make_pystray_icon(name, pystray)
-    ico.menu = _build_menu(name, pystray, on_open, on_quit)
-    ico.run(setup=setup)
+    try:
+        ico = _make_pystray_icon(name, pystray)
+        ico.menu = _build_menu(name, pystray, on_open, on_quit)
+        ico.run(setup=setup)
+    except Exception as exc:
+        raise RuntimeError(f"Error al iniciar la bandeja del sistema en macOS: {exc}") from exc

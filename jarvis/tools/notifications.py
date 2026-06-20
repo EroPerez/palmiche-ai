@@ -3,6 +3,7 @@ import subprocess
 
 
 def send_notification(title: str, message: str, urgency: str = "normal") -> str:
+    """Send a desktop notification via notify-send (Linux) or osascript (macOS)."""
     system = platform.system()
     try:
         if system == "Linux":

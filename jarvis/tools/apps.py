@@ -5,6 +5,7 @@ import psutil
 
 
 def open_application(name: str) -> str:
+    """Launch an application by name or command using the OS default mechanism."""
     system = platform.system()
     try:
         if system == "Linux":
@@ -25,6 +26,7 @@ def open_application(name: str) -> str:
 
 
 def close_application(name: str, force: bool = False) -> str:
+    """Terminate all processes whose name contains *name*; use SIGKILL if force=True."""
     target = name.strip()
     if not target:
         return "Nombre de proceso inválido: no puede estar vacío"
@@ -49,6 +51,7 @@ def close_application(name: str, force: bool = False) -> str:
 
 
 def list_running_apps(filter_str: Optional[str] = None) -> str:
+    """List running processes sorted by RAM usage, optionally filtered by name substring."""
     processes = {}
     for proc in psutil.process_iter(["pid", "name", "memory_percent"]):
         try:

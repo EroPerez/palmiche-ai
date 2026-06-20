@@ -82,8 +82,8 @@ class WakeWordListener:
         try:
             with mic as source:
                 recognizer.adjust_for_ambient_noise(source, duration=1.0)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Calibración de ruido ambiental fallida: %s", exc)
 
         while self._running:
             try:

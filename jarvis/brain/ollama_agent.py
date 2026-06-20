@@ -69,17 +69,21 @@ class JarvisOllamaAgent:
         try:
             r = requests.get(f"{self._host}/api/tags", timeout=5)
             r.raise_for_status()
-        except requests.ConnectionError:
+        except requests.ConnectionError as exc:
             raise ConnectionError(
                 f"No se pudo conectar a Ollama en {self._host}.\n"
                 "Asegúrate de que Ollama esté corriendo: ollama serve"
-            )
+            ) from exc
         except requests.RequestException as exc:
-            raise ConnectionError(f"Error al verificar Ollama: {exc}")
+            raise ConnectionError(f"Error al verificar Ollama: {exc}") from exc
 
         available = [m.get("name", "") for m in r.json().get("models", [])]
         base = self._model.split(":")[0]
-        if available and not any(base in m for m in available):
+        has_match = any(
+            isinstance(m, str) and (m == self._model or m.split(":")[0] == base)
+            for m in available
+        )
+        if not has_match:
             hint = ", ".join(available) or "ninguno"
             raise ValueError(
                 f"Modelo '{self._model}' no encontrado en Ollama.\n"
@@ -135,12 +139,14 @@ class JarvisOllamaAgent:
                 tool_name = fn.get("name", "")
                 raw_args  = fn.get("arguments", {})
 
-                # Ollama may return arguments as a JSON string
+                # Ollama may return arguments as a JSON string or non-dict value
                 if isinstance(raw_args, str):
                     try:
                         raw_args = json.loads(raw_args)
                     except (json.JSONDecodeError, ValueError):
                         raw_args = {}
+                if not isinstance(raw_args, dict):
+                    raw_args = {}
 
                 result = execute_tool(tool_name, raw_args)
                 messages.append({"role": "tool", "content": result})
