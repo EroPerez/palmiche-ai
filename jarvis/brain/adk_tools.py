@@ -23,11 +23,18 @@ from ..tools.files import (
     list_directory as _list_directory,
     read_file as _read_file,
     create_directory as _create_directory,
+    write_file as _write_file,
+    delete_file as _delete_file,
+    move_file as _move_file,
+    copy_file as _copy_file,
 )
 from ..tools.web import open_url as _open_url, web_search as _web_search
 from ..tools.clipboard import get_clipboard as _get_clipboard, set_clipboard as _set_clipboard
 from ..tools.notifications import send_notification as _send_notification
 from ..tools.shell import run_shell_command as _run_shell_command
+from ..tools.network import get_network_info as _get_network_info, ping_host as _ping_host
+from ..tools.media import media_control as _media_control, get_media_status as _get_media_status
+from ..tools.screenshot import take_screenshot as _take_screenshot
 
 
 def get_system_info() -> str:
@@ -217,6 +224,85 @@ def run_shell_command(command: str, working_dir: str = "~") -> str:
     return _run_shell_command(command, working_dir)
 
 
+def write_file(path: str, content: str, mode: str = "write") -> str:
+    """Escribe o agrega contenido en un archivo de texto.
+
+    Args:
+        path: Ruta del archivo de destino.
+        content: Contenido a escribir.
+        mode: 'write' para sobreescribir (default) o 'append' para añadir al final.
+    """
+    return _write_file(path, content, mode)
+
+
+def delete_file(path: str) -> str:
+    """Elimina un archivo o directorio vacío.
+
+    Args:
+        path: Ruta del archivo o directorio a eliminar.
+    """
+    return _delete_file(path)
+
+
+def move_file(source: str, destination: str) -> str:
+    """Mueve o renombra un archivo o directorio.
+
+    Args:
+        source: Ruta de origen.
+        destination: Ruta de destino.
+    """
+    return _move_file(source, destination)
+
+
+def copy_file(source: str, destination: str) -> str:
+    """Copia un archivo o directorio a otra ubicación.
+
+    Args:
+        source: Ruta de origen.
+        destination: Ruta de destino.
+    """
+    return _copy_file(source, destination)
+
+
+def get_network_info() -> str:
+    """Obtiene IP local, IP pública, SSID de WiFi activo y estado de conexión."""
+    return _get_network_info()
+
+
+def ping_host(host: str, count: int = 4) -> str:
+    """Hace ping a un host y devuelve latencia y pérdida de paquetes.
+
+    Args:
+        host: Hostname o IP a hacer ping.
+        count: Número de paquetes a enviar (1-10). Por defecto: 4.
+    """
+    return _ping_host(host, count)
+
+
+def media_control(action: Literal["play", "pause", "next", "previous", "stop", "status"]) -> str:
+    """Controla la reproducción de medios (música/video).
+
+    Args:
+        action: play, pause, next, previous, stop o status.
+    """
+    return _media_control(action)
+
+
+def get_media_status() -> str:
+    """Obtiene el título, artista y estado actual del reproductor de medios activo."""
+    return _get_media_status()
+
+
+def take_screenshot(path: Optional[str] = None, selection: bool = False) -> str:
+    """Toma una captura de pantalla y la guarda en un archivo.
+
+    Args:
+        path: Ruta del archivo de destino. Si no se indica, se guarda en ~/Capturas/ con timestamp.
+        selection: Si es True, permite seleccionar un área de la pantalla.
+    """
+    return _take_screenshot(path, selection)
+
+
 ADK_TOOLS = [
     get_system_info,
     get_battery_info,
@@ -231,10 +317,19 @@ ADK_TOOLS = [
     list_directory,
     read_file,
     create_directory,
+    write_file,
+    delete_file,
+    move_file,
+    copy_file,
     open_url,
     web_search,
     get_clipboard,
     set_clipboard,
     send_notification,
     run_shell_command,
+    get_network_info,
+    ping_host,
+    media_control,
+    get_media_status,
+    take_screenshot,
 ]

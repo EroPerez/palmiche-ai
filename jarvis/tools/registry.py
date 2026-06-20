@@ -1,10 +1,16 @@
 from .system import get_system_info, get_battery_info, control_volume, control_brightness, power_action
 from .apps import open_application, close_application, list_running_apps
-from .files import search_files, open_file, list_directory, read_file, create_directory
+from .files import (
+    search_files, open_file, list_directory, read_file, create_directory,
+    write_file, delete_file, move_file, copy_file,
+)
 from .web import open_url, web_search
 from .clipboard import get_clipboard, set_clipboard
 from .notifications import send_notification
 from .shell import run_shell_command
+from .network import get_network_info, ping_host
+from .media import media_control, get_media_status
+from .screenshot import take_screenshot
 
 TOOL_DEFINITIONS = [
     {
@@ -284,6 +290,116 @@ TOOL_DEFINITIONS = [
             "required": ["command"],
         },
     },
+    {
+        "name": "write_file",
+        "description": "Escribe o agrega contenido en un archivo de texto",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Ruta del archivo de destino"},
+                "content": {"type": "string", "description": "Contenido a escribir"},
+                "mode": {
+                    "type": "string",
+                    "enum": ["write", "append"],
+                    "description": "'write' para sobreescribir (default) o 'append' para añadir al final",
+                },
+            },
+            "required": ["path", "content"],
+        },
+    },
+    {
+        "name": "delete_file",
+        "description": "Elimina un archivo o directorio vacío",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Ruta del archivo o directorio a eliminar"}
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "move_file",
+        "description": "Mueve o renombra un archivo o directorio",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "source": {"type": "string", "description": "Ruta de origen"},
+                "destination": {"type": "string", "description": "Ruta de destino"},
+            },
+            "required": ["source", "destination"],
+        },
+    },
+    {
+        "name": "copy_file",
+        "description": "Copia un archivo o directorio a otra ubicación",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "source": {"type": "string", "description": "Ruta de origen"},
+                "destination": {"type": "string", "description": "Ruta de destino"},
+            },
+            "required": ["source", "destination"],
+        },
+    },
+    {
+        "name": "get_network_info",
+        "description": "Obtiene IP local, IP pública, SSID de WiFi y estado de red",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "ping_host",
+        "description": "Hace ping a un host y devuelve latencia y pérdida de paquetes",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "host": {"type": "string", "description": "Hostname o IP a hacer ping"},
+                "count": {
+                    "type": "integer",
+                    "description": "Número de paquetes a enviar (1-10). Default: 4",
+                },
+            },
+            "required": ["host"],
+        },
+    },
+    {
+        "name": "media_control",
+        "description": "Controla la reproducción de medios: música, video (play/pause/next/previous/stop/status)",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["play", "pause", "next", "previous", "stop", "status"],
+                    "description": "Acción de reproducción",
+                }
+            },
+            "required": ["action"],
+        },
+    },
+    {
+        "name": "get_media_status",
+        "description": "Obtiene el título, artista y estado actual del reproductor de medios activo",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "take_screenshot",
+        "description": "Toma una captura de pantalla y la guarda en un archivo",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Ruta del archivo de destino. Si no se indica, se guarda en ~/Capturas/ con timestamp",
+                },
+                "selection": {
+                    "type": "boolean",
+                    "description": "Si es true, permite seleccionar un área de la pantalla",
+                },
+            },
+            "required": [],
+        },
+    },
 ]
 
 
@@ -326,6 +442,15 @@ def execute_tool(name: str, inputs: dict) -> str:
         "run_shell_command": lambda i: run_shell_command(
             i["command"], i.get("working_dir", "~")
         ),
+        "write_file": lambda i: write_file(i["path"], i["content"], i.get("mode", "write")),
+        "delete_file": lambda i: delete_file(i["path"]),
+        "move_file": lambda i: move_file(i["source"], i["destination"]),
+        "copy_file": lambda i: copy_file(i["source"], i["destination"]),
+        "get_network_info": lambda i: get_network_info(),
+        "ping_host": lambda i: ping_host(i["host"], i.get("count", 4)),
+        "media_control": lambda i: media_control(i["action"]),
+        "get_media_status": lambda i: get_media_status(),
+        "take_screenshot": lambda i: take_screenshot(i.get("path"), i.get("selection", False)),
     }
 
     if name not in handlers:

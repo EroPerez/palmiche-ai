@@ -116,3 +116,89 @@ def create_directory(path: str) -> str:
         return f"Directorio creado: {dir_path}"
     except Exception as e:
         return f"Error al crear directorio: {e}"
+
+
+def write_file(path: str, content: str, mode: str = "write") -> str:
+    """Escribe o agrega contenido en un archivo de texto.
+
+    Args:
+        path: Ruta del archivo de destino.
+        content: Contenido a escribir.
+        mode: 'write' para sobreescribir (default) o 'append' para añadir al final.
+    """
+    file_path = Path(path).expanduser()
+    try:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        if mode == "append":
+            with file_path.open("a", encoding="utf-8") as f:
+                f.write(content)
+            return f"Contenido añadido a: {file_path} ({len(content)} caracteres)"
+        else:
+            file_path.write_text(content, encoding="utf-8")
+            return f"Archivo escrito: {file_path} ({len(content)} caracteres)"
+    except Exception as e:
+        return f"Error al escribir '{path}': {e}"
+
+
+def delete_file(path: str) -> str:
+    """Elimina un archivo o directorio vacío.
+
+    Args:
+        path: Ruta del archivo o directorio a eliminar.
+    """
+    target = Path(path).expanduser()
+    if not target.exists():
+        return f"'{path}' no existe"
+    try:
+        if target.is_file():
+            target.unlink()
+            return f"Archivo eliminado: {target}"
+        elif target.is_dir():
+            target.rmdir()
+            return f"Directorio vacío eliminado: {target}"
+        return f"'{path}' no es un archivo ni directorio"
+    except OSError as e:
+        return f"Error al eliminar '{path}': {e}"
+
+
+def move_file(source: str, destination: str) -> str:
+    """Mueve o renombra un archivo o directorio.
+
+    Args:
+        source: Ruta de origen.
+        destination: Ruta de destino.
+    """
+    import shutil
+    src = Path(source).expanduser()
+    dst = Path(destination).expanduser()
+    if not src.exists():
+        return f"Origen '{source}' no existe"
+    try:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(src), str(dst))
+        return f"Movido: {src} → {dst}"
+    except Exception as e:
+        return f"Error al mover '{source}': {e}"
+
+
+def copy_file(source: str, destination: str) -> str:
+    """Copia un archivo o directorio.
+
+    Args:
+        source: Ruta de origen.
+        destination: Ruta de destino.
+    """
+    import shutil
+    src = Path(source).expanduser()
+    dst = Path(destination).expanduser()
+    if not src.exists():
+        return f"Origen '{source}' no existe"
+    try:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if src.is_dir():
+            shutil.copytree(str(src), str(dst))
+        else:
+            shutil.copy2(str(src), str(dst))
+        return f"Copiado: {src} → {dst}"
+    except Exception as e:
+        return f"Error al copiar '{source}': {e}"
