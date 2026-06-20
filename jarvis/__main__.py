@@ -10,23 +10,37 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos:
-  python -m jarvis                     # Modo interactivo
-  python -m jarvis -q '¿cuánta RAM tengo?'  # Consulta rápida
-  python -m jarvis --voice             # Con reconocimiento de voz
-  python -m jarvis --clear             # Borrar historial
+  python -m jarvis                          # Modo interactivo (backend por defecto)
+  python -m jarvis --backend adk            # Usar Google ADK como loop agéntico
+  python -m jarvis -q '¿cuánta RAM tengo?' # Consulta rápida
+  python -m jarvis --voice                  # Con reconocimiento de voz
+  python -m jarvis --clear                  # Borrar historial
         """,
     )
     parser.add_argument("--voice", action="store_true", help="Activar reconocimiento de voz")
     parser.add_argument("--query", "-q", type=str, help="Ejecutar consulta única y salir")
     parser.add_argument("--clear", action="store_true", help="Borrar historial y salir")
+    parser.add_argument(
+        "--backend",
+        choices=["anthropic", "adk"],
+        default=None,
+        help="Backend del loop agéntico: 'anthropic' (default) o 'adk' (Google ADK + LiteLLM)",
+    )
     return parser.parse_args()
+
+
+def _build_agent(backend: str):
+    if backend == "adk":
+        from .brain.adk_agent import JarvisADKAgent
+        return JarvisADKAgent()
+    from .brain.agent import JarvisAgent
+    return JarvisAgent()
 
 
 def main():
     args = parse_args()
 
-    from .config import ANTHROPIC_API_KEY, JARVIS_NAME, VOICE_ENABLED
-    from .brain.agent import JarvisAgent
+    from .config import ANTHROPIC_API_KEY, JARVIS_NAME, VOICE_ENABLED, JARVIS_BACKEND
     from .interface.cli import (
         print_banner,
         get_user_input,
@@ -44,7 +58,8 @@ def main():
         print("  Obtén tu key en: https://console.anthropic.com/")
         sys.exit(1)
 
-    agent = JarvisAgent()
+    backend = args.backend or JARVIS_BACKEND
+    agent = _build_agent(backend)
     voice_on = args.voice or VOICE_ENABLED
 
     if args.clear:
@@ -61,7 +76,7 @@ def main():
             speak(response)
         return
 
-    print_banner(JARVIS_NAME)
+    print_banner(JARVIS_NAME, backend)
 
     while True:
         try:

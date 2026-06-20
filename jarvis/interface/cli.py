@@ -7,9 +7,15 @@ from rich import box
 console = Console()
 
 
-def print_banner(name: str = "Jarvis"):
+def print_banner(name: str = "Jarvis", backend: str = "anthropic"):
+    backend_label = {
+        "adk": "[yellow]Google ADK[/yellow]",
+        "anthropic": "[blue]Anthropic SDK[/blue]",
+    }.get(backend, f"[dim]{backend}[/dim]")
+
     art = (
-        f"[bold cyan]  J.A.R.V.I.S[/bold cyan]  [dim]v1.0[/dim]\n"
+        f"[bold cyan]  J.A.R.V.I.S[/bold cyan]  [dim]v1.0[/dim]  "
+        f"[dim]backend:[/dim] {backend_label}\n"
         f"  [dim]Just A Rather Very Intelligent System[/dim]\n\n"
         f"  [dim]Escribe [bold]salir[/bold] para terminar "
         f"| [bold]limpiar[/bold] para borrar historial[/dim]"

@@ -13,3 +13,5 @@ HISTORY_FILE: Path = Path(
     os.getenv("JARVIS_HISTORY_FILE", "~/.jarvis_history.json")
 ).expanduser()
 MAX_HISTORY: int = int(os.getenv("JARVIS_MAX_HISTORY", "50"))
+# Backend del loop agéntico: "anthropic" (raw SDK, default) o "adk" (Google ADK + LiteLLM)
+JARVIS_BACKEND: str = os.getenv("JARVIS_BACKEND", "anthropic")
