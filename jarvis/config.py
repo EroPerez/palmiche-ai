@@ -24,3 +24,4 @@ def _get_positive_int(name: str, default: int) -> int:
 
 MAX_HISTORY: int = _get_positive_int("JARVIS_MAX_HISTORY", 50)
 JARVIS_BACKEND: str = os.getenv("JARVIS_BACKEND", "anthropic")
+JARVIS_WAKE_WORD: str = os.getenv("JARVIS_WAKE_WORD", "palmiche")

@@ -17,7 +17,7 @@ requests>=2.31.0
 # google-adk>=1.0.0
 # (no requiere litellm)
 
-# Voz (JARVIS_VOICE_ENABLED=true):
+# Voz y wake word (JARVIS_VOICE_ENABLED=true o modo --tray con palabra de activación):
 # SpeechRecognition>=3.10.0
-# pyttsx3>=2.90
 # pyaudio>=0.2.13
+# pyttsx3>=2.90        (solo para síntesis de voz, no requerido para wake word)

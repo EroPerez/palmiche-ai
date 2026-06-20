@@ -1,19 +1,30 @@
 """System tray interface for Jarvis.
 
-Provides a taskbar icon with a tkinter chat window.
-- Linux:  pystray runs in background thread; tkinter on main thread.
-- macOS:  pystray on main thread via setup(); tkinter in setup thread.
+Features:
+- Taskbar icon (pystray) — click to show/hide the chat window
+- Dark-themed chat window (tkinter, Catppuccin Mocha)
+- Waveform animation in the header (idle / wake / thinking states)
+- Background wake-word listener: saying "palmiche" shows the window and
+  focuses the input field, ready for a voice or text command
+
+Platform notes:
+  Linux  → pystray runs in a background thread; tkinter on the main thread.
+  macOS  → pystray runs on the main thread via setup(); tkinter in that thread.
 
 Requires: pip install pystray Pillow
+Optional: pip install SpeechRecognition pyaudio   (for wake word)
 """
 import platform
 import threading
 
 _SYSTEM = platform.system()
 
+# Wake word — can be overridden via config
+_DEFAULT_WAKE_WORD = "palmiche"
+
 
 # ---------------------------------------------------------------------------
-# Icon image
+# Tray icon image
 # ---------------------------------------------------------------------------
 
 def _make_icon_image(size: int = 64):
@@ -21,49 +32,65 @@ def _make_icon_image(size: int = 64):
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.ellipse([2, 2, size - 2, size - 2], fill=(30, 100, 220, 255))
-    margin = size // 5
-    d.ellipse(
-        [margin, margin, size - margin, size - margin],
-        fill=(255, 255, 255, 40),
-    )
+    m = size // 5
+    d.ellipse([m, m, size - m, size - m], fill=(255, 255, 255, 40))
     return img
 
 
 # ---------------------------------------------------------------------------
-# Chat window (tkinter)
+# Chat window
 # ---------------------------------------------------------------------------
 
 class _ChatWindow:
-    def __init__(self, agent, name: str):
+    """Tkinter chat window with waveform animation and wake-word support."""
+
+    def __init__(self, agent, name: str, wake_word: str = _DEFAULT_WAKE_WORD):
         self.agent = agent
         self.name = name
+        self.wake_word = wake_word
         self.root = None
         self._display = None
         self._entry = None
+        self._anim = None          # WaveformAnimation
+        self._wake_listener = None # WakeWordListener
 
-    # --- build ---
+    # ------------------------------------------------------------------ build
 
     def _build(self):
         import tkinter as tk
         from tkinter import scrolledtext
+        from .animation import WaveformAnimation
+        from .wake_word import WakeWordListener
 
         self.root = tk.Tk()
         self.root.title(self.name)
-        self.root.geometry("700x560")
+        self.root.geometry("720x580")
         self.root.configure(bg="#1e1e2e")
         self.root.resizable(True, True)
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
 
-        # Header bar
-        header = tk.Frame(self.root, bg="#181825", pady=6)
+        # ── Header ──────────────────────────────────────────────────────────
+        header = tk.Frame(self.root, bg="#181825", pady=0)
         header.pack(fill=tk.X)
+
         tk.Label(
             header, text=f"  {self.name}",
             bg="#181825", fg="#89b4fa",
             font=("Monospace", 11, "bold"),
-        ).pack(side=tk.LEFT)
+        ).pack(side=tk.LEFT, pady=6)
 
-        # Chat display
+        # Waveform canvas in the header
+        wave_canvas = tk.Canvas(
+            header, width=260, height=40,
+            bg="#181825", bd=0, highlightthickness=0,
+        )
+        wave_canvas.pack(side=tk.RIGHT, padx=12, pady=2)
+
+        self._anim = WaveformAnimation(wave_canvas)
+        # Build after packing so winfo_width() has real values
+        self.root.after(50, self._anim.build)
+
+        # ── Chat display ─────────────────────────────────────────────────────
         self._display = scrolledtext.ScrolledText(
             self.root, state="disabled", wrap=tk.WORD,
             font=("Monospace", 10), bg="#1e1e2e", fg="#cdd6f4",
@@ -71,12 +98,18 @@ class _ChatWindow:
             selectbackground="#313244",
         )
         self._display.pack(fill=tk.BOTH, expand=True, padx=8, pady=(4, 0))
-        self._display.tag_configure("user", foreground="#89b4fa", font=("Monospace", 10, "bold"))
-        self._display.tag_configure("jarvis", foreground="#a6e3a1")
-        self._display.tag_configure("system", foreground="#f5c2e7", font=("Monospace", 9, "italic"))
-        self._display.tag_configure("error", foreground="#f38ba8")
+        self._display.tag_configure(
+            "user", foreground="#89b4fa", font=("Monospace", 10, "bold")
+        )
+        self._display.tag_configure("jarvis",  foreground="#a6e3a1")
+        self._display.tag_configure(
+            "system", foreground="#f5c2e7", font=("Monospace", 9, "italic")
+        )
+        self._display.tag_configure("wake",    foreground="#f9e2af",
+                                     font=("Monospace", 9, "italic"))
+        self._display.tag_configure("error",   foreground="#f38ba8")
 
-        # Input row
+        # ── Input row ────────────────────────────────────────────────────────
         row = tk.Frame(self.root, bg="#313244", pady=4)
         row.pack(fill=tk.X, padx=8, pady=8)
 
@@ -86,7 +119,7 @@ class _ChatWindow:
             relief=tk.FLAT, bd=6,
         )
         self._entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self._entry.bind("<Return>", self._on_send)
+        self._entry.bind("<Return>",   self._on_send)
         self._entry.bind("<KP_Enter>", self._on_send)
 
         tk.Button(
@@ -97,13 +130,20 @@ class _ChatWindow:
 
         self._append(f"Sistema: {self.name} listo\n", "system")
 
-    # --- I/O helpers ---
+        # ── Wake word listener ───────────────────────────────────────────────
+        self._wake_listener = WakeWordListener(
+            wake_word=self.wake_word,
+            on_wake=self._on_wake,
+        )
+        self._wake_listener.start()
+
+    # ---------------------------------------------------------------- I/O
 
     def _append(self, text: str, tag: str = ""):
         self._display.config(state="normal")
-        self._display.insert(tk.END, text, tag)
+        self._display.insert("end", text, tag)
         self._display.config(state="disabled")
-        self._display.see(tk.END)
+        self._display.see("end")
 
     def _on_send(self, _event=None):
         msg = self._entry.get().strip()
@@ -112,23 +152,48 @@ class _ChatWindow:
         self._entry.delete(0, "end")
         self._entry.config(state="disabled")
         self._append(f"Tú: {msg}\n", "user")
-        threading.Thread(target=self._call_agent, args=(msg,), daemon=True).start()
+        if self._anim:
+            self._anim.set_state("thinking")
+        threading.Thread(
+            target=self._call_agent, args=(msg,), daemon=True
+        ).start()
 
     def _call_agent(self, msg: str):
         try:
             reply = self.agent.chat(msg)
-            tag = "jarvis"
+            tag   = "jarvis"
         except Exception as exc:
             reply = f"Error: {exc}"
-            tag = "error"
+            tag   = "error"
         self.root.after(0, self._on_reply, reply, tag)
 
     def _on_reply(self, reply: str, tag: str):
         self._append(f"{self.name}: {reply}\n\n", tag)
         self._entry.config(state="normal")
         self._entry.focus_set()
+        if self._anim:
+            self._anim.set_state("idle")
 
-    # --- window control ---
+    # ----------------------------------------------------------- wake word
+
+    def _on_wake(self):
+        """Called from the wake-word background thread."""
+        if self.root:
+            self.root.after(0, self._handle_wake)
+
+    def _handle_wake(self):
+        """Runs on the tkinter main thread."""
+        self.show()
+        self._append(f"[{self.name} activado por voz]\n", "wake")
+        if self._anim:
+            self._anim.set_state("wake")
+            # Return to idle after 1.5 s
+            self.root.after(1500, lambda: self._anim.set_state("idle") if self._anim else None)
+        if self._entry:
+            self._entry.config(state="normal")
+            self._entry.focus_set()
+
+    # -------------------------------------------------------- window control
 
     def show(self):
         if self.root:
@@ -141,39 +206,51 @@ class _ChatWindow:
             self.root.withdraw()
 
     def destroy(self):
+        if self._wake_listener:
+            self._wake_listener.stop()
+        if self._anim:
+            self._anim.stop()
         if self.root:
             self.root.destroy()
 
     def run(self):
-        """Build window (hidden) and start tkinter mainloop."""
+        """Build the window (hidden) and start the tkinter event loop."""
         self._build()
         self.root.withdraw()
         self.root.mainloop()
 
 
 # ---------------------------------------------------------------------------
-# Tray runner
+# Pystray helpers
 # ---------------------------------------------------------------------------
 
-def _make_pystray_icon(name: str, pystray):
-    return pystray.Icon("jarvis", _make_icon_image(), name)
+def _make_pystray_icon(name: str, pystray_mod):
+    return pystray_mod.Icon("jarvis", _make_icon_image(), name)
 
 
-def _build_menu(name: str, pystray, on_open, on_quit):
-    return pystray.Menu(
-        pystray.MenuItem(f"Abrir {name}", on_open, default=True),
-        pystray.MenuItem("Salir", on_quit),
+def _build_menu(name: str, pystray_mod, on_open, on_quit):
+    return pystray_mod.Menu(
+        pystray_mod.MenuItem(f"Abrir {name}", on_open, default=True),
+        pystray_mod.MenuItem("Salir", on_quit),
     )
 
 
-def run_tray(agent, name: str = "Jarvis") -> None:
-    """Start the system tray icon with a chat window.
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
 
-    - Linux: pystray background thread, tkinter on main thread.
-    - macOS: pystray on main thread (setup callback), tkinter in setup thread.
+def run_tray(
+    agent,
+    name: str = "Jarvis",
+    wake_word: str = _DEFAULT_WAKE_WORD,
+) -> None:
+    """Start the system tray icon with animated chat window and wake-word detection.
+
+    Linux  → pystray in background thread; tkinter on main thread.
+    macOS  → pystray on main thread via setup(); tkinter in setup thread.
     """
     try:
-        import pystray  # noqa: F401 (checked here, used below)
+        import pystray  # noqa: F401
     except ImportError:
         raise ImportError(
             "pystray no está instalado.\n"
@@ -181,17 +258,17 @@ def run_tray(agent, name: str = "Jarvis") -> None:
         )
 
     if _SYSTEM == "Linux":
-        _run_linux(agent, name)
+        _run_linux(agent, name, wake_word)
     elif _SYSTEM == "Darwin":
-        _run_macos(agent, name)
+        _run_macos(agent, name, wake_word)
     else:
         raise RuntimeError(f"Bandeja del sistema no soportada en {_SYSTEM}")
 
 
-def _run_linux(agent, name: str) -> None:
+def _run_linux(agent, name: str, wake_word: str) -> None:
     import pystray
 
-    win = _ChatWindow(agent, name)
+    win = _ChatWindow(agent, name, wake_word)
 
     def on_open(icon, item):
         if win.root:
@@ -205,25 +282,24 @@ def _run_linux(agent, name: str) -> None:
     ico = _make_pystray_icon(name, pystray)
     ico.menu = _build_menu(name, pystray, on_open, on_quit)
 
-    # Run pystray in background; tkinter on main thread
     try:
         ico.run_detached()
     except AttributeError:
         threading.Thread(target=ico.run, daemon=True).start()
 
-    win.run()  # blocks until window closed
+    win.run()   # tkinter mainloop on main thread
 
 
-def _run_macos(agent, name: str) -> None:
+def _run_macos(agent, name: str, wake_word: str) -> None:
     import pystray
 
     win_holder: list = [None]
 
     def setup(icon):
         icon.visible = True
-        w = _ChatWindow(agent, name)
+        w = _ChatWindow(agent, name, wake_word)
         win_holder[0] = w
-        w.run()  # tkinter in setup thread (macOS best-effort)
+        w.run()
 
     def on_open(icon, item):
         w = win_holder[0]
@@ -238,4 +314,4 @@ def _run_macos(agent, name: str) -> None:
 
     ico = _make_pystray_icon(name, pystray)
     ico.menu = _build_menu(name, pystray, on_open, on_quit)
-    ico.run(setup=setup)  # blocks main thread (required on macOS)
+    ico.run(setup=setup)

@@ -24,6 +24,13 @@ Ejemplos:
     parser.add_argument("--clear", action="store_true", help="Borrar historial y salir")
     parser.add_argument("--tray", action="store_true", help="Iniciar en bandeja del sistema con ventana de chat")
     parser.add_argument(
+        "--wake-word",
+        type=str,
+        default=None,
+        metavar="PALABRA",
+        help="Palabra de activación por voz en modo --tray (default: palmiche)",
+    )
+    parser.add_argument(
         "--backend",
         choices=["anthropic", "adk", "gemini"],
         default=None,
@@ -64,7 +71,7 @@ def _build_agent(backend: str):
 def main():
     args = parse_args()
 
-    from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY, JARVIS_NAME, VOICE_ENABLED, JARVIS_BACKEND
+    from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY, JARVIS_NAME, VOICE_ENABLED, JARVIS_BACKEND, JARVIS_WAKE_WORD
     from .interface.cli import (
         print_banner,
         get_user_input,
@@ -116,7 +123,8 @@ def main():
     if args.tray:
         try:
             from .interface.tray import run_tray
-            run_tray(agent, JARVIS_NAME)
+            wake_word = args.wake_word or JARVIS_WAKE_WORD
+            run_tray(agent, JARVIS_NAME, wake_word=wake_word)
         except ImportError as e:
             print_error(str(e))
             sys.exit(1)
