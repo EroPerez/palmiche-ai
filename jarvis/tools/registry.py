@@ -57,7 +57,10 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "power_action",
-        "description": "Controla el estado de energía: apagar, reiniciar, suspender o bloquear pantalla",
+        "description": (
+            "Controla el estado de energía: apagar, reiniciar, suspender o bloquear pantalla. "
+            "Para shutdown/restart/sleep pide confirmación explícita al usuario antes de llamar esta herramienta con confirmed=true."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -65,7 +68,11 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "enum": ["shutdown", "restart", "sleep", "lock"],
                     "description": "Acción de energía",
-                }
+                },
+                "confirmed": {
+                    "type": "boolean",
+                    "description": "El usuario confirmó explícitamente esta acción destructiva",
+                },
             },
             "required": ["action"],
         },
@@ -258,8 +265,8 @@ TOOL_DEFINITIONS = [
         "name": "run_shell_command",
         "description": (
             "Ejecuta un comando de shell arbitrario. "
-            "Usar solo cuando no haya herramienta dedicada. "
-            "Timeout: 30 segundos."
+            "Usar solo cuando no haya herramienta dedicada. Timeout: 30 segundos. "
+            "Explica al usuario qué hará el comando y confirma antes de llamar con confirmed=true."
         ),
         "input_schema": {
             "type": "object",
@@ -269,6 +276,10 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "description": "Directorio de trabajo. Default: ~",
                 },
+                "confirmed": {
+                    "type": "boolean",
+                    "description": "El usuario confirmó que este comando puede ejecutarse",
+                },
             },
             "required": ["command"],
         },
@@ -276,7 +287,17 @@ TOOL_DEFINITIONS = [
 ]
 
 
+DESTRUCTIVE_TOOLS = {"power_action", "run_shell_command"}
+
+
 def execute_tool(name: str, inputs: dict) -> str:
+    if name in DESTRUCTIVE_TOOLS and not inputs.get("confirmed", False):
+        return (
+            f"Confirmación requerida para '{name}'. "
+            "Informa al usuario qué acción se va a realizar y pide confirmación explícita. "
+            "Luego vuelve a llamar con confirmed=true."
+        )
+
     handlers = {
         "get_system_info": lambda i: get_system_info(),
         "get_battery_info": lambda i: get_battery_info(),

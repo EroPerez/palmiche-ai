@@ -16,13 +16,18 @@ class JarvisAgent:
         messages = self.history.get_messages()
 
         for _ in range(10):  # safety limit on tool use loops
-            response = self.client.messages.create(
-                model=JARVIS_MODEL,
-                max_tokens=4096,
-                system=self.system_prompt,
-                tools=TOOL_DEFINITIONS,
-                messages=messages,
-            )
+            try:
+                response = self.client.messages.create(
+                    model=JARVIS_MODEL,
+                    max_tokens=4096,
+                    system=self.system_prompt,
+                    tools=TOOL_DEFINITIONS,
+                    messages=messages,
+                )
+            except Exception as exc:
+                error_msg = f"Error al consultar el modelo: {exc}"
+                self.history.add("assistant", error_msg)
+                return error_msg
 
             if response.stop_reason == "tool_use":
                 messages.append({"role": "assistant", "content": response.content})
@@ -49,6 +54,10 @@ class JarvisAgent:
                 return text
 
             else:
-                return f"Respuesta inesperada: {response.stop_reason}"
+                msg = f"Respuesta inesperada: {response.stop_reason}"
+                self.history.add("assistant", msg)
+                return msg
 
-        return "Se alcanzó el límite de iteraciones de herramientas."
+        msg = "Se alcanzó el límite de iteraciones de herramientas."
+        self.history.add("assistant", msg)
+        return msg

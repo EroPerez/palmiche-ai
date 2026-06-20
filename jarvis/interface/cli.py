@@ -14,7 +14,7 @@ def print_banner(name: str = "Jarvis", backend: str = "anthropic"):
     }.get(backend, f"[dim]{backend}[/dim]")
 
     art = (
-        f"[bold cyan]  J.A.R.V.I.S[/bold cyan]  [dim]v1.0[/dim]  "
+        f"[bold cyan]  {name}[/bold cyan]  [dim]v1.0[/dim]  "
         f"[dim]backend:[/dim] {backend_label}\n"
         f"  [dim]Just A Rather Very Intelligent System[/dim]\n\n"
         f"  [dim]Escribe [bold]salir[/bold] para terminar "

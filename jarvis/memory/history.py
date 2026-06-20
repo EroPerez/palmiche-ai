@@ -1,9 +1,12 @@
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict
 
 from ..config import HISTORY_FILE, MAX_HISTORY
+
+logger = logging.getLogger(__name__)
 
 
 class ConversationHistory:
@@ -34,12 +37,23 @@ class ConversationHistory:
             HISTORY_FILE.write_text(
                 json.dumps(self._messages, ensure_ascii=False, indent=2), encoding="utf-8"
             )
-        except Exception:
-            pass
+        except OSError as exc:
+            logger.warning("No se pudo guardar historial en %s: %s", HISTORY_FILE, exc)
 
     def _load(self):
         try:
             if HISTORY_FILE.exists():
-                self._messages = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+                raw = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+                if isinstance(raw, list):
+                    cleaned = [
+                        {"role": m["role"], "content": m["content"], "ts": m.get("ts")}
+                        for m in raw
+                        if isinstance(m, dict)
+                        and isinstance(m.get("role"), str)
+                        and isinstance(m.get("content"), str)
+                    ]
+                    self._messages = cleaned[-(MAX_HISTORY * 2):]
+                else:
+                    self._messages = []
         except Exception:
             self._messages = []

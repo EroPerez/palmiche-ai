@@ -12,6 +12,14 @@ VOICE_ENABLED: bool = os.getenv("JARVIS_VOICE_ENABLED", "false").lower() == "tru
 HISTORY_FILE: Path = Path(
     os.getenv("JARVIS_HISTORY_FILE", "~/.jarvis_history.json")
 ).expanduser()
-MAX_HISTORY: int = int(os.getenv("JARVIS_MAX_HISTORY", "50"))
+def _get_positive_int(name: str, default: int) -> int:
+    raw = os.getenv(name, str(default))
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+MAX_HISTORY: int = _get_positive_int("JARVIS_MAX_HISTORY", 50)
 # Backend del loop agéntico: "anthropic" (raw SDK, default) o "adk" (Google ADK + LiteLLM)
 JARVIS_BACKEND: str = os.getenv("JARVIS_BACKEND", "anthropic")

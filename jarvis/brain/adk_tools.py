@@ -94,7 +94,7 @@ def close_application(name: str, force: bool = False) -> str:
     return _close_application(name, force)
 
 
-def list_running_apps(filter: Optional[str] = None) -> str:
+def list_running_apps(filter: Optional[str] = None) -> str:  # noqa: A002
     """Lista los procesos en ejecución con uso de memoria.
 
     Args:

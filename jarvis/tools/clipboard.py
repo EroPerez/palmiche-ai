@@ -16,8 +16,7 @@ def set_clipboard(text: str) -> str:
     try:
         import pyperclip
         pyperclip.copy(text)
-        preview = text[:60] + "..." if len(text) > 60 else text
-        return f"Copiado al portapapeles: {preview}"
+        return f"Texto copiado al portapapeles ({len(text)} caracteres)."
     except ImportError:
         return "pyperclip no instalado. Instala: pip install pyperclip"
     except Exception as e:

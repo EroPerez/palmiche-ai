@@ -15,6 +15,8 @@ def open_application(name: str) -> str:
             subprocess.Popen(
                 ["open", "-a", name] if not name.startswith("/") else ["open", name]
             )
+        else:
+            return f"Sistema operativo no soportado para abrir aplicaciones: {system}"
         return f"Abriendo {name}..."
     except FileNotFoundError:
         return f"Aplicación '{name}' no encontrada. Verifica que esté instalada y en el PATH."
@@ -23,20 +25,25 @@ def open_application(name: str) -> str:
 
 
 def close_application(name: str, force: bool = False) -> str:
+    target = name.strip()
+    if not target:
+        return "Nombre de proceso inválido: no puede estar vacío"
+
     killed = []
     for proc in psutil.process_iter(["pid", "name"]):
         try:
-            if name.lower() in proc.info["name"].lower():
+            proc_name = proc.info.get("name") or ""
+            if target.lower() in proc_name.lower():
                 if force:
                     proc.kill()
                 else:
                     proc.terminate()
-                killed.append(f"{proc.info['name']} (PID {proc.info['pid']})")
+                killed.append(f"{proc_name} (PID {proc.info['pid']})")
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
 
     if not killed:
-        return f"No se encontró ningún proceso con nombre '{name}'"
+        return f"No se encontró ningún proceso con nombre '{target}'"
     action = "Forzado a cerrar" if force else "Cerrado"
     return f"{action}: {', '.join(killed)}"
 

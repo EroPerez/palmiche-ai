@@ -70,9 +70,25 @@ def control_volume(action: str, value: int = None) -> str:
             return "Audio silenciado" if action == "mute" else "Audio activado"
 
     elif system == "Darwin":
+        if action == "get":
+            r = subprocess.run(
+                ["osascript", "-e", "output volume of (get volume settings)"],
+                capture_output=True, text=True,
+            )
+            return f"Volumen → {r.stdout.strip()}%" if r.stdout.strip() else "No se pudo obtener volumen"
         if action == "set" and value is not None:
-            subprocess.run(["osascript", "-e", f"set volume output volume {value}"])
-            return f"Volumen → {value}%"
+            v = max(0, min(100, value))
+            subprocess.run(["osascript", "-e", f"set volume output volume {v}"])
+            return f"Volumen → {v}%"
+        if action in ("up", "down"):
+            step = max(1, min(100, value if value is not None else 10))
+            sign = "+" if action == "up" else "-"
+            subprocess.run([
+                "osascript", "-e",
+                f"set volume output volume ((output volume of (get volume settings)) {sign} {step})"
+            ])
+            label = "subido" if action == "up" else "bajado"
+            return f"Volumen {label} {step}%"
         if action == "mute":
             subprocess.run(["osascript", "-e", "set volume output muted true"])
             return "Audio silenciado"
@@ -80,7 +96,7 @@ def control_volume(action: str, value: int = None) -> str:
             subprocess.run(["osascript", "-e", "set volume output muted false"])
             return "Audio activado"
 
-    return f"Acción '{action}' ejecutada"
+    return f"Acción '{action}' no soportada en {system}"
 
 
 def control_brightness(action: str, value: int = None) -> str:
@@ -137,7 +153,12 @@ def power_action(action: str) -> str:
             subprocess.Popen(["pmset", "displaysleepnow"])
             return "Pantalla bloqueada"
 
-    cmds = actions_linux if system == "Linux" else actions_mac
+    if system == "Linux":
+        cmds = actions_linux
+    elif system == "Darwin":
+        cmds = actions_mac
+    else:
+        return f"Acción '{action}' no soportada en {system}"
     if action in cmds:
         subprocess.Popen(cmds[action])
         labels = {"shutdown": "Apagando", "restart": "Reiniciando", "sleep": "Suspendiendo"}

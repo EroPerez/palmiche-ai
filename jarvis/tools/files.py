@@ -92,13 +92,18 @@ def read_file(path: str, max_lines: int = 100) -> str:
     if not file_path.is_file():
         return f"'{path}' no es un archivo"
     try:
-        content = file_path.read_text(encoding="utf-8", errors="replace")
-        lines = content.splitlines()
-        truncated = len(lines) > max_lines
-        snippet = "\n".join(lines[:max_lines])
+        collected = []
+        truncated = False
+        with file_path.open("r", encoding="utf-8", errors="replace") as fh:
+            for idx, line in enumerate(fh):
+                if idx >= max_lines:
+                    truncated = True
+                    break
+                collected.append(line.rstrip("\n"))
+        snippet = "\n".join(collected)
         result = f"--- {file_path.name} ---\n{snippet}"
         if truncated:
-            result += f"\n\n[... truncado a {max_lines} de {len(lines)} líneas]"
+            result += f"\n\n[... truncado a {max_lines} líneas]"
         return result
     except Exception as e:
         return f"Error al leer '{path}': {e}"

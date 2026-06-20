@@ -30,11 +30,14 @@ Ejemplos:
 
 
 def _build_agent(backend: str):
+    backend = backend.strip().lower()
     if backend == "adk":
         from .brain.adk_agent import JarvisADKAgent
         return JarvisADKAgent()
-    from .brain.agent import JarvisAgent
-    return JarvisAgent()
+    if backend == "anthropic":
+        from .brain.agent import JarvisAgent
+        return JarvisAgent()
+    raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic' o 'adk'.")
 
 
 def main():
@@ -58,8 +61,12 @@ def main():
         print("  Obtén tu key en: https://console.anthropic.com/")
         sys.exit(1)
 
-    backend = args.backend or JARVIS_BACKEND
-    agent = _build_agent(backend)
+    backend = (args.backend or JARVIS_BACKEND).strip().lower()
+    try:
+        agent = _build_agent(backend)
+    except (ImportError, ValueError) as e:
+        print_error(str(e))
+        sys.exit(1)
     voice_on = args.voice or VOICE_ENABLED
 
     if args.clear:
@@ -101,7 +108,7 @@ def main():
             if cmd in ("limpiar", "clear", "/clear"):
                 agent.history.clear()
                 console.clear()
-                print_banner(JARVIS_NAME)
+                print_banner(JARVIS_NAME, backend)
                 print_info("Historial borrado.")
                 continue
 
