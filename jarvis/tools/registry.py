@@ -11,6 +11,7 @@ from .shell import run_shell_command
 from .network import get_network_info, ping_host
 from .media import media_control, get_media_status
 from .screenshot import take_screenshot
+from .autostart import setup_autostart
 
 TOOL_DEFINITIONS = [
     {
@@ -400,6 +401,29 @@ TOOL_DEFINITIONS = [
             "required": [],
         },
     },
+    {
+        "name": "setup_autostart",
+        "description": "Configura o desactiva el arranque automático de Jarvis con el sistema",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "enable": {
+                    "type": "boolean",
+                    "description": "True para activar el arranque automático, False para desactivarlo",
+                },
+                "tray": {
+                    "type": "boolean",
+                    "description": "Si True arranca en modo bandeja del sistema (default: True)",
+                },
+                "backend": {
+                    "type": "string",
+                    "enum": ["anthropic", "adk", "gemini"],
+                    "description": "Backend a usar al arrancar. Default: anthropic",
+                },
+            },
+            "required": ["enable"],
+        },
+    },
 ]
 
 
@@ -451,6 +475,9 @@ def execute_tool(name: str, inputs: dict) -> str:
         "media_control": lambda i: media_control(i["action"]),
         "get_media_status": lambda i: get_media_status(),
         "take_screenshot": lambda i: take_screenshot(i.get("path"), i.get("selection", False)),
+        "setup_autostart": lambda i: setup_autostart(
+            i["enable"], i.get("tray", True), i.get("backend", "anthropic")
+        ),
     }
 
     if name not in handlers:

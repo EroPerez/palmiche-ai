@@ -35,6 +35,7 @@ from ..tools.shell import run_shell_command as _run_shell_command
 from ..tools.network import get_network_info as _get_network_info, ping_host as _ping_host
 from ..tools.media import media_control as _media_control, get_media_status as _get_media_status
 from ..tools.screenshot import take_screenshot as _take_screenshot
+from ..tools.autostart import setup_autostart as _setup_autostart
 
 
 def get_system_info() -> str:
@@ -303,6 +304,21 @@ def take_screenshot(path: Optional[str] = None, selection: bool = False) -> str:
     return _take_screenshot(path, selection)
 
 
+def setup_autostart(
+    enable: bool = True,
+    tray: bool = True,
+    backend: Literal["anthropic", "adk", "gemini"] = "anthropic",
+) -> str:
+    """Configura o desactiva el arranque automático de Jarvis con el sistema.
+
+    Args:
+        enable: True para activar el arranque automático, False para desactivarlo.
+        tray: Si True arranca en modo bandeja del sistema. Por defecto: True.
+        backend: Backend a usar al arrancar: anthropic, adk o gemini. Por defecto: anthropic.
+    """
+    return _setup_autostart(enable, tray, backend)
+
+
 ADK_TOOLS = [
     get_system_info,
     get_battery_info,
@@ -332,4 +348,5 @@ ADK_TOOLS = [
     media_control,
     get_media_status,
     take_screenshot,
+    setup_autostart,
 ]

@@ -12,6 +12,7 @@ Capacidades disponibles via herramientas:
 • Red: IP local/pública, info WiFi, ping a hosts
 • Medios: controlar reproducción de música/video (play, pause, siguiente, anterior, estado)
 • Capturas: tomar captura de pantalla completa o selección de área
+• Sistema: configurar o desactivar arranque automático con el sistema
 
 Reglas:
 1. Responde en el idioma del usuario (español o inglés)
