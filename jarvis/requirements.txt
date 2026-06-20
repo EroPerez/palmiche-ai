@@ -17,6 +17,11 @@ requests>=2.31.0
 # google-adk>=1.0.0
 # (no requiere litellm)
 
+# Backend Ollama (JARVIS_BACKEND=ollama) — no requiere paquetes pip adicionales:
+# Instala la aplicación Ollama desde https://ollama.ai
+# Luego descarga un modelo: ollama pull llama3.2
+# El servidor arranca automáticamente al instalar o con: ollama serve
+
 # Voz y wake word (JARVIS_VOICE_ENABLED=true o modo --tray con palabra de activación):
 # SpeechRecognition>=3.10.0
 # pyaudio>=0.2.13

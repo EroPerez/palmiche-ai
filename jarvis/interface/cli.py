@@ -9,9 +9,10 @@ console = Console()
 
 def print_banner(name: str = "Jarvis", backend: str = "anthropic"):
     backend_label = {
-        "adk": "[yellow]Google ADK + Claude[/yellow]",
-        "gemini": "[green]Google ADK + Gemini[/green]",
+        "adk":       "[yellow]Google ADK + Claude[/yellow]",
+        "gemini":    "[green]Google ADK + Gemini[/green]",
         "anthropic": "[blue]Anthropic SDK[/blue]",
+        "ollama":    "[magenta]Ollama (local)[/magenta]",
     }.get(backend, f"[dim]{backend}[/dim]")
 
     art = (

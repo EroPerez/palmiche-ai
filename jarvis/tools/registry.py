@@ -417,7 +417,7 @@ TOOL_DEFINITIONS = [
                 },
                 "backend": {
                     "type": "string",
-                    "enum": ["anthropic", "adk", "gemini"],
+                    "enum": ["anthropic", "adk", "gemini", "ollama"],
                     "description": "Backend a usar al arrancar. Default: anthropic",
                 },
             },
@@ -427,7 +427,7 @@ TOOL_DEFINITIONS = [
 ]
 
 
-DESTRUCTIVE_TOOLS = {"power_action", "run_shell_command"}
+DESTRUCTIVE_TOOLS = {"power_action", "run_shell_command", "setup_autostart"}
 
 
 def execute_tool(name: str, inputs: dict) -> str:

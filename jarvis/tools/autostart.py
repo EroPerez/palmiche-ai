@@ -3,6 +3,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+_VALID_BACKENDS = {"anthropic", "adk", "gemini", "ollama"}
+
+
+def _desktop_escape(s: str) -> str:
+    """Escape a string for use in a Desktop Entry Exec value."""
+    return s.replace("\\", "\\\\").replace('"', '\\"').replace(" ", "\\ ")
+
 
 def setup_autostart(enable: bool = True, tray: bool = True, backend: str = "anthropic") -> str:
     """Configura o elimina el arranque automático de Jarvis con el sistema.
@@ -10,8 +17,11 @@ def setup_autostart(enable: bool = True, tray: bool = True, backend: str = "anth
     Args:
         enable: True para activar, False para desactivar.
         tray: Si True, arranca en modo bandeja del sistema; si False, modo CLI.
-        backend: Backend a usar al arrancar: 'anthropic', 'adk' o 'gemini'.
+        backend: Backend a usar al arrancar: 'anthropic', 'adk', 'gemini' u 'ollama'.
     """
+    if backend not in _VALID_BACKENDS:
+        return f"Backend inválido: '{backend}'. Usa uno de: {', '.join(sorted(_VALID_BACKENDS))}"
+
     system = platform.system()
     python = sys.executable
     cmd_parts = [python, "-m", "jarvis", "--backend", backend]
@@ -36,7 +46,7 @@ def _autostart_linux(enable: bool, cmd_parts: list) -> str:
         return "No había arranque automático configurado"
 
     autostart_dir.mkdir(parents=True, exist_ok=True)
-    exec_line = " ".join(cmd_parts)
+    exec_line = " ".join(_desktop_escape(p) for p in cmd_parts)
     content = (
         "[Desktop Entry]\n"
         "Type=Application\n"
@@ -86,7 +96,18 @@ def _autostart_macos(enable: bool, cmd_parts: list) -> str:
     )
     plist_file.write_text(content, encoding="utf-8")
     try:
-        subprocess.run(["launchctl", "load", str(plist_file)], check=False)
+        result = subprocess.run(
+            ["launchctl", "load", str(plist_file)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            stderr = result.stderr.strip()
+            return (
+                f"Archivo creado en {plist_file} pero launchctl falló"
+                + (f": {stderr}" if stderr else "")
+            )
     except FileNotFoundError:
-        pass
+        return f"Arranque automático configurado: {plist_file} (launchctl no encontrado)"
     return f"Arranque automático activado: {plist_file}"

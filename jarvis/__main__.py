@@ -32,11 +32,11 @@ Ejemplos:
     )
     parser.add_argument(
         "--backend",
-        choices=["anthropic", "adk", "gemini"],
+        choices=["anthropic", "adk", "gemini", "ollama"],
         default=None,
         help=(
             "Backend: 'anthropic' (default), 'adk' (Google ADK+Claude), "
-            "'gemini' (Google ADK+Gemini nativo)"
+            "'gemini' (Google ADK+Gemini), 'ollama' (modelo local)"
         ),
     )
     return parser.parse_args()
@@ -50,13 +50,16 @@ def _build_agent(backend: str):
     """
     backend = backend.strip().lower()
 
+    if backend == "ollama":
+        from .brain.ollama_agent import JarvisOllamaAgent
+        return JarvisOllamaAgent()
+
     if backend == "gemini":
         from .brain.adk_agent import JarvisADKAgent
         return JarvisADKAgent(use_gemini=True)
 
     if backend == "adk":
         from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY
-        # Auto-detect: prefer Gemini when only GOOGLE_API_KEY is available
         use_gemini = bool(GOOGLE_API_KEY) and not bool(ANTHROPIC_API_KEY)
         from .brain.adk_agent import JarvisADKAgent
         return JarvisADKAgent(use_gemini=use_gemini)
@@ -65,7 +68,7 @@ def _build_agent(backend: str):
         from .brain.agent import JarvisAgent
         return JarvisAgent()
 
-    raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk' o 'gemini'.")
+    raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk', 'gemini' u 'ollama'.")
 
 
 def main():
@@ -85,17 +88,16 @@ def main():
     backend = (args.backend or JARVIS_BACKEND).strip().lower()
 
     # Key validation per backend
-    if backend in ("anthropic", "adk") and not GOOGLE_API_KEY:
-        # adk may auto-switch to gemini, but anthropic always needs its key
-        if backend == "anthropic" and not ANTHROPIC_API_KEY:
-            print("[ERROR] ANTHROPIC_API_KEY no configurada.")
-            print("  1. Copia jarvis/.env.example a jarvis/.env")
-            print("  2. Edita jarvis/.env y agrega tu clave de API")
-            sys.exit(1)
+    if backend == "anthropic" and not ANTHROPIC_API_KEY:
+        print("[ERROR] ANTHROPIC_API_KEY no configurada.")
+        print("  1. Copia jarvis/.env.example a jarvis/.env")
+        print("  2. Edita jarvis/.env y agrega tu clave de API")
+        sys.exit(1)
     if backend == "gemini" and not GOOGLE_API_KEY:
         print("[ERROR] GOOGLE_API_KEY no configurada para el backend Gemini.")
         print("  Agrégala a jarvis/.env: GOOGLE_API_KEY=tu-key")
         sys.exit(1)
+    # 'ollama' and 'adk' validate their own connections at construction time
 
     try:
         agent = _build_agent(backend)
@@ -125,7 +127,7 @@ def main():
             from .interface.tray import run_tray
             wake_word = args.wake_word or JARVIS_WAKE_WORD
             run_tray(agent, JARVIS_NAME, wake_word=wake_word)
-        except ImportError as e:
+        except (ImportError, RuntimeError) as e:
             print_error(str(e))
             sys.exit(1)
         return
