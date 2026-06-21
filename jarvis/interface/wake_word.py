@@ -5,11 +5,44 @@ configured wake word is heard.
 
 Requires: pip install SpeechRecognition pyaudio
 """
+import ctypes
 import logging
+import os
 import threading
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _suppress_alsa_errors() -> None:
+    """Silence ALSA/JACK error spam printed to stderr during PyAudio init.
+
+    PyAudio probes every virtual ALSA PCM device at startup; most don't exist
+    and ALSA prints a wall of warnings to stderr.  Replacing the C-level error
+    handler with a no-op silences them without affecting functionality.
+    """
+    try:
+        _noop = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_int,
+                                 ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)
+        ctypes.cdll.LoadLibrary("libasound.so.2").snd_lib_error_set_handler(
+            _noop(lambda *_: None)
+        )
+    except OSError:
+        pass  # libasound not present — nothing to suppress
+
+    # Redirect stderr briefly to /dev/null to catch JACK messages too
+    try:
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        saved = os.dup(2)
+        os.dup2(devnull, 2)
+        os.close(devnull)
+
+        import pyaudio  # noqa: F401  trigger the C-level init here
+
+        os.dup2(saved, 2)
+        os.close(saved)
+    except Exception:
+        pass
 
 
 class WakeWordListener:
@@ -41,13 +74,14 @@ class WakeWordListener:
         """Start listening. Returns False (and logs) if deps are not installed."""
         try:
             import speech_recognition as sr  # noqa: F401
-            import pyaudio  # noqa: F401
         except ImportError as exc:
             logger.warning(
                 "Wake word desactivado — instala: pip install SpeechRecognition pyaudio "
                 "(%s)", exc
             )
             return False
+
+        _suppress_alsa_errors()
 
         self._running = True
         self._thread = threading.Thread(
