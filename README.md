@@ -88,7 +88,7 @@ python -m jarvis --backend gemini --name "Jarvis" --tray
 ### Ejemplos de uso por categoría
 
 **Sistema y hardware**
-```
+```bash
 ¿Cómo está la CPU y la RAM?
 ¿Cuánta batería me queda?
 Sube el volumen al 70%
@@ -97,7 +97,7 @@ Bloquea la pantalla
 ```
 
 **Archivos y directorios**
-```
+```bash
 Lista los archivos en ~/Documentos
 Busca archivos PDF en el escritorio
 Lee el archivo ~/notas.txt
@@ -106,41 +106,41 @@ Mueve ~/Descargas/foto.jpg a ~/Imágenes/
 ```
 
 **Aplicaciones y procesos**
-```
+```bash
 Abre Firefox
 Cierra Spotify
 ¿Qué aplicaciones están corriendo?
 ```
 
 **Red y conectividad**
-```
+```bash
 ¿Cuál es mi IP?
 Haz ping a google.com
 ¿A qué red WiFi estoy conectado?
 ```
 
 **Web y búsqueda**
-```
+```bash
 Busca en YouTube tutoriales de Python
 Abre github.com
 Busca en DuckDuckGo "mejores editores de código"
 ```
 
 **Portapapeles y utilidades**
-```
+```bash
 ¿Qué hay en el portapapeles?
 Copia este texto al portapapeles: Hola mundo
 Manda una notificación: "Reunión en 5 minutos"
 ```
 
 **Shell (con confirmación explícita)**
-```
+```bash
 Ejecuta: ls -la ~/
 # Jarvis pedirá confirmación antes de correr comandos de shell
 ```
 
 **Autoarranque**
-```
+```bash
 Activa el arranque automático de Jarvis
 Desactiva el autoarranque
 ```
@@ -337,7 +337,7 @@ Para añadir una nueva herramienta, crea un módulo en `jarvis/tools/` y regíst
 
 Este proyecto está licenciado bajo la [Licencia MIT](LICENSE).
 
-```
+```text
 MIT License — Copyright (c) 2026 EroPerez
 
 Se permite el uso, copia, modificación y distribución de este software
