@@ -8,8 +8,25 @@ SEARCH_URLS = {
     "youtube": "https://www.youtube.com/results?search_query={}",
 }
 
-_DDG_API = "https://api.duckduckgo.com/"
-_HEADERS = {"User-Agent": "palmiche-jarvis/1.0"}
+# Browsers tried in order on Linux: (binary, incognito_flag)
+_BROWSERS_LINUX = [
+    ("google-chrome",        "--incognito"),
+    ("google-chrome-stable", "--incognito"),
+    ("chromium-browser",     "--incognito"),
+    ("chromium",             "--incognito"),
+    ("brave-browser",        "--incognito"),
+    ("microsoft-edge",       "--inprivate"),
+    ("firefox",              "--private-window"),
+]
+
+# App names tried in order on macOS: (app_name, incognito_flag)
+_BROWSERS_MACOS = [
+    ("Google Chrome",   "--incognito"),
+    ("Chromium",        "--incognito"),
+    ("Brave Browser",   "--incognito"),
+    ("Microsoft Edge",  "--inprivate"),
+    ("Firefox",         "--private-window"),
+]
 
 
 def open_url(url: str) -> str:
@@ -27,70 +44,37 @@ def open_url(url: str) -> str:
         return f"Error al abrir URL: {e}"
 
 
-def web_search(query: str, engine: str = "duckduckgo") -> str:
-    """Search the web and return results as text — no browser is opened.
+def _open_incognito(url: str) -> str:
+    """Open *url* in the first available browser's incognito/private mode."""
+    system = platform.system()
 
-    For YouTube searches the search URL is returned; use open_url to open it.
-    Google and DuckDuckGo queries are resolved via the DuckDuckGo Instant
-    Answer API using the existing ``requests`` dependency.
+    if system == "Linux":
+        for binary, flag in _BROWSERS_LINUX:
+            try:
+                subprocess.Popen([binary, flag, url])
+                return f"Abriendo en modo incógnito: {url}"
+            except FileNotFoundError:
+                continue
+
+    elif system == "Darwin":
+        for app, flag in _BROWSERS_MACOS:
+            try:
+                subprocess.Popen(["open", "-a", app, "--args", flag, url])
+                return f"Abriendo en modo incógnito: {url}"
+            except FileNotFoundError:
+                continue
+
+    # No incognito-capable browser found — fall back to default browser
+    return open_url(url)
+
+
+def web_search(query: str, engine: str = "google") -> str:
+    """Open a search query in the browser's incognito/private mode.
+
+    Builds the search URL for the chosen engine and opens it without leaving
+    history. Falls back to the default browser if no incognito-capable browser
+    is found.
     """
-    import requests
-
-    if engine == "youtube":
-        url = SEARCH_URLS["youtube"].format(quote(query))
-        return (
-            f"Búsqueda en YouTube: {url}\n"
-            "Usa open_url para abrir en el navegador."
-        )
-
-    try:
-        resp = requests.get(
-            _DDG_API,
-            params={"q": query, "format": "json", "no_html": "1", "skip_disambig": "1"},
-            headers=_HEADERS,
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-    except requests.RequestException as exc:
-        return f"Error de red al buscar: {exc}"
-    except ValueError as exc:
-        return f"Error parseando respuesta de búsqueda: {exc}"
-
-    lines = []
-
-    abstract = data.get("AbstractText", "").strip()
-    if abstract:
-        lines.append(abstract)
-        source = data.get("AbstractSource", "")
-        src_url = data.get("AbstractURL", "")
-        if source:
-            lines.append(f"Fuente: {source} — {src_url}")
-
-    flat_topics: list = []
-    for item in data.get("RelatedTopics", []):
-        if not isinstance(item, dict):
-            continue
-        nested = item.get("Topics")
-        if isinstance(nested, list):
-            flat_topics.extend(t for t in nested if isinstance(t, dict))
-        else:
-            flat_topics.append(item)
-
-    for topic in flat_topics[:6]:
-        text = topic.get("Text", "").strip()
-        link = topic.get("FirstURL", "")
-        if text:
-            lines.append(f"• {text}")
-        if link:
-            lines.append(f"  {link}")
-
-    if not lines:
-        url = SEARCH_URLS["duckduckgo"].format(quote(query))
-        return (
-            f"Sin resultados instantáneos para «{query}».\n"
-            f"Búsqueda: {url}\n"
-            "Usa open_url para abrir en el navegador."
-        )
-
-    return "\n".join(lines)
+    template = SEARCH_URLS.get(engine, SEARCH_URLS["google"])
+    url = template.format(quote(query))
+    return _open_incognito(url)
