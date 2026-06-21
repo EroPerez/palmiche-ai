@@ -1,0 +1,34 @@
+// Polkit rule for Jarvis: allow power actions without an interactive password.
+//
+// Grants the active local session the right to power off, reboot, suspend and
+// hibernate via systemd-logind. This is what lets Jarvis's power_action tool
+// (apagar / reiniciar / suspender) succeed instead of failing with
+// "Interactive authentication required".
+//
+// Install (polkit >= 0.106, e.g. systemd distros):
+//   sudo cp 49-jarvis-power.rules /etc/polkit-1/rules.d/
+//   sudo systemctl restart polkit
+//
+// Security note: this allows ANY active local session (a user physically
+// logged in at the machine) to power it off/reboot/suspend without a password
+// — the same convenience most desktops already grant via their menus. To limit
+// it to a specific user instead, replace the `subject.local && subject.active`
+// check with e.g. `subject.user == "tu_usuario"`, or gate on group membership
+// with `subject.isInGroup("wheel")`.
+
+polkit.addRule(function(action, subject) {
+    var powerActions = [
+        "org.freedesktop.login1.power-off",
+        "org.freedesktop.login1.power-off-multiple-sessions",
+        "org.freedesktop.login1.reboot",
+        "org.freedesktop.login1.reboot-multiple-sessions",
+        "org.freedesktop.login1.suspend",
+        "org.freedesktop.login1.suspend-multiple-sessions",
+        "org.freedesktop.login1.hibernate",
+        "org.freedesktop.login1.hibernate-multiple-sessions"
+    ];
+
+    if (powerActions.indexOf(action.id) !== -1 && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

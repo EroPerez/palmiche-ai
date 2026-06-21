@@ -485,6 +485,22 @@ Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocu
 | Voz (reconocimiento) | `sudo apt install python3-dev portaudio19-dev` + `pip install SpeechRecognition pyttsx3 pyaudio gtts` | `brew install portaudio` + pip |
 | Voz (respuesta audio HD) | `sudo apt install mpg123` (para reproducir gTTS) | Integrado (`ffplay` vía ffmpeg) |
 
+### Acciones de energía sin contraseña (Linux)
+
+`power_action` (apagar / reiniciar / suspender) usa `systemctl`, que en muchos
+sistemas pide autenticación de polkit y, en un contexto no interactivo, falla con
+`Interactive authentication required`. Para permitirlas sin contraseña a la
+sesión local activa, instala la regla de polkit incluida:
+
+```bash
+sudo jarvis/scripts/install-power-rules.sh
+```
+
+Esto copia `jarvis/scripts/49-jarvis-power.rules` a `/etc/polkit-1/rules.d/` y
+reinicia polkit. La regla concede solo apagado/reinicio/suspensión/hibernación a
+la sesión local activa; revisa el archivo para restringirla a un usuario o grupo.
+El bloqueo de pantalla (`lock`) no requiere esta regla.
+
 ## Contribuir
 
 1. Haz fork del repositorio
