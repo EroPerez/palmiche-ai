@@ -2,6 +2,10 @@
 
 > Just A Rather Very Intelligent System — asistente de IA personal para laptop, impulsado por Claude.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Backends](https://img.shields.io/badge/backends-Anthropic%20%7C%20ADK%20%7C%20Gemini%20%7C%20Ollama-green.svg)](#backends)
+
 ## Características
 
 - Conversación natural en español o inglés con memoria de sesión persistente
@@ -13,17 +17,164 @@
 ## Requisitos
 
 - Python 3.10+
-- API key de Anthropic ([console.anthropic.com](https://console.anthropic.com))
 - Linux o macOS
 
 ## Instalación
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/EroPerez/palmiche-ai.git
+cd palmiche-ai
+```
+
+### 2. Entorno virtual y dependencias base
+
+```bash
+python3 -m venv jarvis/.venv
+source jarvis/.venv/bin/activate      # Linux/macOS
+pip install -e .                       # instala dependencias del pyproject.toml
+```
+
+O usando el script de instalación incluido:
 
 ```bash
 cd jarvis
 bash install.sh
 ```
 
-El script crea un entorno virtual, instala dependencias y configura el archivo `.env`.
+### 3. Configurar variables de entorno
+
+```bash
+cp jarvis/.env.example jarvis/.env
+nano jarvis/.env                      # edita con tus API keys
+```
+
+---
+
+### Componentes opcionales
+
+#### Backend Anthropic (default)
+
+Requiere cuenta en [console.anthropic.com](https://console.anthropic.com).
+
+```bash
+# En .env:
+# ANTHROPIC_API_KEY=sk-ant-...
+# JARVIS_MODEL=claude-haiku-4-5-20251001
+
+python -m jarvis --backend anthropic
+```
+
+#### Backend Google ADK + Claude
+
+```bash
+pip install "palmiche-jarvis[adk]"
+# o manualmente:
+pip install google-adk litellm
+
+# En .env:
+# ANTHROPIC_API_KEY=sk-ant-...
+python -m jarvis --backend adk
+```
+
+#### Backend Google ADK + Gemini
+
+Requiere cuenta en [aistudio.google.com](https://aistudio.google.com) para obtener `GOOGLE_API_KEY`.
+
+```bash
+pip install "palmiche-jarvis[gemini]"
+# o manualmente:
+pip install google-adk
+
+# En .env:
+# GOOGLE_API_KEY=AIza...
+# JARVIS_GEMINI_MODEL=gemini-2.0-flash
+python -m jarvis --backend gemini
+```
+
+#### Backend Ollama (modelo local, sin API key)
+
+1. Instalar Ollama:
+
+```bash
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
+
+# macOS
+brew install ollama
+```
+
+2. Descargar un modelo:
+
+```bash
+ollama pull llama3.2          # ~2 GB, recomendado
+# alternativas:
+ollama pull llama3.2:1b       # ~0.8 GB, más rápido
+ollama pull qwen2.5:3b        # ~2 GB, mejor tool-use
+ollama pull llama3.1:8b       # ~5 GB, más capaz
+```
+
+3. Iniciar el servidor (si no arranca automáticamente):
+
+```bash
+ollama serve
+```
+
+4. Ejecutar Jarvis:
+
+```bash
+# En .env (opcional, estos son los valores por defecto):
+# JARVIS_OLLAMA_HOST=http://localhost:11434
+# JARVIS_OLLAMA_MODEL=llama3.2
+python -m jarvis --backend ollama
+```
+
+#### Modo bandeja del sistema (tray)
+
+Requiere `tkinter` (no siempre incluido con Python) y `pystray` + `Pillow`.
+
+```bash
+# Linux
+sudo apt install python3-tk            # Ubuntu/Debian
+sudo dnf install python3-tkinter       # Fedora/RHEL
+
+pip install "palmiche-jarvis[tray]"
+# o manualmente:
+pip install pystray Pillow
+
+python -m jarvis --tray
+```
+
+#### Activación por voz
+
+Requiere las cabeceras de PortAudio para compilar PyAudio.
+
+```bash
+# Linux
+sudo apt install python3-dev portaudio19-dev
+
+# macOS
+brew install portaudio
+
+pip install "palmiche-jarvis[voice]"
+# o manualmente:
+pip install SpeechRecognition pyttsx3 pyaudio
+
+# En .env:
+# JARVIS_VOICE_ENABLED=true
+python -m jarvis --tray       # la voz solo funciona en modo tray
+```
+
+#### Instalación completa (todos los componentes)
+
+```bash
+# Linux: dependencias del sistema primero
+sudo apt install python3-tk python3-dev portaudio19-dev
+
+pip install "palmiche-jarvis[all]"
+# equivale a: pip install "palmiche-jarvis[voice,tray,adk]"
+```
 
 ## Configuración
 
@@ -45,25 +196,122 @@ nano jarvis/.env
 | `JARVIS_VOICE_ENABLED` | `false` | Activa voz (requiere dependencias extra) |
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
 
-## Uso
+## Guía de uso
+
+### Inicio rápido
 
 ```bash
-# Backend Anthropic (default)
+# Backend Anthropic (default) — requiere ANTHROPIC_API_KEY en .env
 python -m jarvis
 
-# Backend Google ADK
-python -m jarvis --backend adk
+# Backend local sin API key
+python -m jarvis --backend ollama
 
-# Con nombre personalizado
+# Cambiar nombre del asistente
 python -m jarvis --name "Viernes"
+
+# Modo bandeja del sistema (ícono en barra de tareas)
+python -m jarvis --tray
+
+# Combinar opciones
+python -m jarvis --backend gemini --name "Jarvis" --tray
 ```
 
-Comandos dentro del chat:
+### Opciones de línea de comandos
+
+| Opción | Valores | Descripción |
+|---|---|---|
+| `--backend` | `anthropic`, `adk`, `gemini`, `ollama` | Motor de IA (default: `anthropic`) |
+| `--name` | cualquier texto | Nombre del asistente (default: `Jarvis`) |
+| `--tray` | — | Iniciar en modo bandeja del sistema |
+
+### Comandos dentro del chat
 
 | Comando | Acción |
 |---|---|
-| `salir` | Termina la sesión |
-| `limpiar` | Borra el historial de conversación |
+| `salir` / `exit` / `quit` | Termina la sesión |
+| `limpiar` / `clear` | Borra el historial de conversación |
+
+### Ejemplos de uso por categoría
+
+**Sistema y hardware**
+```bash
+¿Cómo está la CPU y la RAM?
+¿Cuánta batería me queda?
+Sube el volumen al 70%
+Ajusta el brillo al 50%
+Bloquea la pantalla
+```
+
+**Archivos y directorios**
+```bash
+Lista los archivos en ~/Documentos
+Busca archivos PDF en el escritorio
+Lee el archivo ~/notas.txt
+Crea la carpeta ~/proyectos/nuevo
+Mueve ~/Descargas/foto.jpg a ~/Imágenes/
+```
+
+**Aplicaciones y procesos**
+```bash
+Abre Firefox
+Cierra Spotify
+¿Qué aplicaciones están corriendo?
+```
+
+**Red y conectividad**
+```bash
+¿Cuál es mi IP?
+Haz ping a google.com
+¿A qué red WiFi estoy conectado?
+```
+
+**Web y búsqueda**
+```bash
+Busca en YouTube tutoriales de Python
+Abre github.com
+Busca en DuckDuckGo "mejores editores de código"
+```
+
+**Portapapeles y utilidades**
+```bash
+¿Qué hay en el portapapeles?
+Copia este texto al portapapeles: Hola mundo
+Manda una notificación: "Reunión en 5 minutos"
+```
+
+**Shell (con confirmación explícita)**
+```bash
+Ejecuta: ls -la ~/
+# Jarvis pedirá confirmación antes de correr comandos de shell
+```
+
+**Autoarranque**
+```bash
+Activa el arranque automático de Jarvis
+Desactiva el autoarranque
+```
+
+### Activación por voz
+
+Con `JARVIS_VOICE_ENABLED=true` en el `.env`, di la palabra clave **"palmiche"** para abrir el chat. El sistema escucha en segundo plano y activa la ventana al detectar la palabra clave.
+
+```bash
+# Linux: instalar dependencias del sistema primero
+sudo apt install python3-dev portaudio19-dev
+
+# macOS
+brew install portaudio
+
+# Luego instalar paquetes Python
+pip install SpeechRecognition pyttsx3 pyaudio
+# o con el grupo opcional:
+pip install "palmiche-jarvis[voice]"
+
+# En .env:
+# JARVIS_VOICE_ENABLED=true
+python -m jarvis --tray
+```
 
 ## Herramientas disponibles (28)
 
@@ -198,6 +446,10 @@ python -m jarvis --backend ollama
 Inicia Jarvis como ícono en la barra de tareas con una ventana de chat:
 
 ```bash
+# Linux: tkinter debe estar instalado (no siempre viene con Python)
+sudo apt install python3-tk        # Ubuntu/Debian
+sudo dnf install python3-tkinter   # Fedora/RHEL
+
 pip install pystray Pillow
 python -m jarvis --tray
 # o combinar con cualquier backend:
@@ -220,4 +472,26 @@ Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocu
 | Capturas de pantalla | `sudo apt install scrot` | Integrado (`screencapture`) |
 | Control de brillo | `sudo apt install brightnessctl` | — |
 | Info WiFi | `nmcli` (NetworkManager) | Integrado (`airport`) |
-| Voz | `pip install SpeechRecognition pyttsx3 pyaudio` | Igual |
+| Bandeja del sistema | `sudo apt install python3-tk` | Integrado |
+| Voz | `sudo apt install python3-dev portaudio19-dev` + `pip install SpeechRecognition pyttsx3 pyaudio` | `brew install portaudio` + pip |
+
+## Contribuir
+
+1. Haz fork del repositorio
+2. Crea una rama para tu feature: `git checkout -b feat/nueva-herramienta`
+3. Commit con mensajes descriptivos: `git commit -m "feat: add nueva herramienta"`
+4. Push a tu fork: `git push origin feat/nueva-herramienta`
+5. Abre un Pull Request describiendo los cambios
+
+Para añadir una nueva herramienta, crea un módulo en `jarvis/tools/` y regístrala en `jarvis/tools/registry.py` siguiendo el patrón de las herramientas existentes.
+
+## Licencia
+
+Este proyecto está licenciado bajo la [Licencia MIT](LICENSE).
+
+```text
+MIT License — Copyright (c) 2026 EroPerez
+
+Se permite el uso, copia, modificación y distribución de este software
+sin restricciones, sujeto a que se incluya el aviso de copyright original.
+```
