@@ -17,17 +17,164 @@
 ## Requisitos
 
 - Python 3.10+
-- API key de Anthropic ([console.anthropic.com](https://console.anthropic.com))
 - Linux o macOS
 
 ## Instalación
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/EroPerez/palmiche-ai.git
+cd palmiche-ai
+```
+
+### 2. Entorno virtual y dependencias base
+
+```bash
+python3 -m venv jarvis/.venv
+source jarvis/.venv/bin/activate      # Linux/macOS
+pip install -e .                       # instala dependencias del pyproject.toml
+```
+
+O usando el script de instalación incluido:
 
 ```bash
 cd jarvis
 bash install.sh
 ```
 
-El script crea un entorno virtual, instala dependencias y configura el archivo `.env`.
+### 3. Configurar variables de entorno
+
+```bash
+cp jarvis/.env.example jarvis/.env
+nano jarvis/.env                      # edita con tus API keys
+```
+
+---
+
+### Componentes opcionales
+
+#### Backend Anthropic (default)
+
+Requiere cuenta en [console.anthropic.com](https://console.anthropic.com).
+
+```bash
+# En .env:
+# ANTHROPIC_API_KEY=sk-ant-...
+# JARVIS_MODEL=claude-haiku-4-5-20251001
+
+python -m jarvis --backend anthropic
+```
+
+#### Backend Google ADK + Claude
+
+```bash
+pip install "palmiche-jarvis[adk]"
+# o manualmente:
+pip install google-adk litellm
+
+# En .env:
+# ANTHROPIC_API_KEY=sk-ant-...
+python -m jarvis --backend adk
+```
+
+#### Backend Google ADK + Gemini
+
+Requiere cuenta en [aistudio.google.com](https://aistudio.google.com) para obtener `GOOGLE_API_KEY`.
+
+```bash
+pip install "palmiche-jarvis[gemini]"
+# o manualmente:
+pip install google-adk
+
+# En .env:
+# GOOGLE_API_KEY=AIza...
+# JARVIS_GEMINI_MODEL=gemini-2.0-flash
+python -m jarvis --backend gemini
+```
+
+#### Backend Ollama (modelo local, sin API key)
+
+1. Instalar Ollama:
+
+```bash
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
+
+# macOS
+brew install ollama
+```
+
+2. Descargar un modelo:
+
+```bash
+ollama pull llama3.2          # ~2 GB, recomendado
+# alternativas:
+ollama pull llama3.2:1b       # ~0.8 GB, más rápido
+ollama pull qwen2.5:3b        # ~2 GB, mejor tool-use
+ollama pull llama3.1:8b       # ~5 GB, más capaz
+```
+
+3. Iniciar el servidor (si no arranca automáticamente):
+
+```bash
+ollama serve
+```
+
+4. Ejecutar Jarvis:
+
+```bash
+# En .env (opcional, estos son los valores por defecto):
+# JARVIS_OLLAMA_HOST=http://localhost:11434
+# JARVIS_OLLAMA_MODEL=llama3.2
+python -m jarvis --backend ollama
+```
+
+#### Modo bandeja del sistema (tray)
+
+Requiere `tkinter` (no siempre incluido con Python) y `pystray` + `Pillow`.
+
+```bash
+# Linux
+sudo apt install python3-tk            # Ubuntu/Debian
+sudo dnf install python3-tkinter       # Fedora/RHEL
+
+pip install "palmiche-jarvis[tray]"
+# o manualmente:
+pip install pystray Pillow
+
+python -m jarvis --tray
+```
+
+#### Activación por voz
+
+Requiere las cabeceras de PortAudio para compilar PyAudio.
+
+```bash
+# Linux
+sudo apt install python3-dev portaudio19-dev
+
+# macOS
+brew install portaudio
+
+pip install "palmiche-jarvis[voice]"
+# o manualmente:
+pip install SpeechRecognition pyttsx3 pyaudio
+
+# En .env:
+# JARVIS_VOICE_ENABLED=true
+python -m jarvis --tray       # la voz solo funciona en modo tray
+```
+
+#### Instalación completa (todos los componentes)
+
+```bash
+# Linux: dependencias del sistema primero
+sudo apt install python3-tk python3-dev portaudio19-dev
+
+pip install "palmiche-jarvis[all]"
+# equivale a: pip install "palmiche-jarvis[voice,tray,adk]"
+```
 
 ## Configuración
 
