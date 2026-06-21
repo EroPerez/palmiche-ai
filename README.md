@@ -498,6 +498,14 @@ python -m jarvis --tray --backend gemini
 
 Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocultarse sin cerrar el proceso.
 
+La ventana de chat incluye:
+
+- **Barra de estado** inferior con color (Listo / procesando / escuchando / error)
+- **Timestamps** `[HH:MM]` en cada mensaje
+- **Botón 🗑** y atajos de teclado: `Esc` oculta la ventana, `Ctrl+L` limpia la conversación
+- **Animación de onda** en el encabezado (idle / wake / thinking) y **botón 🎤** para entrada por voz
+- Ventana **centrada** en pantalla con tamaño mínimo
+
 ## Seguridad
 
 - **Herramientas destructivas** (`power_action`, `run_shell_command`, `setup_autostart`) requieren `confirmed=true` en código antes de ejecutarse — no solo en el prompt.
