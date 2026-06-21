@@ -199,6 +199,7 @@ nano jarvis/.env
 | `JARVIS_VOICE_ENABLED` | `false` | Activa voz (requiere dependencias extra) |
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
 | `JARVIS_EVENTS_FILE` | `~/.jarvis_events.json` | Archivo del calendario local de eventos |
+| `JARVIS_TRAY_ICON` | — | Ruta a una imagen propia para el ícono de bandeja (vacío = ícono de caballo integrado) |
 
 ## Guía de uso
 
@@ -497,6 +498,15 @@ python -m jarvis --tray --backend gemini
 ```
 
 Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocultarse sin cerrar el proceso.
+
+La ventana de chat incluye:
+
+- **Barra de estado** inferior con color (Listo / procesando / escuchando / error)
+- **Timestamps** `[HH:MM]` en cada mensaje
+- **Botón 🗑** y atajos de teclado: `Esc` oculta la ventana, `Ctrl+L` limpia la conversación
+- **Animación de onda** en el encabezado (idle / wake / thinking) y **botón 🎤** para entrada por voz
+- Ventana **centrada** en pantalla con tamaño mínimo
+- **Ícono** de bandeja con una cabeza de caballo (homenaje a Palmiche). Puedes usar tu propia imagen con `JARVIS_TRAY_ICON=/ruta/a/imagen.png`
 
 ## Seguridad
 
