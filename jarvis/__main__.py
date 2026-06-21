@@ -150,7 +150,7 @@ def main():
         """Render the goodbye phrase, expanding the optional {name} placeholder."""
         try:
             return goodbye_template.format(name=JARVIS_NAME)
-        except (KeyError, IndexError, ValueError):
+        except (KeyError, IndexError, ValueError, AttributeError):
             return goodbye_template
 
     if args.clear:
