@@ -1,20 +1,25 @@
 // Polkit rule for Jarvis: allow power actions without an interactive password.
 //
-// Grants the active local session the right to power off, reboot, suspend and
-// hibernate via systemd-logind. This is what lets Jarvis's power_action tool
+// Grants a specific user the right to power off, reboot, suspend and hibernate
+// via systemd-logind. This is what lets Jarvis's power_action tool
 // (apagar / reiniciar / suspender) succeed instead of failing with
 // "Interactive authentication required".
 //
-// Install (polkit >= 0.106, e.g. systemd distros):
-//   sudo cp 49-jarvis-power.rules /etc/polkit-1/rules.d/
-//   sudo systemctl restart polkit
+// The placeholder __JARVIS_USER__ is replaced with your account by the
+// installer (install-power-rules.sh, which uses the user that runs sudo).
 //
-// Security note: this allows ANY active local session (a user physically
-// logged in at the machine) to power it off/reboot/suspend without a password
-// — the same convenience most desktops already grant via their menus. To limit
-// it to a specific user instead, replace the `subject.local && subject.active`
-// check with e.g. `subject.user == "tu_usuario"`, or gate on group membership
-// with `subject.isInGroup("wheel")`.
+// Install:
+//   sudo ./install-power-rules.sh        # recommended — substitutes your user
+// or manually (polkit >= 0.106, systemd distros):
+//   1. replace __JARVIS_USER__ below with the output of `whoami`
+//   2. sudo cp 49-jarvis-power.rules /etc/polkit-1/rules.d/
+//   3. sudo systemctl restart polkit
+//
+// While the placeholder is still __JARVIS_USER__ the rule matches no one, so it
+// grants nothing until configured. To allow a whole group instead of a single
+// user, swap the check for `subject.isInGroup("wheel")`.
+
+var jarvisUser = "__JARVIS_USER__";
 
 polkit.addRule(function(action, subject) {
     var powerActions = [
@@ -28,7 +33,7 @@ polkit.addRule(function(action, subject) {
         "org.freedesktop.login1.hibernate-multiple-sessions"
     ];
 
-    if (powerActions.indexOf(action.id) !== -1 && subject.local && subject.active) {
+    if (powerActions.indexOf(action.id) !== -1 && subject.user == jarvisUser) {
         return polkit.Result.YES;
     }
 });

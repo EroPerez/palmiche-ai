@@ -22,8 +22,18 @@ if [ ! -d /etc/polkit-1/rules.d ]; then
     exit 1
 fi
 
-echo "→ Instalando $RULE_DST"
-install -m 0644 "$RULE_SRC" "$RULE_DST"
+# El usuario real: quien ejecutó sudo (no root). Permite sobreescribir con
+# JARVIS_USER=otro sudo ./install-power-rules.sh
+TARGET_USER="${JARVIS_USER:-${SUDO_USER:-$(logname 2>/dev/null || true)}}"
+if [ -z "$TARGET_USER" ] || [ "$TARGET_USER" = "root" ]; then
+    echo "Error: no se pudo determinar tu usuario. Ejecuta con sudo desde tu"
+    echo "sesión, o indícalo: JARVIS_USER=tu_usuario sudo $0"
+    exit 1
+fi
+
+echo "→ Instalando $RULE_DST (usuario: $TARGET_USER)"
+sed "s/__JARVIS_USER__/$TARGET_USER/g" "$RULE_SRC" > "$RULE_DST"
+chmod 0644 "$RULE_DST"
 
 echo "→ Reiniciando polkit"
 if command -v systemctl >/dev/null 2>&1; then
@@ -32,4 +42,4 @@ fi
 
 echo ""
 echo "  ✓ Regla instalada. Apagar/reiniciar/suspender ya no pedirán contraseña"
-echo "    para la sesión local activa."
+echo "    para el usuario: $TARGET_USER"
