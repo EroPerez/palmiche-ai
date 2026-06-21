@@ -299,6 +299,10 @@ python -m jarvis --backend ollama
 Inicia Jarvis como ícono en la barra de tareas con una ventana de chat:
 
 ```bash
+# Linux: tkinter debe estar instalado (no siempre viene con Python)
+sudo apt install python3-tk        # Ubuntu/Debian
+sudo dnf install python3-tkinter   # Fedora/RHEL
+
 pip install pystray Pillow
 python -m jarvis --tray
 # o combinar con cualquier backend:
@@ -321,6 +325,7 @@ Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocu
 | Capturas de pantalla | `sudo apt install scrot` | Integrado (`screencapture`) |
 | Control de brillo | `sudo apt install brightnessctl` | — |
 | Info WiFi | `nmcli` (NetworkManager) | Integrado (`airport`) |
+| Bandeja del sistema | `sudo apt install python3-tk` | Integrado |
 | Voz | `sudo apt install python3-dev portaudio19-dev` + `pip install SpeechRecognition pyttsx3 pyaudio` | `brew install portaudio` + pip |
 
 ## Contribuir
