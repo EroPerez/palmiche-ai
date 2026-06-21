@@ -221,7 +221,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "web_search",
-        "description": "Abre una búsqueda web en el navegador",
+        "description": "Busca en la web y devuelve resultados como texto, sin abrir el navegador. Para YouTube devuelve la URL de búsqueda.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -229,7 +229,7 @@ TOOL_DEFINITIONS = [
                 "engine": {
                     "type": "string",
                     "enum": ["google", "duckduckgo", "youtube"],
-                    "description": "Motor de búsqueda. Default: google",
+                    "description": "Motor de búsqueda. Default: duckduckgo",
                 },
             },
             "required": ["query"],
@@ -458,7 +458,7 @@ def execute_tool(name: str, inputs: dict) -> str:
         "read_file": lambda i: read_file(i["path"], i.get("max_lines", 100)),
         "create_directory": lambda i: create_directory(i["path"]),
         "open_url": lambda i: open_url(i["url"]),
-        "web_search": lambda i: web_search(i["query"], i.get("engine", "google")),
+        "web_search": lambda i: web_search(i["query"], i.get("engine", "duckduckgo")),
         "get_clipboard": lambda i: get_clipboard(),
         "set_clipboard": lambda i: set_clipboard(i["text"]),
         "send_notification": lambda i: send_notification(
