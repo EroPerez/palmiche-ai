@@ -10,6 +10,13 @@ GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 JARVIS_MODEL: str = os.getenv("JARVIS_MODEL", "claude-haiku-4-5-20251001")
 JARVIS_GEMINI_MODEL: str = os.getenv("JARVIS_GEMINI_MODEL", "gemini-2.0-flash")
 JARVIS_NAME: str = os.getenv("JARVIS_NAME", "Jarvis")
+JARVIS_WELCOME_MESSAGE: str = os.getenv(
+    "JARVIS_WELCOME_MESSAGE", "Sistemas en línea. ¿En qué puedo ayudarte?"
+)
+JARVIS_GOODBYE_MESSAGE: str = os.getenv(
+    "JARVIS_GOODBYE_MESSAGE", "{name} desconectado. Hasta luego."
+)
+JARVIS_SPLASH_ENABLED: bool = os.getenv("JARVIS_SPLASH_ENABLED", "true").lower() == "true"
 VOICE_ENABLED: bool = os.getenv("JARVIS_VOICE_ENABLED", "false").lower() == "true"
 HISTORY_FILE: Path = Path(
     os.getenv("JARVIS_HISTORY_FILE", "~/.jarvis_history.json")
