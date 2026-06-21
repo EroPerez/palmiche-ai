@@ -235,7 +235,11 @@ class WakeWordListener:
                             self.on_wake()
                         if self.on_command:
                             _sleep(1.5)  # wait for TTS to finish before listening
-                            self._listen_for_command(recognizer, mic)
+                            self._paused = True
+                            try:
+                                self._listen_for_command(recognizer, mic)
+                            finally:
+                                self._paused = False
 
                 except sr.UnknownValueError:
                     pass  # no speech detected

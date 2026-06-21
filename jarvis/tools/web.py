@@ -52,8 +52,10 @@ def web_search(query: str, engine: str = "duckduckgo") -> str:
         )
         resp.raise_for_status()
         data = resp.json()
-    except Exception as exc:
-        return f"Error al buscar: {exc}"
+    except requests.RequestException as exc:
+        return f"Error de red al buscar: {exc}"
+    except ValueError as exc:
+        return f"Error parseando respuesta de búsqueda: {exc}"
 
     lines = []
 
@@ -65,9 +67,17 @@ def web_search(query: str, engine: str = "duckduckgo") -> str:
         if source:
             lines.append(f"Fuente: {source} — {src_url}")
 
-    for topic in data.get("RelatedTopics", [])[:6]:
-        if not isinstance(topic, dict):
+    flat_topics: list = []
+    for item in data.get("RelatedTopics", []):
+        if not isinstance(item, dict):
             continue
+        nested = item.get("Topics")
+        if isinstance(nested, list):
+            flat_topics.extend(t for t in nested if isinstance(t, dict))
+        else:
+            flat_topics.append(item)
+
+    for topic in flat_topics[:6]:
         text = topic.get("Text", "").strip()
         link = topic.get("FirstURL", "")
         if text:
