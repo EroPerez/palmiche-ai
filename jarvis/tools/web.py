@@ -10,6 +10,7 @@ SEARCH_URLS = {
 
 
 def open_url(url: str) -> str:
+    """Open *url* in the system default browser, prepending https:// if no scheme given."""
     if not url.startswith(("http://", "https://", "ftp://")):
         url = "https://" + url
     system = platform.system()
@@ -24,6 +25,7 @@ def open_url(url: str) -> str:
 
 
 def web_search(query: str, engine: str = "google") -> str:
+    """Open a browser search for *query* using the specified engine (google/duckduckgo/youtube)."""
     template = SEARCH_URLS.get(engine, SEARCH_URLS["google"])
     url = template.format(quote(query))
     return open_url(url)

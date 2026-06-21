@@ -8,9 +8,12 @@ console = Console()
 
 
 def print_banner(name: str = "Jarvis", backend: str = "anthropic"):
+    """Print the Jarvis startup banner with name, version, and active backend."""
     backend_label = {
-        "adk": "[yellow]Google ADK[/yellow]",
+        "adk":       "[yellow]Google ADK + Claude[/yellow]",
+        "gemini":    "[green]Google ADK + Gemini[/green]",
         "anthropic": "[blue]Anthropic SDK[/blue]",
+        "ollama":    "[magenta]Ollama (local)[/magenta]",
     }.get(backend, f"[dim]{backend}[/dim]")
 
     art = (
@@ -28,10 +31,12 @@ def print_banner(name: str = "Jarvis", backend: str = "anthropic"):
 
 
 def get_user_input() -> str:
+    """Prompt the user for input and return the entered text."""
     return Prompt.ask("[bold cyan]Tú[/bold cyan]")
 
 
 def print_jarvis_response(text: str, name: str = "Jarvis"):
+    """Render the assistant's response inside a Rich panel with Markdown formatting."""
     console.print()
     console.print(
         Panel(
@@ -46,12 +51,15 @@ def print_jarvis_response(text: str, name: str = "Jarvis"):
 
 
 def print_thinking(name: str = "Jarvis"):
+    """Print a dim 'processing…' indicator while the agent is running."""
     console.print(f"[dim italic]{name} procesando...[/dim italic]")
 
 
 def print_error(message: str):
+    """Print an error message in bold red."""
     console.print(f"[bold red]✗ Error:[/bold red] {message}")
 
 
 def print_info(message: str):
+    """Print a dim informational message."""
     console.print(f"[dim]{message}[/dim]")

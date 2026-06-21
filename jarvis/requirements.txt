@@ -5,6 +5,24 @@ psutil>=5.9.0
 pyperclip>=1.8.0
 requests>=2.31.0
 
-# ADK backend (opcional, activar con JARVIS_BACKEND=adk en .env):
+# Bandeja del sistema y ventana de chat GUI (opcional, activar con --tray):
+# pystray>=0.19.0
+# Pillow>=10.0.0
+
+# ADK backend con Claude (JARVIS_BACKEND=adk):
 # google-adk>=1.0.0
 # litellm>=1.0.0
+
+# ADK backend con Gemini (JARVIS_BACKEND=gemini):
+# google-adk>=1.0.0
+# (no requiere litellm)
+
+# Backend Ollama (JARVIS_BACKEND=ollama) — no requiere paquetes pip adicionales:
+# Instala la aplicación Ollama desde https://ollama.ai
+# Luego descarga un modelo: ollama pull llama3.2
+# El servidor arranca automáticamente al instalar o con: ollama serve
+
+# Voz y wake word (JARVIS_VOICE_ENABLED=true o modo --tray con palabra de activación):
+# SpeechRecognition>=3.10.0
+# pyaudio>=0.2.13
+# pyttsx3>=2.90        (solo para síntesis de voz, no requerido para wake word)

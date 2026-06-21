@@ -1,42 +1,80 @@
 """Google ADK-based agentic loop for Jarvis.
 
-Uses google-adk with LiteLLM to run Claude as the underlying model,
-replacing the manual tool-use loop with ADK's built-in orchestration.
+Supports two model backends:
+  - LiteLLM bridge to Anthropic Claude  (use_gemini=False, default)
+  - Native Gemini via google-genai       (use_gemini=True)
 
-Install extras:
-    pip install google-adk litellm
+Install:
+    pip install google-adk litellm          # for Claude via ADK
+    pip install google-adk                  # for Gemini native (no litellm needed)
 """
 import asyncio
+import os
 import uuid
 
-from ..config import JARVIS_MODEL, JARVIS_NAME
+from ..config import (
+    ANTHROPIC_API_KEY,
+    GOOGLE_API_KEY,
+    JARVIS_GEMINI_MODEL,
+    JARVIS_MODEL,
+    JARVIS_NAME,
+)
+from .adk_tools import ADK_TOOLS
 from .prompts import SYSTEM_PROMPT
 from ..memory.history import ConversationHistory
-from .adk_tools import ADK_TOOLS
 
 
 class JarvisADKAgent:
-    """Jarvis agent powered by Google ADK + LiteLLM + Claude."""
+    """Jarvis agent powered by Google ADK.
 
-    def __init__(self):
+    use_gemini=False  → LiteLLM + Anthropic Claude
+    use_gemini=True   → native Gemini API (GOOGLE_API_KEY required)
+    """
+
+    def __init__(self, use_gemini: bool = False):
+        """Set up the ADK Runner with the appropriate model backend and a fresh session."""
         try:
             from google.adk.agents import Agent
             from google.adk.runners import Runner
             from google.adk.sessions import InMemorySessionService
-            from google.adk.models.lite_llm import LiteLlm
         except ImportError as exc:
             raise ImportError(
                 "Google ADK no está instalado.\n"
-                "Instala con: pip install google-adk litellm\n"
+                "Instala con: pip install google-adk\n"
                 f"Error: {exc}"
             ) from exc
 
         self.history = ConversationHistory()
         self._session_id = str(uuid.uuid4())
+        self._use_gemini = use_gemini
+
+        if use_gemini:
+            if not GOOGLE_API_KEY:
+                raise ValueError(
+                    "GOOGLE_API_KEY no está configurada. "
+                    "Agrégala a jarvis/.env para usar el backend Gemini."
+                )
+            os.environ.setdefault("GOOGLE_API_KEY", GOOGLE_API_KEY)
+            model: object = JARVIS_GEMINI_MODEL
+        else:
+            if not ANTHROPIC_API_KEY:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY no está configurada. "
+                    "Agrégala a jarvis/.env para usar el backend ADK+Claude."
+                )
+            try:
+                from google.adk.models.lite_llm import LiteLlm
+            except ImportError as exc:
+                raise ImportError(
+                    "LiteLLM no está instalado (requerido para ADK+Claude).\n"
+                    "Instala con: pip install litellm\n"
+                    f"Error: {exc}"
+                ) from exc
+            model = LiteLlm(model=f"anthropic/{JARVIS_MODEL}")
 
         agent = Agent(
             name="jarvis",
-            model=LiteLlm(model=f"anthropic/{JARVIS_MODEL}"),
+            model=model,
             instruction=SYSTEM_PROMPT.format(name=JARVIS_NAME),
             tools=ADK_TOOLS,
         )
@@ -47,7 +85,6 @@ class JarvisADKAgent:
             app_name="jarvis",
             session_service=self._session_service,
         )
-
         asyncio.run(
             self._session_service.create_session(
                 app_name="jarvis",
@@ -56,10 +93,17 @@ class JarvisADKAgent:
             )
         )
 
+    @property
+    def model_label(self) -> str:
+        """Return a human-readable identifier for the active model."""
+        return JARVIS_GEMINI_MODEL if self._use_gemini else f"anthropic/{JARVIS_MODEL}"
+
     def chat(self, user_message: str) -> str:
+        """Send a message and return the agent's response (blocks until complete)."""
         return asyncio.run(self._chat_async(user_message))
 
     async def _chat_async(self, user_message: str) -> str:
+        """Async implementation: stream ADK events and collect the final text response."""
         from google.genai import types
 
         self.history.add("user", user_message)

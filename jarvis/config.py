@@ -6,13 +6,16 @@ _env_file = Path(__file__).parent / ".env"
 load_dotenv(_env_file)
 
 ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 JARVIS_MODEL: str = os.getenv("JARVIS_MODEL", "claude-haiku-4-5-20251001")
+JARVIS_GEMINI_MODEL: str = os.getenv("JARVIS_GEMINI_MODEL", "gemini-2.0-flash")
 JARVIS_NAME: str = os.getenv("JARVIS_NAME", "Jarvis")
 VOICE_ENABLED: bool = os.getenv("JARVIS_VOICE_ENABLED", "false").lower() == "true"
 HISTORY_FILE: Path = Path(
     os.getenv("JARVIS_HISTORY_FILE", "~/.jarvis_history.json")
 ).expanduser()
 def _get_positive_int(name: str, default: int) -> int:
+    """Read an env var as a positive int, falling back to *default* on invalid values."""
     raw = os.getenv(name, str(default))
     try:
         value = int(raw)
@@ -21,5 +24,7 @@ def _get_positive_int(name: str, default: int) -> int:
     return value if value > 0 else default
 
 MAX_HISTORY: int = _get_positive_int("JARVIS_MAX_HISTORY", 50)
-# Backend del loop agéntico: "anthropic" (raw SDK, default) o "adk" (Google ADK + LiteLLM)
 JARVIS_BACKEND: str = os.getenv("JARVIS_BACKEND", "anthropic")
+JARVIS_WAKE_WORD: str = os.getenv("JARVIS_WAKE_WORD", "palmiche")
+JARVIS_OLLAMA_HOST: str = os.getenv("JARVIS_OLLAMA_HOST", "http://localhost:11434")
+JARVIS_OLLAMA_MODEL: str = os.getenv("JARVIS_OLLAMA_MODEL", "llama3.2")

@@ -7,6 +7,7 @@ import platform
 def search_files(
     pattern: str, directory: str = "~", file_type: str = "any"
 ) -> str:
+    """Search for files or directories matching *pattern* under *directory* (max depth 6)."""
     search_dir = Path(directory).expanduser()
     if not search_dir.exists():
         return f"Directorio '{directory}' no encontrado"
@@ -41,6 +42,7 @@ def search_files(
 
 
 def open_file(path: str) -> str:
+    """Open *path* with the system default application (xdg-open / open)."""
     file_path = Path(path).expanduser()
     if not file_path.exists():
         return f"Archivo '{path}' no encontrado"
@@ -56,6 +58,7 @@ def open_file(path: str) -> str:
 
 
 def list_directory(path: str = "~", show_hidden: bool = False) -> str:
+    """List files and subdirectories in *path*, sorted dirs first then files by name."""
     dir_path = Path(path).expanduser()
     if not dir_path.exists():
         return f"'{path}' no existe"
@@ -86,6 +89,7 @@ def list_directory(path: str = "~", show_hidden: bool = False) -> str:
 
 
 def read_file(path: str, max_lines: int = 100) -> str:
+    """Read up to *max_lines* lines of a text file and return the content."""
     file_path = Path(path).expanduser()
     if not file_path.exists():
         return f"Archivo '{path}' no encontrado"
@@ -110,6 +114,7 @@ def read_file(path: str, max_lines: int = 100) -> str:
 
 
 def create_directory(path: str) -> str:
+    """Create *path* and any missing parent directories."""
     dir_path = Path(path).expanduser()
     try:
         dir_path.mkdir(parents=True, exist_ok=True)

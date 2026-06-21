@@ -10,11 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 class ConversationHistory:
+    """Persistent conversation history with a configurable rolling window."""
+
     def __init__(self):
+        """Load existing history from disk, applying the MAX_HISTORY window."""
         self._messages: List[Dict] = []
         self._load()
 
     def add(self, role: str, content: str):
+        """Append a message, trim to MAX_HISTORY turns, and persist to disk."""
         self._messages.append(
             {"role": role, "content": content, "ts": datetime.now().isoformat()}
         )
@@ -28,10 +32,12 @@ class ConversationHistory:
         return [{"role": m["role"], "content": m["content"]} for m in self._messages]
 
     def clear(self):
+        """Erase all stored messages and persist the empty state."""
         self._messages = []
         self._save()
 
     def _save(self):
+        """Write the current message list to HISTORY_FILE as JSON."""
         try:
             HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
             HISTORY_FILE.write_text(
@@ -41,6 +47,7 @@ class ConversationHistory:
             logger.warning("No se pudo guardar historial en %s: %s", HISTORY_FILE, exc)
 
     def _load(self):
+        """Read and validate HISTORY_FILE, silently resetting on any parse error."""
         try:
             if HISTORY_FILE.exists():
                 raw = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))

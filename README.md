@@ -6,7 +6,7 @@
 
 - Conversación natural en español o inglés con memoria de sesión persistente
 - 28 herramientas integradas para controlar el sistema, archivos, red, medios y más
-- Dos backends intercambiables: Anthropic SDK (default) y Google ADK + LiteLLM
+- Cuatro backends intercambiables: Anthropic SDK, Google ADK + LiteLLM, Google ADK + Gemini, y Ollama (local)
 - Entrada por voz opcional con reconocimiento de habla
 - Interfaz en terminal con Rich (colores, markdown, paneles)
 
@@ -34,10 +34,14 @@ nano jarvis/.env
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | **Requerida.** Obtén en console.anthropic.com |
-| `JARVIS_MODEL` | `claude-haiku-4-5-20251001` | Modelo Claude a usar |
+| `ANTHROPIC_API_KEY` | — | Requerida para backends `anthropic` y `adk`+Claude |
+| `GOOGLE_API_KEY` | — | Requerida para backends `gemini` y `adk`+Gemini |
+| `JARVIS_MODEL` | `claude-haiku-4-5-20251001` | Modelo Claude (backends anthropic/adk) |
+| `JARVIS_GEMINI_MODEL` | `gemini-2.0-flash` | Modelo Gemini (backend gemini) |
 | `JARVIS_NAME` | `Jarvis` | Nombre del asistente |
-| `JARVIS_BACKEND` | `anthropic` | Backend: `anthropic` o `adk` |
+| `JARVIS_BACKEND` | `anthropic` | Backend: `anthropic`, `adk`, `gemini` u `ollama` |
+| `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | URL del servidor Ollama (backend `ollama`) |
+| `JARVIS_OLLAMA_MODEL` | `llama3.2` | Modelo Ollama a usar |
 | `JARVIS_VOICE_ENABLED` | `false` | Activa voz (requiere dependencias extra) |
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
 
@@ -130,6 +134,7 @@ Comandos dentro del chat:
 | `set_clipboard` | Escribir texto en el portapapeles |
 | `send_notification` | Notificación de escritorio (low / normal / critical) |
 | `run_shell_command` | Ejecutar comando shell arbitrario (con confirmación) |
+| `setup_autostart` | Activar o desactivar el arranque automático con el sistema |
 
 ## Backends
 
@@ -141,18 +146,69 @@ Loop agéntico manual: envía mensajes al modelo, ejecuta herramientas y repite 
 python -m jarvis --backend anthropic
 ```
 
-### Google ADK + LiteLLM
+### Google ADK + Claude (`adk`)
 
 ADK orquesta el loop internamente vía `Runner` + `InMemorySessionService`, usando LiteLLM como puente hacia la API de Anthropic.
+
+Auto-detección: si solo tienes `GOOGLE_API_KEY` (sin `ANTHROPIC_API_KEY`), el backend `adk` cambia automáticamente a Gemini.
 
 ```bash
 pip install google-adk litellm
 python -m jarvis --backend adk
 ```
 
+### Google ADK + Gemini (`gemini`)
+
+Usa Gemini de forma nativa sin LiteLLM. Solo requiere `GOOGLE_API_KEY`.
+
+```bash
+pip install google-adk
+# En .env: GOOGLE_API_KEY=tu-key, JARVIS_GEMINI_MODEL=gemini-2.0-flash
+python -m jarvis --backend gemini
+```
+
+### Ollama — modelo local (`ollama`)
+
+Ejecuta un LLM localmente sin enviar datos a la nube. No requiere paquetes pip adicionales; usa `requests` (ya incluido).
+
+**Requisitos:**
+1. Instala Ollama desde [ollama.ai](https://ollama.ai)
+2. Descarga un modelo: `ollama pull llama3.2`
+3. El servidor inicia automáticamente, o manualmente: `ollama serve`
+
+```bash
+# En .env (o variables de entorno):
+# JARVIS_OLLAMA_MODEL=llama3.2      # modelo a usar
+# JARVIS_OLLAMA_HOST=http://localhost:11434  # URL del servidor
+
+python -m jarvis --backend ollama
+```
+
+**Modelos recomendados** (de menor a mayor capacidad):
+
+| Modelo | Tamaño | Notas |
+|---|---|---|
+| `llama3.2:1b` | ~0.8 GB | Muy rápido, tool-use básico |
+| `llama3.2` | ~2 GB | Default recomendado |
+| `qwen2.5:3b` | ~2 GB | Excelente tool-use para su tamaño |
+| `llama3.1:8b` | ~5 GB | Más capaz, requiere más RAM |
+
+## Modo bandeja del sistema
+
+Inicia Jarvis como ícono en la barra de tareas con una ventana de chat:
+
+```bash
+pip install pystray Pillow
+python -m jarvis --tray
+# o combinar con cualquier backend:
+python -m jarvis --tray --backend gemini
+```
+
+Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocultarse sin cerrar el proceso.
+
 ## Seguridad
 
-- **Herramientas destructivas** (`power_action`, `run_shell_command`) requieren `confirmed=true` en código antes de ejecutarse — no solo en el prompt.
+- **Herramientas destructivas** (`power_action`, `run_shell_command`, `setup_autostart`) requieren `confirmed=true` en código antes de ejecutarse — no solo en el prompt.
 - Las notificaciones en macOS pasan título y mensaje como argumentos argv a `osascript`, nunca interpolados en el fuente AppleScript.
 - La confirmación de escritura en portapapeles solo devuelve el número de caracteres, sin exponer el contenido.
 

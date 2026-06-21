@@ -5,6 +5,7 @@ import psutil
 
 
 def get_system_info() -> str:
+    """Return a formatted summary of CPU, RAM, disk usage, and system uptime."""
     cpu = psutil.cpu_percent(interval=0.5)
     mem = psutil.virtual_memory()
     disk = psutil.disk_usage("/")
@@ -24,6 +25,7 @@ def get_system_info() -> str:
 
 
 def get_battery_info() -> str:
+    """Return battery percentage, charging status, and estimated time remaining."""
     battery = psutil.sensors_battery()
     if battery is None:
         return "No se detectó batería (posiblemente es un desktop)"
@@ -42,6 +44,7 @@ def get_battery_info() -> str:
 
 
 def control_volume(action: str, value: int = None) -> str:
+    """Get or change the system volume (get/set/up/down/mute/unmute) on Linux or macOS."""
     system = platform.system()
 
     if system == "Linux":
@@ -100,6 +103,7 @@ def control_volume(action: str, value: int = None) -> str:
 
 
 def control_brightness(action: str, value: int = None) -> str:
+    """Get or change screen brightness via brightnessctl (Linux only)."""
     try:
         if action == "get":
             cur = int(subprocess.run(["brightnessctl", "get"], capture_output=True, text=True).stdout.strip())
@@ -123,6 +127,7 @@ def control_brightness(action: str, value: int = None) -> str:
 
 
 def power_action(action: str) -> str:
+    """Perform a system power action: shutdown, restart, sleep, or lock."""
     system = platform.system()
     actions_linux = {
         "shutdown": ["systemctl", "poweroff"],

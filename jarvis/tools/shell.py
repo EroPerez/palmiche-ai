@@ -3,6 +3,7 @@ from pathlib import Path
 
 
 def run_shell_command(command: str, working_dir: str = "~") -> str:
+    """Run *command* in a shell with a 30-second timeout and return stdout/stderr output."""
     cwd = Path(working_dir).expanduser()
     if not cwd.exists():
         cwd = Path.home()
