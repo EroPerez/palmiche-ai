@@ -2,6 +2,10 @@
 
 > Just A Rather Very Intelligent System — asistente de IA personal para laptop, impulsado por Claude.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Backends](https://img.shields.io/badge/backends-Anthropic%20%7C%20ADK%20%7C%20Gemini%20%7C%20Ollama-green.svg)](#backends)
+
 ## Características
 
 - Conversación natural en español o inglés con memoria de sesión persistente
@@ -45,25 +49,112 @@ nano jarvis/.env
 | `JARVIS_VOICE_ENABLED` | `false` | Activa voz (requiere dependencias extra) |
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
 
-## Uso
+## Guía de uso
+
+### Inicio rápido
 
 ```bash
-# Backend Anthropic (default)
+# Backend Anthropic (default) — requiere ANTHROPIC_API_KEY en .env
 python -m jarvis
 
-# Backend Google ADK
-python -m jarvis --backend adk
+# Backend local sin API key
+python -m jarvis --backend ollama
 
-# Con nombre personalizado
+# Cambiar nombre del asistente
 python -m jarvis --name "Viernes"
+
+# Modo bandeja del sistema (ícono en barra de tareas)
+python -m jarvis --tray
+
+# Combinar opciones
+python -m jarvis --backend gemini --name "Jarvis" --tray
 ```
 
-Comandos dentro del chat:
+### Opciones de línea de comandos
+
+| Opción | Valores | Descripción |
+|---|---|---|
+| `--backend` | `anthropic`, `adk`, `gemini`, `ollama` | Motor de IA (default: `anthropic`) |
+| `--name` | cualquier texto | Nombre del asistente (default: `Jarvis`) |
+| `--tray` | — | Iniciar en modo bandeja del sistema |
+
+### Comandos dentro del chat
 
 | Comando | Acción |
 |---|---|
-| `salir` | Termina la sesión |
-| `limpiar` | Borra el historial de conversación |
+| `salir` / `exit` / `quit` | Termina la sesión |
+| `limpiar` / `clear` | Borra el historial de conversación |
+
+### Ejemplos de uso por categoría
+
+**Sistema y hardware**
+```
+¿Cómo está la CPU y la RAM?
+¿Cuánta batería me queda?
+Sube el volumen al 70%
+Ajusta el brillo al 50%
+Bloquea la pantalla
+```
+
+**Archivos y directorios**
+```
+Lista los archivos en ~/Documentos
+Busca archivos PDF en el escritorio
+Lee el archivo ~/notas.txt
+Crea la carpeta ~/proyectos/nuevo
+Mueve ~/Descargas/foto.jpg a ~/Imágenes/
+```
+
+**Aplicaciones y procesos**
+```
+Abre Firefox
+Cierra Spotify
+¿Qué aplicaciones están corriendo?
+```
+
+**Red y conectividad**
+```
+¿Cuál es mi IP?
+Haz ping a google.com
+¿A qué red WiFi estoy conectado?
+```
+
+**Web y búsqueda**
+```
+Busca en YouTube tutoriales de Python
+Abre github.com
+Busca en DuckDuckGo "mejores editores de código"
+```
+
+**Portapapeles y utilidades**
+```
+¿Qué hay en el portapapeles?
+Copia este texto al portapapeles: Hola mundo
+Manda una notificación: "Reunión en 5 minutos"
+```
+
+**Shell (con confirmación explícita)**
+```
+Ejecuta: ls -la ~/
+# Jarvis pedirá confirmación antes de correr comandos de shell
+```
+
+**Autoarranque**
+```
+Activa el arranque automático de Jarvis
+Desactiva el autoarranque
+```
+
+### Activación por voz
+
+Con `JARVIS_VOICE_ENABLED=true` en el `.env`, di la palabra clave **"palmiche"** para abrir el chat. El sistema escucha en segundo plano y activa la ventana al detectar la palabra clave.
+
+```bash
+pip install SpeechRecognition pyttsx3 pyaudio
+# En .env:
+# JARVIS_VOICE_ENABLED=true
+python -m jarvis --tray
+```
 
 ## Herramientas disponibles (28)
 
@@ -221,3 +312,24 @@ Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocu
 | Control de brillo | `sudo apt install brightnessctl` | — |
 | Info WiFi | `nmcli` (NetworkManager) | Integrado (`airport`) |
 | Voz | `pip install SpeechRecognition pyttsx3 pyaudio` | Igual |
+
+## Contribuir
+
+1. Haz fork del repositorio
+2. Crea una rama para tu feature: `git checkout -b feat/nueva-herramienta`
+3. Commit con mensajes descriptivos: `git commit -m "feat: add nueva herramienta"`
+4. Push a tu fork: `git push origin feat/nueva-herramienta`
+5. Abre un Pull Request describiendo los cambios
+
+Para añadir una nueva herramienta, crea un módulo en `jarvis/tools/` y regístrala en `jarvis/tools/registry.py` siguiendo el patrón de las herramientas existentes.
+
+## Licencia
+
+Este proyecto está licenciado bajo la [Licencia MIT](LICENSE).
+
+```
+MIT License — Copyright (c) 2026 EroPerez
+
+Se permite el uso, copia, modificación y distribución de este software
+sin restricciones, sujeto a que se incluya el aviso de copyright original.
+```
