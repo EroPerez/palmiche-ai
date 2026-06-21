@@ -221,7 +221,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "web_search",
-        "description": "Abre una búsqueda web en el navegador",
+        "description": "Abre una búsqueda web en el navegador en modo incógnito/privado para no dejar historial. Default: Google.",
         "input_schema": {
             "type": "object",
             "properties": {
