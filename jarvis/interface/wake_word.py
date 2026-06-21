@@ -59,31 +59,71 @@ def _open_microphone_quietly(mic):
     return source
 
 
-def _speak_async(text: str) -> None:
-    """Speak *text* in a daemon thread using pyttsx3.
+def _speak_async(text: str, lang: str = "es") -> None:
+    """Speak *text* in a daemon thread using the best available TTS engine.
 
-    Creates a fresh engine per call to avoid cross-thread issues with pyttsx3.
-    Falls back to espeak/say via subprocess if pyttsx3 is unavailable.
+    Quality tiers (tried in order):
+    1. gTTS — Google neural voice (internet required); played via mpg123/ffplay.
+    2. pyttsx3 — with Spanish voice selection and optimised rate/pitch.
+    3. espeak-ng — subprocess fallback with Spanish voice and quality flags.
+    4. macOS 'say' — native macOS TTS.
     """
     def _run():
+        # ── Tier 1: gTTS (best quality) ──────────────────────────────────────
+        try:
+            import os
+            import subprocess
+            import tempfile
+            from gtts import gTTS
+            tts = gTTS(text=text, lang=lang, slow=False)
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+                tts.save(tmp.name)
+                mp3 = tmp.name
+            # Try players in order of availability
+            for player in (["mpg123", "-q", mp3], ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", mp3]):
+                try:
+                    subprocess.run(player, check=True, capture_output=True)
+                    break
+                except (FileNotFoundError, subprocess.CalledProcessError):
+                    continue
+            os.unlink(mp3)
+            return
+        except Exception:
+            pass
+
+        # ── Tier 2: pyttsx3 with Spanish voice + quality settings ────────────
         try:
             import pyttsx3
             engine = pyttsx3.init()
+            # Prefer a Spanish voice if available
+            voices = engine.getProperty("voices") or []
+            for v in voices:
+                vid = (v.id or "").lower()
+                vname = (v.name or "").lower()
+                if "es" in vid or "spanish" in vname or "español" in vname:
+                    engine.setProperty("voice", v.id)
+                    break
+            engine.setProperty("rate", 135)    # slower = clearer (default ~200)
+            engine.setProperty("volume", 1.0)  # max volume
             engine.say(text)
             engine.runAndWait()
             engine.stop()
             return
         except Exception:
             pass
-        # Fallback: system TTS
+
+        # ── Tier 3: espeak-ng / system TTS ───────────────────────────────────
         import platform
         import subprocess
         system = platform.system()
         try:
             if system == "Linux":
-                subprocess.run(["espeak-ng", text], check=False, capture_output=True)
+                subprocess.run(
+                    ["espeak-ng", "-v", "es", "-s", "130", "-p", "40", "-a", "200", text],
+                    check=False, capture_output=True,
+                )
             elif system == "Darwin":
-                subprocess.run(["say", text], check=False)
+                subprocess.run(["say", "-v", "Monica", text], check=False)
         except FileNotFoundError:
             pass
 

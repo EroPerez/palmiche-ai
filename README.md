@@ -473,7 +473,8 @@ Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocu
 | Control de brillo | `sudo apt install brightnessctl` | — |
 | Info WiFi | `nmcli` (NetworkManager) | Integrado (`airport`) |
 | Bandeja del sistema | `sudo apt install python3-tk` | Integrado |
-| Voz | `sudo apt install python3-dev portaudio19-dev` + `pip install SpeechRecognition pyttsx3 pyaudio` | `brew install portaudio` + pip |
+| Voz (reconocimiento) | `sudo apt install python3-dev portaudio19-dev` + `pip install SpeechRecognition pyttsx3 pyaudio gtts` | `brew install portaudio` + pip |
+| Voz (respuesta audio HD) | `sudo apt install mpg123` (para reproducir gTTS) | Integrado (`ffplay` vía ffmpeg) |
 
 ## Contribuir
 
