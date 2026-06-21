@@ -232,7 +232,13 @@ python -m jarvis --backend gemini --name "Jarvis" --tray
 |---|---|---|
 | `--backend` | `anthropic`, `adk`, `gemini`, `ollama` | Motor de IA (default: `anthropic`) |
 | `--name` | cualquier texto | Nombre del asistente (default: `Jarvis`) |
+| `--welcome` | cualquier texto | Frase de bienvenida del splash (default: `JARVIS_WELCOME_MESSAGE`) |
+| `--goodbye` | cualquier texto | Frase de despedida al salir; admite `{name}` |
+| `--no-splash` | — | No mostrar la pantalla de bienvenida animada |
 | `--tray` | — | Iniciar en modo bandeja del sistema |
+| `--voice` | — | Activar reconocimiento de voz |
+| `--query` / `-q` | texto | Ejecutar una consulta única y salir |
+| `--clear` | — | Borrar el historial y salir |
 
 ### Comandos dentro del chat
 
@@ -496,9 +502,10 @@ sesión local activa, instala la regla de polkit incluida:
 sudo jarvis/scripts/install-power-rules.sh
 ```
 
-Esto copia `jarvis/scripts/49-jarvis-power.rules` a `/etc/polkit-1/rules.d/` y
-reinicia polkit. La regla concede solo apagado/reinicio/suspensión/hibernación a
-la sesión local activa; revisa el archivo para restringirla a un usuario o grupo.
+El instalador sustituye tu usuario (el que ejecuta `sudo`) en la regla, copia
+`jarvis/scripts/49-jarvis-power.rules` a `/etc/polkit-1/rules.d/` y reinicia
+polkit. La regla concede apagado/reinicio/suspensión/hibernación **solo a tu
+usuario**. Para usar otra cuenta: `JARVIS_USER=otro sudo jarvis/scripts/install-power-rules.sh`.
 El bloqueo de pantalla (`lock`) no requiere esta regla.
 
 ## Contribuir

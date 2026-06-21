@@ -18,6 +18,7 @@ Ejemplos:
   python -m jarvis -q '¿cuánta RAM tengo?' # Consulta rápida y salir
   python -m jarvis --voice                  # Con reconocimiento de voz
   python -m jarvis --clear                  # Borrar historial y salir
+  python -m jarvis --name 'Viernes'         # Cambiar el nombre del asistente
   python -m jarvis --welcome 'Hola, jefe'   # Frase de bienvenida personalizada
   python -m jarvis --goodbye 'Nos vemos'    # Frase de despedida personalizada
   python -m jarvis --no-splash              # Sin pantalla de bienvenida animada
@@ -61,6 +62,13 @@ Ejemplos:
         "--no-splash",
         action="store_true",
         help="No mostrar la pantalla de bienvenida animada (splash screen)",
+    )
+    parser.add_argument(
+        "--name",
+        type=str,
+        default=None,
+        metavar="NOMBRE",
+        help="Nombre del asistente (default: JARVIS_NAME)",
     )
     return parser.parse_args()
 
@@ -141,6 +149,9 @@ def main():
 
     voice_on = args.voice or VOICE_ENABLED
 
+    # Assistant name: CLI param overrides env, env overrides default.
+    name = args.name if args.name is not None else JARVIS_NAME
+
     # Welcome/goodbye phrases: CLI param overrides env, env overrides default.
     welcome_message = args.welcome if args.welcome is not None else JARVIS_WELCOME_MESSAGE
     goodbye_template = args.goodbye if args.goodbye is not None else JARVIS_GOODBYE_MESSAGE
@@ -149,7 +160,7 @@ def main():
     def _goodbye() -> str:
         """Render the goodbye phrase, expanding the optional {name} placeholder."""
         try:
-            return goodbye_template.format(name=JARVIS_NAME)
+            return goodbye_template.format(name=name)
         except (KeyError, IndexError, ValueError, AttributeError):
             return goodbye_template
 
@@ -159,9 +170,9 @@ def main():
         return
 
     if args.query:
-        print_thinking(JARVIS_NAME)
+        print_thinking(name)
         response = agent.chat(args.query)
-        print_jarvis_response(response, JARVIS_NAME)
+        print_jarvis_response(response, name)
         if voice_on:
             from .interface.voice import speak
             speak(response)
@@ -172,7 +183,7 @@ def main():
         try:
             from .interface.tray import run_tray
             wake_word = args.wake_word or JARVIS_WAKE_WORD
-            run_tray(agent, JARVIS_NAME, wake_word=wake_word)
+            run_tray(agent, name, wake_word=wake_word)
         except (ImportError, RuntimeError) as e:
             print_error(str(e))
             sys.exit(1)
@@ -181,8 +192,8 @@ def main():
     # Interactive CLI mode
     if splash_on:
         from .interface.splash import show_splash
-        show_splash(console, JARVIS_NAME, welcome_message)
-    print_banner(JARVIS_NAME, backend)
+        show_splash(console, name, welcome_message)
+    print_banner(name, backend)
 
     while True:
         try:
@@ -207,13 +218,13 @@ def main():
             if cmd in ("limpiar", "clear", "/clear"):
                 agent.history.clear()
                 console.clear()
-                print_banner(JARVIS_NAME, backend)
+                print_banner(name, backend)
                 print_info("Historial borrado.")
                 continue
 
-            print_thinking(JARVIS_NAME)
+            print_thinking(name)
             response = agent.chat(text)
-            print_jarvis_response(response, JARVIS_NAME)
+            print_jarvis_response(response, name)
 
             if voice_on:
                 from .interface.voice import speak
