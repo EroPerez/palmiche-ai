@@ -4,6 +4,9 @@ Features:
 - Taskbar icon (pystray) — click to show/hide the chat window
 - Dark-themed chat window (tkinter, Catppuccin Mocha)
 - Waveform animation in the header (idle / wake / thinking states)
+- Message timestamps and a bottom status bar (Listo / procesando / escuchando)
+- Clear button (🗑) and keyboard shortcuts: Esc hides, Ctrl+L clears the chat
+- Window centered on screen with a sensible minimum size
 - Background wake-word listener: saying "palmiche" shows the window and
   focuses the input field, ready for a voice or text command
 
@@ -16,6 +19,7 @@ Optional: pip install SpeechRecognition pyaudio   (for wake word)
 """
 import platform
 import threading
+from datetime import datetime
 
 _SYSTEM = platform.system()
 
@@ -56,6 +60,8 @@ class _ChatWindow:
         self._anim = None          # WaveformAnimation
         self._wake_listener = None # WakeWordListener
         self._mic_btn = None       # microphone input button
+        self._status = None        # bottom status-bar label
+        self._busy = False         # True while the agent is processing
 
     # ------------------------------------------------------------------ build
 
@@ -63,15 +69,23 @@ class _ChatWindow:
         """Construct and configure all tkinter widgets, then start the wake-word listener."""
         import tkinter as tk
         from tkinter import scrolledtext
+
         from .animation import WaveformAnimation
         from .wake_word import WakeWordListener
 
         self.root = tk.Tk()
         self.root.title(self.name)
         self.root.geometry("720x580")
+        self.root.minsize(420, 360)
         self.root.configure(bg="#1e1e2e")
         self.root.resizable(True, True)
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
+        self._center_window(720, 580)
+
+        # Keyboard shortcuts: Esc hides, Ctrl+L clears the conversation.
+        self.root.bind("<Escape>", lambda _e: self.hide())
+        self.root.bind("<Control-l>", lambda _e: self._clear_chat())
+        self.root.bind("<Control-L>", lambda _e: self._clear_chat())
 
         # ── Header ──────────────────────────────────────────────────────────
         header = tk.Frame(self.root, bg="#181825", pady=0)
@@ -112,6 +126,8 @@ class _ChatWindow:
         self._display.tag_configure("wake",    foreground="#f9e2af",
                                      font=("Monospace", 9, "italic"))
         self._display.tag_configure("error",   foreground="#f38ba8")
+        self._display.tag_configure("time",    foreground="#6c7086",
+                                     font=("Monospace", 8))
 
         # ── Input row ────────────────────────────────────────────────────────
         row = tk.Frame(self.root, bg="#313244", pady=4)
@@ -140,7 +156,22 @@ class _ChatWindow:
         )
         self._mic_btn.pack(side=tk.RIGHT, padx=(4, 0))
 
+        tk.Button(
+            row, text="🗑", command=self._clear_chat,
+            bg="#313244", fg="#cdd6f4", relief=tk.FLAT,
+            padx=8, font=("Monospace", 11), cursor="hand2",
+            activebackground="#45475a", activeforeground="#f38ba8",
+        ).pack(side=tk.RIGHT, padx=(4, 0))
+
+        # ── Status bar ───────────────────────────────────────────────────────
+        self._status = tk.Label(
+            self.root, anchor="w", text="", bg="#181825", fg="#a6adc8",
+            font=("Monospace", 9), padx=10, pady=3,
+        )
+        self._status.pack(fill=tk.X)
+
         self._append(f"Sistema: {self.name} listo\n", "system")
+        self._set_status("Listo", "#a6e3a1")
 
         # ── Wake word listener ───────────────────────────────────────────────
         self._wake_listener = WakeWordListener(
@@ -152,12 +183,48 @@ class _ChatWindow:
 
     # ---------------------------------------------------------------- I/O
 
-    def _append(self, text: str, tag: str = ""):
-        """Append *text* with *tag* styling to the read-only chat display."""
+    def _append(self, text: str, tag: str = "", stamp: bool = False):
+        """Append *text* with *tag* styling; if *stamp*, prefix a dim [HH:MM] timestamp."""
         self._display.config(state="normal")
+        if stamp:
+            self._display.insert("end", f"[{datetime.now():%H:%M}] ", "time")
         self._display.insert("end", text, tag)
         self._display.config(state="disabled")
         self._display.see("end")
+
+    def _set_status(self, text: str, color: str = "#a6adc8"):
+        """Update the bottom status-bar text and color (no-op if not built yet)."""
+        if self._status:
+            self._status.config(text=text, fg=color)
+
+    def _clear_chat(self):
+        """Clear the chat display and the agent's conversation history."""
+        if self._busy:
+            return
+        if self._display:
+            self._display.config(state="normal")
+            self._display.delete("1.0", "end")
+            self._display.config(state="disabled")
+        history = getattr(self.agent, "history", None)
+        if history is not None and hasattr(history, "clear"):
+            try:
+                history.clear()
+            except Exception:  # noqa: BLE001 - clearing history must never crash the UI
+                pass
+        self._append(f"Sistema: {self.name} listo\n", "system")
+        self._set_status("Historial borrado", "#f5c2e7")
+
+    def _center_window(self, width: int, height: int):
+        """Position the window at the center of the screen."""
+        try:
+            self.root.update_idletasks()
+            sw = self.root.winfo_screenwidth()
+            sh = self.root.winfo_screenheight()
+            x = max(0, (sw - width) // 2)
+            y = max(0, (sh - height) // 3)
+            self.root.geometry(f"{width}x{height}+{x}+{y}")
+        except Exception:  # noqa: BLE001 - centering is cosmetic
+            pass
 
     def _on_send(self, _event=None):
         """Read the input field, echo the user message, and dispatch agent call in a thread."""
@@ -166,9 +233,11 @@ class _ChatWindow:
             return
         self._entry.delete(0, "end")
         self._entry.config(state="disabled")
-        self._append(f"Tú: {msg}\n", "user")
+        self._busy = True
+        self._append(f"Tú: {msg}\n", "user", stamp=True)
         if self._anim:
             self._anim.set_state("thinking")
+        self._set_status(f"{self.name} está procesando…", "#89dceb")
         threading.Thread(
             target=self._call_agent, args=(msg,), daemon=True
         ).start()
@@ -185,11 +254,13 @@ class _ChatWindow:
 
     def _on_reply(self, reply: str, tag: str):
         """Display the agent reply and reset the UI to idle state (main thread)."""
-        self._append(f"{self.name}: {reply}\n\n", tag)
+        self._append(f"{self.name}: {reply}\n\n", tag, stamp=True)
+        self._busy = False
         self._entry.config(state="normal")
         self._entry.focus_set()
         if self._anim:
             self._anim.set_state("idle")
+        self._set_status("Listo", "#a6e3a1")
 
     # ----------------------------------------------------------- wake word
 
@@ -202,13 +273,21 @@ class _ChatWindow:
         """Runs on the tkinter main thread."""
         self.show()
         self._append(f"[{self.name} activado por voz]\n", "wake")
+        self._set_status("Activado por voz — escuchando…", "#f9e2af")
         if self._anim:
             self._anim.set_state("wake")
             # Return to idle after 1.5 s
-            self.root.after(1500, lambda: self._anim.set_state("idle") if self._anim else None)
+            self.root.after(1500, self._wake_to_idle)
         if self._entry:
             self._entry.config(state="normal")
             self._entry.focus_set()
+
+    def _wake_to_idle(self):
+        """Return the animation and status bar to idle after a wake burst."""
+        if self._anim:
+            self._anim.set_state("idle")
+        if not self._busy:
+            self._set_status("Listo", "#a6e3a1")
 
     # --------------------------------------------------------- voice input
 
@@ -217,6 +296,7 @@ class _ChatWindow:
         if not self._wake_listener:
             return
         self._append("[Escuchando comando de voz…]\n", "wake")
+        self._set_status("Escuchando comando de voz…", "#f9e2af")
         if self._anim:
             self._anim.set_state("wake")
         if self._mic_btn:
@@ -257,6 +337,7 @@ class _ChatWindow:
             self._on_send()
         else:
             self._append("[No se entendió el comando de voz]\n", "system")
+            self._set_status("No se entendió el comando de voz", "#f38ba8")
             if self._entry:
                 self._entry.config(state="normal")
 
