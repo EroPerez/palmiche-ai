@@ -150,7 +150,17 @@ Desactiva el autoarranque
 Con `JARVIS_VOICE_ENABLED=true` en el `.env`, di la palabra clave **"palmiche"** para abrir el chat. El sistema escucha en segundo plano y activa la ventana al detectar la palabra clave.
 
 ```bash
+# Linux: instalar dependencias del sistema primero
+sudo apt install python3-dev portaudio19-dev
+
+# macOS
+brew install portaudio
+
+# Luego instalar paquetes Python
 pip install SpeechRecognition pyttsx3 pyaudio
+# o con el grupo opcional:
+pip install "palmiche-jarvis[voice]"
+
 # En .env:
 # JARVIS_VOICE_ENABLED=true
 python -m jarvis --tray
@@ -311,7 +321,7 @@ Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocu
 | Capturas de pantalla | `sudo apt install scrot` | Integrado (`screencapture`) |
 | Control de brillo | `sudo apt install brightnessctl` | — |
 | Info WiFi | `nmcli` (NetworkManager) | Integrado (`airport`) |
-| Voz | `pip install SpeechRecognition pyttsx3 pyaudio` | Igual |
+| Voz | `sudo apt install python3-dev portaudio19-dev` + `pip install SpeechRecognition pyttsx3 pyaudio` | `brew install portaudio` + pip |
 
 ## Contribuir
 
