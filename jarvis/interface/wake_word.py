@@ -59,6 +59,37 @@ def _open_microphone_quietly(mic):
     return source
 
 
+def _speak_async(text: str) -> None:
+    """Speak *text* in a daemon thread using pyttsx3.
+
+    Creates a fresh engine per call to avoid cross-thread issues with pyttsx3.
+    Falls back to espeak/say via subprocess if pyttsx3 is unavailable.
+    """
+    def _run():
+        try:
+            import pyttsx3
+            engine = pyttsx3.init()
+            engine.say(text)
+            engine.runAndWait()
+            engine.stop()
+            return
+        except Exception:
+            pass
+        # Fallback: system TTS
+        import platform
+        import subprocess
+        system = platform.system()
+        try:
+            if system == "Linux":
+                subprocess.run(["espeak-ng", text], check=False, capture_output=True)
+            elif system == "Darwin":
+                subprocess.run(["say", text], check=False)
+        except FileNotFoundError:
+            pass
+
+    threading.Thread(target=_run, daemon=True, name="jarvis-tts").start()
+
+
 class WakeWordListener:
     """Daemon thread that listens for a wake word and fires a callback.
 
@@ -74,11 +105,13 @@ class WakeWordListener:
         wake_word: str = "palmiche",
         on_wake: Optional[Callable] = None,
         language: str = "es-ES",
+        response_text: str = "Kewelta Compay",
     ):
-        """Configure the wake word, optional callback, and recognition language."""
+        """Configure the wake word, callback, recognition language and audio response."""
         self.wake_word = wake_word.lower()
         self.on_wake = on_wake
         self.language = language
+        self.response_text = response_text
         self._running = False
         self._thread: Optional[threading.Thread] = None
 
@@ -148,6 +181,8 @@ class WakeWordListener:
                     logger.debug("Escuchado: %s", text)
                     if self.wake_word in text:
                         logger.info("¡Wake word detectada! '%s'", self.wake_word)
+                        if self.response_text:
+                            _speak_async(self.response_text)
                         if self.on_wake:
                             self.on_wake()
 
