@@ -13,36 +13,50 @@ from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# ALSA error suppression — module-level reference prevents garbage collection.
+# Without this, the callback is freed after snd_lib_error_set_handler returns
+# and ALSA crashes Python with "TypeError: cannot build parameter of type 'self'".
+# ---------------------------------------------------------------------------
+_ALSA_HANDLER_TYPE = ctypes.CFUNCTYPE(
+    None,                # return type
+    ctypes.c_char_p,     # file
+    ctypes.c_int,        # line
+    ctypes.c_char_p,     # function
+    ctypes.c_int,        # err
+    ctypes.c_char_p,     # fmt  (variadic args after this are ignored)
+)
+
+
+def _alsa_noop(filename, line, function, err, fmt):
+    pass
+
+
+_ALSA_NOOP_HANDLER = _ALSA_HANDLER_TYPE(_alsa_noop)  # kept alive forever
+
 
 def _suppress_alsa_errors() -> None:
-    """Silence ALSA/JACK error spam printed to stderr during PyAudio init.
-
-    PyAudio probes every virtual ALSA PCM device at startup; most don't exist
-    and ALSA prints a wall of warnings to stderr.  Replacing the C-level error
-    handler with a no-op silences them without affecting functionality.
-    """
+    """Install a no-op ALSA error handler to silence PyAudio device-probe spam."""
     try:
-        _noop = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_int,
-                                 ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)
         ctypes.cdll.LoadLibrary("libasound.so.2").snd_lib_error_set_handler(
-            _noop(lambda *_: None)
+            _ALSA_NOOP_HANDLER
         )
     except OSError:
-        pass  # libasound not present — nothing to suppress
+        pass  # libasound not available (macOS, etc.)
 
-    # Redirect stderr briefly to /dev/null to catch JACK messages too
+
+def _open_microphone_quietly(mic):
+    """Enter the Microphone context while redirecting fd 2 to suppress JACK messages."""
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    saved = os.dup(2)
+    os.dup2(devnull, 2)
+    os.close(devnull)
     try:
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        saved = os.dup(2)
-        os.dup2(devnull, 2)
-        os.close(devnull)
-
-        import pyaudio  # noqa: F401  trigger the C-level init here
-
+        source = mic.__enter__()
+    finally:
         os.dup2(saved, 2)
         os.close(saved)
-    except Exception:
-        pass
+    return source
 
 
 class WakeWordListener:
@@ -112,10 +126,13 @@ class WakeWordListener:
             logger.warning("No se pudo abrir el micrófono: %s", exc)
             return
 
-        # Initial noise calibration
+        # Initial noise calibration — suppress JACK stderr on first open
         try:
-            with mic as source:
+            source = _open_microphone_quietly(mic)
+            try:
                 recognizer.adjust_for_ambient_noise(source, duration=1.0)
+            finally:
+                mic.__exit__(None, None, None)
         except Exception as exc:
             logger.debug("Calibración de ruido ambiental fallida: %s", exc)
 
