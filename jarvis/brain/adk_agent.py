@@ -31,7 +31,7 @@ class JarvisADKAgent:
     use_gemini=True   → native Gemini API (GOOGLE_API_KEY required)
     """
 
-    def __init__(self, use_gemini: bool = False):
+    def __init__(self, use_gemini: bool = False, name: str = JARVIS_NAME):
         """Set up the ADK Runner with the appropriate model backend and a fresh session."""
         try:
             from google.adk.agents import Agent
@@ -75,7 +75,7 @@ class JarvisADKAgent:
         agent = Agent(
             name="jarvis",
             model=model,
-            instruction=SYSTEM_PROMPT.format(name=JARVIS_NAME),
+            instruction=SYSTEM_PROMPT.format(name=name),
             tools=ADK_TOOLS,
         )
 

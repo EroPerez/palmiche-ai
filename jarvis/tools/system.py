@@ -126,6 +126,27 @@ def control_brightness(action: str, value: int = None) -> str:
     return f"Acción '{action}' ejecutada"
 
 
+def _run_power_cmd(cmd: list) -> tuple[bool, str]:
+    """Run a power/lock command and report whether it succeeded.
+
+    Returns (ok, error). Unlike a fire-and-forget Popen, this waits for the
+    command and inspects its exit code so real failures (missing binary,
+    polkit/permission denial, no active session) surface instead of being
+    silently reported as success. A TimeoutExpired is treated as success
+    because actions like suspend may not return promptly.
+    """
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+    except FileNotFoundError:
+        return False, f"{cmd[0]}: comando no encontrado"
+    except subprocess.TimeoutExpired:
+        return True, ""
+    if r.returncode == 0:
+        return True, ""
+    err = (r.stderr or r.stdout or "").strip()
+    return False, f"{cmd[0]}: {err or f'código de salida {r.returncode}'}"
+
+
 def power_action(action: str) -> str:
     """Perform a system power action: shutdown, restart, sleep, or lock."""
     system = platform.system()
@@ -142,21 +163,22 @@ def power_action(action: str) -> str:
 
     if action == "lock":
         if system == "Linux":
+            errors = []
             for cmd in (
                 ["loginctl", "lock-session"],
                 ["gnome-screensaver-command", "-l"],
                 ["xdg-screensaver", "lock"],
                 ["i3lock"],
             ):
-                try:
-                    subprocess.Popen(cmd)
+                ok, err = _run_power_cmd(cmd)
+                if ok:
                     return "Pantalla bloqueada"
-                except FileNotFoundError:
-                    continue
-            return "No se encontró un comando de bloqueo de pantalla"
+                errors.append(err)
+            return "No se pudo bloquear la pantalla. Detalles: " + "; ".join(errors)
         if system == "Darwin":
-            subprocess.Popen(["pmset", "displaysleepnow"])
-            return "Pantalla bloqueada"
+            ok, err = _run_power_cmd(["pmset", "displaysleepnow"])
+            return "Pantalla bloqueada" if ok else f"No se pudo bloquear la pantalla. {err}"
+        return f"Acción 'lock' no soportada en {system}"
 
     if system == "Linux":
         cmds = actions_linux
@@ -164,9 +186,15 @@ def power_action(action: str) -> str:
         cmds = actions_mac
     else:
         return f"Acción '{action}' no soportada en {system}"
+
     if action in cmds:
-        subprocess.Popen(cmds[action])
         labels = {"shutdown": "Apagando", "restart": "Reiniciando", "sleep": "Suspendiendo"}
-        return f"{labels[action]} el sistema..."
+        ok, err = _run_power_cmd(cmds[action])
+        if ok:
+            return f"{labels[action]} el sistema..."
+        return (
+            f"No se pudo ejecutar '{action}'. {err}. "
+            "Puede requerir permisos (polkit/sudo) o una sesión activa."
+        )
 
     return f"Acción '{action}' no reconocida"

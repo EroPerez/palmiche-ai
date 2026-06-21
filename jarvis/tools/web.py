@@ -8,24 +8,27 @@ SEARCH_URLS = {
     "youtube": "https://www.youtube.com/results?search_query={}",
 }
 
-# Browsers tried in order on Linux: (binary, incognito_flag)
+# Browsers tried in order on Linux: (binary, incognito_args)
+# Chromium-family browsers need --new-window: with only --incognito they reuse
+# an already-open incognito window and add a tab instead of opening a new window.
+# Firefox's --private-window already opens a fresh private window each time.
 _BROWSERS_LINUX = [
-    ("google-chrome",        "--incognito"),
-    ("google-chrome-stable", "--incognito"),
-    ("chromium-browser",     "--incognito"),
-    ("chromium",             "--incognito"),
-    ("brave-browser",        "--incognito"),
-    ("microsoft-edge",       "--inprivate"),
-    ("firefox",              "--private-window"),
+    ("google-chrome",        ["--incognito", "--new-window"]),
+    ("google-chrome-stable", ["--incognito", "--new-window"]),
+    ("chromium-browser",     ["--incognito", "--new-window"]),
+    ("chromium",             ["--incognito", "--new-window"]),
+    ("brave-browser",        ["--incognito", "--new-window"]),
+    ("microsoft-edge",       ["--inprivate", "--new-window"]),
+    ("firefox",              ["--private-window"]),
 ]
 
-# App names tried in order on macOS: (app_name, incognito_flag)
+# App names tried in order on macOS: (app_name, incognito_args)
 _BROWSERS_MACOS = [
-    ("Google Chrome",   "--incognito"),
-    ("Chromium",        "--incognito"),
-    ("Brave Browser",   "--incognito"),
-    ("Microsoft Edge",  "--inprivate"),
-    ("Firefox",         "--private-window"),
+    ("Google Chrome",   ["--incognito", "--new-window"]),
+    ("Chromium",        ["--incognito", "--new-window"]),
+    ("Brave Browser",   ["--incognito", "--new-window"]),
+    ("Microsoft Edge",  ["--inprivate", "--new-window"]),
+    ("Firefox",         ["--private-window"]),
 ]
 
 
@@ -49,17 +52,24 @@ def _open_incognito(url: str) -> str:
     system = platform.system()
 
     if system == "Linux":
-        for binary, flag in _BROWSERS_LINUX:
+        for binary, args in _BROWSERS_LINUX:
             try:
-                subprocess.Popen([binary, flag, url])
+                subprocess.Popen(
+                    [binary, *args, url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
                 return f"Abriendo en modo incógnito: {url}"
             except FileNotFoundError:
                 continue
 
     elif system == "Darwin":
-        for app, flag in _BROWSERS_MACOS:
+        for app, args in _BROWSERS_MACOS:
             try:
-                subprocess.Popen(["open", "-a", app, "--args", flag, url])
+                # -n launches a new instance so the flags/URL are honored even
+                # when the browser is already running (otherwise `open` just
+                # activates the existing window and ignores --args).
+                subprocess.Popen(["open", "-na", app, "--args", *args, url])
                 return f"Abriendo en modo incógnito: {url}"
             except FileNotFoundError:
                 continue

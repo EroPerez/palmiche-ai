@@ -232,7 +232,13 @@ python -m jarvis --backend gemini --name "Jarvis" --tray
 |---|---|---|
 | `--backend` | `anthropic`, `adk`, `gemini`, `ollama` | Motor de IA (default: `anthropic`) |
 | `--name` | cualquier texto | Nombre del asistente (default: `Jarvis`) |
+| `--welcome` | cualquier texto | Frase de bienvenida del splash (default: `JARVIS_WELCOME_MESSAGE`) |
+| `--goodbye` | cualquier texto | Frase de despedida al salir; admite `{name}` |
+| `--no-splash` | — | No mostrar la pantalla de bienvenida animada |
 | `--tray` | — | Iniciar en modo bandeja del sistema |
+| `--voice` | — | Activar reconocimiento de voz |
+| `--query` / `-q` | texto | Ejecutar una consulta única y salir |
+| `--clear` | — | Borrar el historial y salir |
 
 ### Comandos dentro del chat
 
@@ -484,6 +490,23 @@ Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocu
 | Bandeja del sistema | `sudo apt install python3-tk` | Integrado |
 | Voz (reconocimiento) | `sudo apt install python3-dev portaudio19-dev` + `pip install SpeechRecognition pyttsx3 pyaudio gtts` | `brew install portaudio` + pip |
 | Voz (respuesta audio HD) | `sudo apt install mpg123` (para reproducir gTTS) | Integrado (`ffplay` vía ffmpeg) |
+
+### Acciones de energía sin contraseña (Linux)
+
+`power_action` (apagar / reiniciar / suspender) usa `systemctl`, que en muchos
+sistemas pide autenticación de polkit y, en un contexto no interactivo, falla con
+`Interactive authentication required`. Para permitirlas sin contraseña a la
+sesión local activa, instala la regla de polkit incluida:
+
+```bash
+sudo jarvis/scripts/install-power-rules.sh
+```
+
+El instalador sustituye tu usuario (el que ejecuta `sudo`) en la regla, copia
+`jarvis/scripts/49-jarvis-power.rules` a `/etc/polkit-1/rules.d/` y reinicia
+polkit. La regla concede apagado/reinicio/suspensión/hibernación **solo a tu
+usuario**. Para usar otra cuenta: `JARVIS_USER=otro sudo jarvis/scripts/install-power-rules.sh`.
+El bloqueo de pantalla (`lock`) no requiere esta regla.
 
 ## Contribuir
 

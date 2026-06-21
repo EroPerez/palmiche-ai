@@ -18,6 +18,7 @@ Ejemplos:
   python -m jarvis -q '¿cuánta RAM tengo?' # Consulta rápida y salir
   python -m jarvis --voice                  # Con reconocimiento de voz
   python -m jarvis --clear                  # Borrar historial y salir
+  python -m jarvis --name 'Viernes'         # Cambiar el nombre del asistente
   python -m jarvis --welcome 'Hola, jefe'   # Frase de bienvenida personalizada
   python -m jarvis --goodbye 'Nos vemos'    # Frase de despedida personalizada
   python -m jarvis --no-splash              # Sin pantalla de bienvenida animada
@@ -62,11 +63,18 @@ Ejemplos:
         action="store_true",
         help="No mostrar la pantalla de bienvenida animada (splash screen)",
     )
+    parser.add_argument(
+        "--name",
+        type=str,
+        default=None,
+        metavar="NOMBRE",
+        help="Nombre del asistente (default: JARVIS_NAME)",
+    )
     return parser.parse_args()
 
 
-def _build_agent(backend: str):
-    """Construct the agent for the given backend.
+def _build_agent(backend: str, name: str):
+    """Construct the agent for the given backend, using *name* as the assistant name.
 
     'adk' auto-selects Gemini when GOOGLE_API_KEY is set and
     ANTHROPIC_API_KEY is not, making it easy to run without Anthropic credentials.
@@ -75,21 +83,21 @@ def _build_agent(backend: str):
 
     if backend == "ollama":
         from .brain.ollama_agent import JarvisOllamaAgent
-        return JarvisOllamaAgent()
+        return JarvisOllamaAgent(name=name)
 
     if backend == "gemini":
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=True)
+        return JarvisADKAgent(use_gemini=True, name=name)
 
     if backend == "adk":
         from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY
         use_gemini = bool(GOOGLE_API_KEY) and not bool(ANTHROPIC_API_KEY)
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=use_gemini)
+        return JarvisADKAgent(use_gemini=use_gemini, name=name)
 
     if backend == "anthropic":
         from .brain.agent import JarvisAgent
-        return JarvisAgent()
+        return JarvisAgent(name=name)
 
     raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk', 'gemini' u 'ollama'.")
 
@@ -121,6 +129,9 @@ def main():
 
     backend = (args.backend or JARVIS_BACKEND).strip().lower()
 
+    # Assistant name: CLI param overrides env, env overrides default.
+    name = args.name if args.name is not None else JARVIS_NAME
+
     # Key validation per backend
     if backend == "anthropic" and not ANTHROPIC_API_KEY:
         print("[ERROR] ANTHROPIC_API_KEY no configurada.")
@@ -134,7 +145,7 @@ def main():
     # 'ollama' and 'adk' validate their own connections at construction time
 
     try:
-        agent = _build_agent(backend)
+        agent = _build_agent(backend, name)
     except (ImportError, ValueError) as e:
         print_error(str(e))
         sys.exit(1)
@@ -149,8 +160,8 @@ def main():
     def _goodbye() -> str:
         """Render the goodbye phrase, expanding the optional {name} placeholder."""
         try:
-            return goodbye_template.format(name=JARVIS_NAME)
-        except (KeyError, IndexError, ValueError):
+            return goodbye_template.format(name=name)
+        except (KeyError, IndexError, ValueError, AttributeError):
             return goodbye_template
 
     if args.clear:
@@ -159,9 +170,9 @@ def main():
         return
 
     if args.query:
-        print_thinking(JARVIS_NAME)
+        print_thinking(name)
         response = agent.chat(args.query)
-        print_jarvis_response(response, JARVIS_NAME)
+        print_jarvis_response(response, name)
         if voice_on:
             from .interface.voice import speak
             speak(response)
@@ -172,7 +183,7 @@ def main():
         try:
             from .interface.tray import run_tray
             wake_word = args.wake_word or JARVIS_WAKE_WORD
-            run_tray(agent, JARVIS_NAME, wake_word=wake_word)
+            run_tray(agent, name, wake_word=wake_word)
         except (ImportError, RuntimeError) as e:
             print_error(str(e))
             sys.exit(1)
@@ -181,8 +192,8 @@ def main():
     # Interactive CLI mode
     if splash_on:
         from .interface.splash import show_splash
-        show_splash(console, JARVIS_NAME, welcome_message)
-    print_banner(JARVIS_NAME, backend)
+        show_splash(console, name, welcome_message)
+    print_banner(name, backend)
 
     while True:
         try:
@@ -207,13 +218,13 @@ def main():
             if cmd in ("limpiar", "clear", "/clear"):
                 agent.history.clear()
                 console.clear()
-                print_banner(JARVIS_NAME, backend)
+                print_banner(name, backend)
                 print_info("Historial borrado.")
                 continue
 
-            print_thinking(JARVIS_NAME)
+            print_thinking(name)
             response = agent.chat(text)
-            print_jarvis_response(response, JARVIS_NAME)
+            print_jarvis_response(response, name)
 
             if voice_on:
                 from .interface.voice import speak

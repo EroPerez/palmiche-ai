@@ -8,11 +8,11 @@ from ..memory.history import ConversationHistory
 class JarvisAgent:
     """Jarvis agent powered by the Anthropic SDK with a manual tool-use loop."""
 
-    def __init__(self):
+    def __init__(self, name: str = JARVIS_NAME):
         """Initialize the Anthropic client and load conversation history."""
         self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         self.history = ConversationHistory()
-        self.system_prompt = SYSTEM_PROMPT.format(name=JARVIS_NAME)
+        self.system_prompt = SYSTEM_PROMPT.format(name=name)
 
     def chat(self, user_message: str) -> str:
         """Send a user message and run the agentic loop until end_turn or 10 iterations."""
