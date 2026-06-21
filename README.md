@@ -190,6 +190,9 @@ nano jarvis/.env
 | `JARVIS_MODEL` | `claude-haiku-4-5-20251001` | Modelo Claude (backends anthropic/adk) |
 | `JARVIS_GEMINI_MODEL` | `gemini-2.0-flash` | Modelo Gemini (backend gemini) |
 | `JARVIS_NAME` | `Jarvis` | Nombre del asistente |
+| `JARVIS_SPLASH_ENABLED` | `true` | Pantalla de bienvenida animada (verde) al iniciar |
+| `JARVIS_WELCOME_MESSAGE` | `Sistemas en línea. ¿En qué puedo ayudarte?` | Frase de bienvenida del splash (override con `--welcome`) |
+| `JARVIS_GOODBYE_MESSAGE` | `{name} desconectado. Hasta luego.` | Frase de despedida al salir (override con `--goodbye`). `{name}` = nombre |
 | `JARVIS_BACKEND` | `anthropic` | Backend: `anthropic`, `adk`, `gemini` u `ollama` |
 | `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | URL del servidor Ollama (backend `ollama`) |
 | `JARVIS_OLLAMA_MODEL` | `llama3.2` | Modelo Ollama a usar |
@@ -209,6 +212,12 @@ python -m jarvis --backend ollama
 
 # Cambiar nombre del asistente
 python -m jarvis --name "Viernes"
+
+# Frase de bienvenida y despedida personalizadas (splash animado en verde)
+python -m jarvis --welcome "Hola, jefe" --goodbye "Nos vemos, {name}"
+
+# Saltar la pantalla de bienvenida animada
+python -m jarvis --no-splash
 
 # Modo bandeja del sistema (ícono en barra de tareas)
 python -m jarvis --tray

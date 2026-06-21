@@ -18,6 +18,9 @@ Ejemplos:
   python -m jarvis -q '¿cuánta RAM tengo?' # Consulta rápida y salir
   python -m jarvis --voice                  # Con reconocimiento de voz
   python -m jarvis --clear                  # Borrar historial y salir
+  python -m jarvis --welcome 'Hola, jefe'   # Frase de bienvenida personalizada
+  python -m jarvis --goodbye 'Nos vemos'    # Frase de despedida personalizada
+  python -m jarvis --no-splash              # Sin pantalla de bienvenida animada
         """,
     )
     parser.add_argument("--voice", action="store_true", help="Activar reconocimiento de voz")
@@ -39,6 +42,25 @@ Ejemplos:
             "Backend: 'anthropic' (default), 'adk' (Google ADK+Claude), "
             "'gemini' (Google ADK+Gemini), 'ollama' (modelo local)"
         ),
+    )
+    parser.add_argument(
+        "--welcome",
+        type=str,
+        default=None,
+        metavar="FRASE",
+        help="Frase de bienvenida del splash (default: JARVIS_WELCOME_MESSAGE)",
+    )
+    parser.add_argument(
+        "--goodbye",
+        type=str,
+        default=None,
+        metavar="FRASE",
+        help="Frase de despedida al salir. Usa {name} para el nombre del asistente.",
+    )
+    parser.add_argument(
+        "--no-splash",
+        action="store_true",
+        help="No mostrar la pantalla de bienvenida animada (splash screen)",
     )
     return parser.parse_args()
 
@@ -76,7 +98,17 @@ def main():
     """Entry point: parse args, validate API keys, build agent, and run the selected mode."""
     args = parse_args()
 
-    from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY, JARVIS_NAME, VOICE_ENABLED, JARVIS_BACKEND, JARVIS_WAKE_WORD
+    from .config import (
+        ANTHROPIC_API_KEY,
+        GOOGLE_API_KEY,
+        JARVIS_BACKEND,
+        JARVIS_GOODBYE_MESSAGE,
+        JARVIS_NAME,
+        JARVIS_SPLASH_ENABLED,
+        JARVIS_WAKE_WORD,
+        JARVIS_WELCOME_MESSAGE,
+        VOICE_ENABLED,
+    )
     from .interface.cli import (
         print_banner,
         get_user_input,
@@ -109,6 +141,18 @@ def main():
 
     voice_on = args.voice or VOICE_ENABLED
 
+    # Welcome/goodbye phrases: CLI param overrides env, env overrides default.
+    welcome_message = args.welcome if args.welcome is not None else JARVIS_WELCOME_MESSAGE
+    goodbye_template = args.goodbye if args.goodbye is not None else JARVIS_GOODBYE_MESSAGE
+    splash_on = JARVIS_SPLASH_ENABLED and not args.no_splash
+
+    def _goodbye() -> str:
+        """Render the goodbye phrase, expanding the optional {name} placeholder."""
+        try:
+            return goodbye_template.format(name=JARVIS_NAME)
+        except (KeyError, IndexError, ValueError):
+            return goodbye_template
+
     if args.clear:
         agent.history.clear()
         print_info("Historial borrado.")
@@ -135,6 +179,9 @@ def main():
         return
 
     # Interactive CLI mode
+    if splash_on:
+        from .interface.splash import show_splash
+        show_splash(console, JARVIS_NAME, welcome_message)
     print_banner(JARVIS_NAME, backend)
 
     while True:
@@ -154,7 +201,7 @@ def main():
 
             cmd = text.strip().lower()
             if cmd in ("salir", "exit", "quit", "q", "bye", "adios", "adiós"):
-                print_info(f"{JARVIS_NAME} desconectado. Hasta luego.")
+                print_info(_goodbye())
                 break
 
             if cmd in ("limpiar", "clear", "/clear"):
@@ -173,7 +220,7 @@ def main():
                 speak(response)
 
         except KeyboardInterrupt:
-            print_info(f"\n{JARVIS_NAME} interrumpido. Hasta luego.")
+            print_info(f"\n{_goodbye()}")
             break
         except Exception as e:
             print_error(f"Error inesperado: {e}")
