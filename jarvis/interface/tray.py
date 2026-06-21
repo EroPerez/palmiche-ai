@@ -31,15 +31,54 @@ _DEFAULT_WAKE_WORD = "palmiche"
 # Tray icon image
 # ---------------------------------------------------------------------------
 
-def _make_icon_image(size: int = 64):
-    """Generate a circular RGBA icon for the system tray."""
+# Horse-head silhouette (alert ears, facing right), as an homage to Palmiche —
+# Elpidio Valdés's horse. This is original line art, NOT the copyrighted cartoon
+# artwork. Coordinates are in a 0–100 space and scaled to the icon size.
+_HORSE_HEAD = [
+    (30, 90), (31, 64), (33, 50), (37, 40), (40, 26),
+    (43, 12), (49, 28), (55, 16), (60, 32), (66, 40),
+    (74, 52), (80, 62), (78, 70), (70, 70), (62, 66),
+    (55, 70), (50, 80), (56, 90),
+]
+
+
+def _draw_horse_icon(size: int):
+    """Draw the built-in circular horse-head icon (homage to Palmiche)."""
     from PIL import Image, ImageDraw
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.ellipse([2, 2, size - 2, size - 2], fill=(30, 100, 220, 255))
-    m = size // 5
-    d.ellipse([m, m, size - m, size - m], fill=(255, 255, 255, 40))
+    s = size / 100.0
+    # Mambí-green disc with a darker rim
+    d.ellipse([2 * s, 2 * s, 98 * s, 98 * s], fill=(34, 110, 64, 255),
+              outline=(20, 70, 42, 255), width=max(1, int(2 * s)))
+    # Cream horse-head silhouette
+    d.polygon([(x * s, y * s) for x, y in _HORSE_HEAD], fill=(245, 238, 220, 255))
+    # Eye
+    d.ellipse([55 * s, 38 * s, 59 * s, 42 * s], fill=(34, 110, 64, 255))
     return img
+
+
+def _make_icon_image(size: int = 64):
+    """Return the tray icon image.
+
+    Uses the file at JARVIS_TRAY_ICON if set and loadable (so you can plug in
+    your own Palmiche image); otherwise falls back to the built-in horse-head
+    icon drawn with PIL.
+    """
+    from PIL import Image
+    try:
+        from ..config import JARVIS_TRAY_ICON
+    except Exception:  # noqa: BLE001 - config import must never break the tray
+        JARVIS_TRAY_ICON = ""
+
+    if JARVIS_TRAY_ICON:
+        try:
+            return Image.open(JARVIS_TRAY_ICON).convert("RGBA").resize(
+                (size, size), Image.LANCZOS
+            )
+        except Exception:  # noqa: BLE001 - bad path/format → use the built-in icon
+            pass
+    return _draw_horse_icon(size)
 
 
 # ---------------------------------------------------------------------------
