@@ -21,6 +21,9 @@ VOICE_ENABLED: bool = os.getenv("JARVIS_VOICE_ENABLED", "false").lower() == "tru
 HISTORY_FILE: Path = Path(
     os.getenv("JARVIS_HISTORY_FILE", "~/.jarvis_history.json")
 ).expanduser()
+EVENTS_FILE: Path = Path(
+    os.getenv("JARVIS_EVENTS_FILE", "~/.jarvis_events.json")
+).expanduser()
 def _get_positive_int(name: str, default: int) -> int:
     """Read an env var as a positive int, falling back to *default* on invalid values."""
     raw = os.getenv(name, str(default))
