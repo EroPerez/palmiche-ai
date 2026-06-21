@@ -12,6 +12,11 @@ from .network import get_network_info, ping_host
 from .media import media_control, get_media_status
 from .screenshot import take_screenshot
 from .autostart import setup_autostart
+from .events import add_event, list_events, upcoming_events, delete_event
+from .dev import (
+    format_json, hash_text, encode_decode, generate_uuid,
+    convert_timestamp, http_request, git_status, find_process_on_port,
+)
 
 TOOL_DEFINITIONS = [
     {
@@ -424,6 +429,165 @@ TOOL_DEFINITIONS = [
             "required": ["enable"],
         },
     },
+    {
+        "name": "add_event",
+        "description": "Crea un evento en el calendario local. Fecha en YYYY-MM-DD (o 'hoy'/'mañana'), hora opcional HH:MM.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Título del evento"},
+                "date": {"type": "string", "description": "Fecha YYYY-MM-DD o 'hoy'/'mañana'"},
+                "time": {"type": "string", "description": "Hora HH:MM (24h), opcional"},
+                "description": {"type": "string", "description": "Descripción opcional"},
+                "location": {"type": "string", "description": "Lugar opcional"},
+            },
+            "required": ["title", "date"],
+        },
+    },
+    {
+        "name": "list_events",
+        "description": "Lista eventos del calendario ordenados por fecha. Acepta un rango opcional start/end (YYYY-MM-DD).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "Fecha inicial del rango (YYYY-MM-DD), opcional"},
+                "end": {"type": "string", "description": "Fecha final del rango (YYYY-MM-DD), opcional"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "upcoming_events",
+        "description": "Lista los próximos eventos desde hoy durante N días (default 7).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "description": "Número de días a futuro (default 7)"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "delete_event",
+        "description": "Elimina un evento del calendario por su id (el que aparece entre corchetes al listar).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "event_id": {"type": "string", "description": "Id del evento a eliminar"},
+            },
+            "required": ["event_id"],
+        },
+    },
+    {
+        "name": "format_json",
+        "description": "Valida e indenta (pretty-print) una cadena JSON.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Cadena JSON a formatear"},
+                "indent": {"type": "integer", "description": "Espacios de indentación (default 2)"},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "hash_text",
+        "description": "Calcula el hash de un texto (md5, sha1, sha256 o sha512).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Texto a hashear"},
+                "algorithm": {
+                    "type": "string",
+                    "enum": ["md5", "sha1", "sha256", "sha512"],
+                    "description": "Algoritmo (default sha256)",
+                },
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "encode_decode",
+        "description": "Codifica o decodifica texto con base64, url o hex.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Texto de entrada"},
+                "scheme": {
+                    "type": "string",
+                    "enum": ["base64", "url", "hex"],
+                    "description": "Esquema (default base64)",
+                },
+                "operation": {
+                    "type": "string",
+                    "enum": ["encode", "decode"],
+                    "description": "Operación (default encode)",
+                },
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "generate_uuid",
+        "description": "Genera uno o más UUID4 aleatorios.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "count": {"type": "integer", "description": "Cantidad de UUIDs (default 1, máx 50)"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "convert_timestamp",
+        "description": "Convierte entre epoch Unix e ISO-8601. Usa 'now' para la hora actual.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "value": {"type": "string", "description": "Epoch (número), fecha ISO-8601, o 'now'"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "http_request",
+        "description": "Hace una petición HTTP y devuelve status, headers clave y un preview del cuerpo. Útil para probar APIs.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL a consultar"},
+                "method": {
+                    "type": "string",
+                    "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
+                    "description": "Método HTTP (default GET)",
+                },
+                "body": {"type": "string", "description": "Cuerpo de la petición (para POST/PUT/PATCH)"},
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "git_status",
+        "description": "Muestra rama, estado del árbol de trabajo y últimos commits de un repositorio git.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Ruta del repositorio (default: directorio actual)"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "find_process_on_port",
+        "description": "Indica qué proceso está escuchando en un puerto TCP.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "port": {"type": "integer", "description": "Número de puerto"},
+            },
+            "required": ["port"],
+        },
+    },
 ]
 
 
@@ -479,6 +643,25 @@ def execute_tool(name: str, inputs: dict) -> str:
         "setup_autostart": lambda i: setup_autostart(
             i["enable"], i.get("tray", True), i.get("backend", "anthropic")
         ),
+        "add_event": lambda i: add_event(
+            i["title"], i["date"], i.get("time", ""),
+            i.get("description", ""), i.get("location", ""),
+        ),
+        "list_events": lambda i: list_events(i.get("start", ""), i.get("end", "")),
+        "upcoming_events": lambda i: upcoming_events(i.get("days", 7)),
+        "delete_event": lambda i: delete_event(i["event_id"]),
+        "format_json": lambda i: format_json(i["text"], i.get("indent", 2)),
+        "hash_text": lambda i: hash_text(i["text"], i.get("algorithm", "sha256")),
+        "encode_decode": lambda i: encode_decode(
+            i["text"], i.get("scheme", "base64"), i.get("operation", "encode")
+        ),
+        "generate_uuid": lambda i: generate_uuid(i.get("count", 1)),
+        "convert_timestamp": lambda i: convert_timestamp(i.get("value", "now")),
+        "http_request": lambda i: http_request(
+            i["url"], i.get("method", "GET"), i.get("body", "")
+        ),
+        "git_status": lambda i: git_status(i.get("path", ".")),
+        "find_process_on_port": lambda i: find_process_on_port(i["port"]),
     }
 
     if name not in handlers:

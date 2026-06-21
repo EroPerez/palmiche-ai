@@ -9,7 +9,7 @@
 ## Características
 
 - Conversación natural en español o inglés con memoria de sesión persistente
-- 28 herramientas integradas para controlar el sistema, archivos, red, medios y más
+- 41 herramientas integradas para controlar el sistema, archivos, red, medios y más
 - Cuatro backends intercambiables: Anthropic SDK, Google ADK + LiteLLM, Google ADK + Gemini, y Ollama (local)
 - Entrada por voz opcional con reconocimiento de habla
 - Interfaz en terminal con Rich (colores, markdown, paneles)
@@ -198,6 +198,7 @@ nano jarvis/.env
 | `JARVIS_OLLAMA_MODEL` | `llama3.2` | Modelo Ollama a usar |
 | `JARVIS_VOICE_ENABLED` | `false` | Activa voz (requiere dependencias extra) |
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
+| `JARVIS_EVENTS_FILE` | `~/.jarvis_events.json` | Archivo del calendario local de eventos |
 
 ## Guía de uso
 
@@ -328,7 +329,7 @@ pip install "palmiche-jarvis[voice]"
 python -m jarvis --tray
 ```
 
-## Herramientas disponibles (28)
+## Herramientas disponibles (41)
 
 ### Sistema
 
@@ -398,6 +399,30 @@ python -m jarvis --tray
 | `send_notification` | Notificación de escritorio (low / normal / critical) |
 | `run_shell_command` | Ejecutar comando shell arbitrario (con confirmación) |
 | `setup_autostart` | Activar o desactivar el arranque automático con el sistema |
+
+### Calendario y eventos
+
+Calendario local en JSON (`~/.jarvis_events.json`, configurable con `JARVIS_EVENTS_FILE`). Funciona sin conexión ni cuentas externas.
+
+| Herramienta | Descripción |
+|---|---|
+| `add_event` | Crear evento (fecha `YYYY-MM-DD` o `hoy`/`mañana`, hora opcional) |
+| `list_events` | Listar eventos, con rango opcional `start`/`end` |
+| `upcoming_events` | Próximos eventos desde hoy durante N días (default 7) |
+| `delete_event` | Eliminar evento por su id |
+
+### Developer
+
+| Herramienta | Descripción |
+|---|---|
+| `format_json` | Validar e indentar (pretty-print) JSON |
+| `hash_text` | Hash de texto (md5 / sha1 / sha256 / sha512) |
+| `encode_decode` | Codificar/decodificar en base64, url o hex |
+| `generate_uuid` | Generar uno o más UUID4 |
+| `convert_timestamp` | Convertir entre epoch Unix e ISO-8601 (`now`) |
+| `http_request` | Petición HTTP (GET/POST/…) con status, headers y preview — útil para probar APIs |
+| `git_status` | Rama, estado del árbol y últimos commits de un repo git |
+| `find_process_on_port` | Qué proceso escucha en un puerto TCP |
 
 ## Backends
 
