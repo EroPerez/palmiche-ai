@@ -134,7 +134,8 @@ class WakeWordListener:
     """Daemon thread that listens for a wake word and fires a callback.
 
     Usage:
-        listener = WakeWordListener("palmiche", on_wake=my_callback)
+        listener = WakeWordListener("palmiche", on_wake=my_callback,
+                                    on_command=my_command_callback)
         started  = listener.start()   # False if deps missing
         ...
         listener.stop()
@@ -144,15 +145,18 @@ class WakeWordListener:
         self,
         wake_word: str = "palmiche",
         on_wake: Optional[Callable] = None,
+        on_command: Optional[Callable[[str], None]] = None,
         language: str = "es-ES",
         response_text: str = "Kewelta Compay",
     ):
-        """Configure the wake word, callback, recognition language and audio response."""
+        """Configure the wake word, callbacks, recognition language and audio response."""
         self.wake_word = wake_word.lower()
         self.on_wake = on_wake
+        self.on_command = on_command   # called with transcribed voice command text
         self.language = language
         self.response_text = response_text
         self._running = False
+        self._paused = False           # pause main loop during listen_once()
         self._thread: Optional[threading.Thread] = None
 
     # ----------------------------------------------------------------- public
@@ -210,6 +214,10 @@ class WakeWordListener:
             logger.debug("Calibración de ruido ambiental fallida: %s", exc)
 
         while self._running:
+            if self._paused:
+                _sleep(0.1)
+                continue
+
             try:
                 with mic as source:
                     audio = recognizer.listen(source, timeout=4, phrase_time_limit=3)
@@ -225,6 +233,9 @@ class WakeWordListener:
                             _speak_async(self.response_text)
                         if self.on_wake:
                             self.on_wake()
+                        if self.on_command:
+                            _sleep(1.5)  # wait for TTS to finish before listening
+                            self._listen_for_command(recognizer, mic)
 
                 except sr.UnknownValueError:
                     pass  # no speech detected
@@ -239,6 +250,61 @@ class WakeWordListener:
             except Exception as exc:
                 logger.debug("Wake word loop: %s", exc)
                 _sleep(1)
+
+
+    def _listen_for_command(self, recognizer, mic) -> None:
+        """Listen for one follow-up voice command and fire on_command with the transcript."""
+        import speech_recognition as sr
+        try:
+            with mic as source:
+                audio = recognizer.listen(source, timeout=8, phrase_time_limit=10)
+            try:
+                text = recognizer.recognize_google(audio, language=self.language)
+                logger.info("Comando de voz: %s", text)
+                if self.on_command:
+                    self.on_command(text)
+            except sr.UnknownValueError:
+                logger.debug("Comando de voz no entendido")
+            except sr.RequestError as exc:
+                logger.warning("Error de reconocimiento: %s", exc)
+        except sr.WaitTimeoutError:
+            logger.debug("Tiempo de espera agotado para comando de voz")
+        except Exception as exc:
+            logger.debug("Error escuchando comando: %s", exc)
+
+    def listen_once(self, callback: "Callable[[Optional[str]], None]") -> None:
+        """Listen for one phrase and call callback(text_or_None) from a daemon thread.
+
+        Pauses the background wake-word loop while listening so the microphone
+        is not contended.
+        """
+        import speech_recognition as sr
+
+        def _run():
+            self._paused = True
+            try:
+                recognizer = sr.Recognizer()
+                recognizer.energy_threshold = 300
+                recognizer.dynamic_energy_threshold = True
+                recognizer.pause_threshold = 0.5
+                mic = sr.Microphone()
+                with mic as source:
+                    audio = recognizer.listen(source, timeout=8, phrase_time_limit=10)
+                try:
+                    text = recognizer.recognize_google(audio, language=self.language)
+                    callback(text)
+                except sr.UnknownValueError:
+                    callback(None)
+                except sr.RequestError as exc:
+                    logger.warning("Error de reconocimiento: %s", exc)
+                    callback(None)
+            except Exception as exc:
+                logger.debug("listen_once error: %s", exc)
+                callback(None)
+            finally:
+                self._paused = False
+
+        threading.Thread(target=_run, daemon=True, name="jarvis-listen-once").start()
 
 
 def _sleep(seconds: float):

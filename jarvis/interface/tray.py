@@ -55,6 +55,7 @@ class _ChatWindow:
         self._entry = None
         self._anim = None          # WaveformAnimation
         self._wake_listener = None # WakeWordListener
+        self._mic_btn = None       # microphone input button
 
     # ------------------------------------------------------------------ build
 
@@ -131,12 +132,21 @@ class _ChatWindow:
             padx=12, font=("Monospace", 11, "bold"), cursor="hand2",
         ).pack(side=tk.RIGHT, padx=(4, 0))
 
+        self._mic_btn = tk.Button(
+            row, text="🎤", command=self._start_voice_input,
+            bg="#313244", fg="#cdd6f4", relief=tk.FLAT,
+            padx=8, font=("Monospace", 11), cursor="hand2",
+            activebackground="#45475a", activeforeground="#f9e2af",
+        )
+        self._mic_btn.pack(side=tk.RIGHT, padx=(4, 0))
+
         self._append(f"Sistema: {self.name} listo\n", "system")
 
         # ── Wake word listener ───────────────────────────────────────────────
         self._wake_listener = WakeWordListener(
             wake_word=self.wake_word,
             on_wake=self._on_wake,
+            on_command=self._on_voice_command,
         )
         self._wake_listener.start()
 
@@ -199,6 +209,56 @@ class _ChatWindow:
         if self._entry:
             self._entry.config(state="normal")
             self._entry.focus_set()
+
+    # --------------------------------------------------------- voice input
+
+    def _start_voice_input(self):
+        """Activate one-shot voice capture from the mic button."""
+        if not self._wake_listener:
+            return
+        self._append("[Escuchando comando de voz…]\n", "wake")
+        if self._anim:
+            self._anim.set_state("wake")
+        if self._mic_btn:
+            self._mic_btn.config(state="disabled", bg="#45475a")
+        if self._entry:
+            self._entry.config(state="disabled")
+        self._wake_listener.listen_once(self._on_voice_input_done)
+
+    def _on_voice_command(self, text: str):
+        """Called from background thread when a post-wake voice command is transcribed."""
+        if self.root:
+            self.root.after(0, self._dispatch_voice_command, text)
+
+    def _dispatch_voice_command(self, text: str):
+        """Populate the entry with the voice command and send it (main thread)."""
+        if self._entry:
+            self._entry.config(state="normal")
+            self._entry.delete(0, "end")
+            self._entry.insert(0, text)
+        self._on_send()
+
+    def _on_voice_input_done(self, text):
+        """Callback from listen_once — schedule UI update on the main thread."""
+        if self.root:
+            self.root.after(0, self._apply_voice_input, text)
+
+    def _apply_voice_input(self, text):
+        """Populate the entry with transcribed text and send, or report failure (main thread)."""
+        if self._mic_btn:
+            self._mic_btn.config(state="normal", bg="#313244")
+        if self._anim:
+            self._anim.set_state("idle")
+        if text:
+            if self._entry:
+                self._entry.config(state="normal")
+                self._entry.delete(0, "end")
+                self._entry.insert(0, text)
+            self._on_send()
+        else:
+            self._append("[No se entendió el comando de voz]\n", "system")
+            if self._entry:
+                self._entry.config(state="normal")
 
     # -------------------------------------------------------- window control
 
