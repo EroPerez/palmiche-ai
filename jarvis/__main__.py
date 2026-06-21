@@ -73,8 +73,8 @@ Ejemplos:
     return parser.parse_args()
 
 
-def _build_agent(backend: str):
-    """Construct the agent for the given backend.
+def _build_agent(backend: str, name: str):
+    """Construct the agent for the given backend, using *name* as the assistant name.
 
     'adk' auto-selects Gemini when GOOGLE_API_KEY is set and
     ANTHROPIC_API_KEY is not, making it easy to run without Anthropic credentials.
@@ -83,21 +83,21 @@ def _build_agent(backend: str):
 
     if backend == "ollama":
         from .brain.ollama_agent import JarvisOllamaAgent
-        return JarvisOllamaAgent()
+        return JarvisOllamaAgent(name=name)
 
     if backend == "gemini":
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=True)
+        return JarvisADKAgent(use_gemini=True, name=name)
 
     if backend == "adk":
         from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY
         use_gemini = bool(GOOGLE_API_KEY) and not bool(ANTHROPIC_API_KEY)
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=use_gemini)
+        return JarvisADKAgent(use_gemini=use_gemini, name=name)
 
     if backend == "anthropic":
         from .brain.agent import JarvisAgent
-        return JarvisAgent()
+        return JarvisAgent(name=name)
 
     raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk', 'gemini' u 'ollama'.")
 
@@ -129,6 +129,9 @@ def main():
 
     backend = (args.backend or JARVIS_BACKEND).strip().lower()
 
+    # Assistant name: CLI param overrides env, env overrides default.
+    name = args.name if args.name is not None else JARVIS_NAME
+
     # Key validation per backend
     if backend == "anthropic" and not ANTHROPIC_API_KEY:
         print("[ERROR] ANTHROPIC_API_KEY no configurada.")
@@ -142,15 +145,12 @@ def main():
     # 'ollama' and 'adk' validate their own connections at construction time
 
     try:
-        agent = _build_agent(backend)
+        agent = _build_agent(backend, name)
     except (ImportError, ValueError) as e:
         print_error(str(e))
         sys.exit(1)
 
     voice_on = args.voice or VOICE_ENABLED
-
-    # Assistant name: CLI param overrides env, env overrides default.
-    name = args.name if args.name is not None else JARVIS_NAME
 
     # Welcome/goodbye phrases: CLI param overrides env, env overrides default.
     welcome_message = args.welcome if args.welcome is not None else JARVIS_WELCOME_MESSAGE

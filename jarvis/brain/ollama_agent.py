@@ -54,12 +54,12 @@ _TOOLS = _to_ollama_tools(TOOL_DEFINITIONS)
 class JarvisOllamaAgent:
     """Jarvis agent running against a local Ollama instance."""
 
-    def __init__(self):
+    def __init__(self, name: str = JARVIS_NAME):
         """Initialize agent, connect to Ollama, and verify the configured model is available."""
         self.history = ConversationHistory()
         self._host = JARVIS_OLLAMA_HOST.rstrip("/")
         self._model = JARVIS_OLLAMA_MODEL
-        self._system = SYSTEM_PROMPT.format(name=JARVIS_NAME)
+        self._system = SYSTEM_PROMPT.format(name=name)
         self._verify_connection()
 
     # ----------------------------------------------------------------- setup
