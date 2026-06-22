@@ -88,11 +88,12 @@ def _make_icon_image(size: int = 64):
 class _ChatWindow:
     """Tkinter chat window with waveform animation and wake-word support."""
 
-    def __init__(self, agent, name: str, wake_word: str = _DEFAULT_WAKE_WORD):
+    def __init__(self, agent, name: str, wake_word: str = _DEFAULT_WAKE_WORD, welcome_message: str = ""):
         """Store agent reference and UI state; call run() to build and start the window."""
         self.agent = agent
         self.name = name
         self.wake_word = wake_word
+        self.welcome_message = welcome_message
         self.root = None
         self._display = None
         self._entry = None
@@ -217,6 +218,7 @@ class _ChatWindow:
             wake_word=self.wake_word,
             on_wake=self._on_wake,
             on_command=self._on_voice_command,
+            response_text=self.welcome_message,
         )
         self._wake_listener.start()
 
@@ -435,6 +437,7 @@ def run_tray(
     agent,
     name: str = "Jarvis",
     wake_word: str = _DEFAULT_WAKE_WORD,
+    welcome_message: str = "Sistemas en línea. ¿En qué puedo ayudarte?"
 ) -> None:
     """Start the system tray icon with animated chat window and wake-word detection.
 
@@ -450,18 +453,18 @@ def run_tray(
         ) from None
 
     if _SYSTEM == "Linux":
-        _run_linux(agent, name, wake_word)
+        _run_linux(agent, name, wake_word, welcome_message)
     elif _SYSTEM == "Darwin":
         _run_macos(agent, name, wake_word)
     else:
         raise RuntimeError(f"Bandeja del sistema no soportada en {_SYSTEM}")
 
 
-def _run_linux(agent, name: str, wake_word: str) -> None:
+def _run_linux(agent, name: str, wake_word: str, welcome_message: str = "") -> None:
     """Linux path: pystray in a background thread, tkinter mainloop on the main thread."""
     import pystray
 
-    win = _ChatWindow(agent, name, wake_word)
+    win = _ChatWindow(agent, name, wake_word, welcome_message)
 
     def on_open(icon, item):
         if win.root:
@@ -483,7 +486,7 @@ def _run_linux(agent, name: str, wake_word: str) -> None:
     win.run()   # tkinter mainloop on main thread
 
 
-def _run_macos(agent, name: str, wake_word: str) -> None:
+def _run_macos(agent, name: str, wake_word: str, welcome_message: str = "") -> None:
     """macOS path: pystray on the main thread via setup(); tkinter built inside setup()."""
     import pystray
 
@@ -492,7 +495,7 @@ def _run_macos(agent, name: str, wake_word: str) -> None:
     def setup(icon):
         icon.visible = True
         try:
-            w = _ChatWindow(agent, name, wake_word)
+            w = _ChatWindow(agent, name, wake_word, welcome_message)
             win_holder[0] = w
             w.run()
         except Exception as exc:

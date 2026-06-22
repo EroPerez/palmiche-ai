@@ -183,7 +183,7 @@ def main():
         try:
             from .interface.tray import run_tray
             wake_word = args.wake_word or JARVIS_WAKE_WORD
-            run_tray(agent, name, wake_word=wake_word)
+            run_tray(agent, name, wake_word=wake_word, welcome_message=welcome_message)
         except (ImportError, RuntimeError) as e:
             print_error(str(e))
             sys.exit(1)
