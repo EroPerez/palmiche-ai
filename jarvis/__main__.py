@@ -70,14 +70,103 @@ Ejemplos:
         metavar="NOMBRE",
         help="Nombre del asistente (default: JARVIS_NAME)",
     )
+
+    # ------------------------------------------------------------------
+    # A2A (Agent-to-Agent) flags
+    # ------------------------------------------------------------------
+    a2a = parser.add_argument_group("A2A — Agent-to-Agent protocol")
+    a2a.add_argument(
+        "--serve-a2a",
+        action="store_true",
+        help="Iniciar como servidor A2A (Google Agent2Agent protocol) en HTTP",
+    )
+    a2a.add_argument(
+        "--a2a-host",
+        type=str,
+        default=None,
+        metavar="HOST",
+        help="Host del servidor A2A (default: JARVIS_A2A_HOST / 0.0.0.0)",
+    )
+    a2a.add_argument(
+        "--a2a-port",
+        type=int,
+        default=None,
+        metavar="PUERTO",
+        help="Puerto del servidor A2A (default: JARVIS_A2A_PORT / 8080)",
+    )
+    a2a.add_argument(
+        "--connect-a2a",
+        action="append",
+        default=[],
+        metavar="URL",
+        help="URL de un agente A2A remoto a conectar como herramienta (puede repetirse)",
+    )
+
+    # ------------------------------------------------------------------
+    # MCP (Model Context Protocol) flags
+    # ------------------------------------------------------------------
+    mcp = parser.add_argument_group("MCP — Model Context Protocol")
+    mcp.add_argument(
+        "--serve-mcp",
+        action="store_true",
+        help=(
+            "Iniciar como servidor MCP en stdio "
+            "(compatible con Claude Desktop, Cursor, etc.)"
+        ),
+    )
+    mcp.add_argument(
+        "--connect-mcp",
+        action="append",
+        default=[],
+        metavar="SPEC",
+        help=(
+            "Conectar a un servidor MCP como cliente. "
+            "SPEC puede ser un comando stdio ('npx -y @mcp/server /tmp') "
+            "o una URL SSE ('http://localhost:3000'). Puede repetirse."
+        ),
+    )
+
     return parser.parse_args()
 
 
-def _build_agent(backend: str, name: str):
+def _build_dynamic_registry(a2a_urls: list[str], mcp_specs: list[str]):
+    """Build a DynamicToolRegistry if any remote tools are configured, else return None."""
+    if not a2a_urls and not mcp_specs:
+        return None
+
+    from .tools.dynamic import DynamicToolRegistry
+
+    registry = DynamicToolRegistry()
+    loaded_count = 0
+
+    for url in a2a_urls:
+        from .a2a.client import load_a2a_agent
+        tool_name = load_a2a_agent(registry, url)
+        print(f"  [A2A] Agente conectado: {url} → herramienta '{tool_name}'")
+        loaded_count += 1
+
+    for spec in mcp_specs:
+        from .mcp_support.client import load_mcp_server
+        names = load_mcp_server(registry, spec)
+        if names:
+            print(f"  [MCP] Servidor conectado: {spec} → {len(names)} herramienta(s)")
+            loaded_count += len(names)
+
+    if loaded_count:
+        print(f"  Herramientas dinámicas cargadas: {loaded_count} adicional(es)")
+
+    return registry
+
+
+def _build_agent(backend: str, name: str, registry=None):
     """Construct the agent for the given backend, using *name* as the assistant name.
 
     'adk' auto-selects Gemini when GOOGLE_API_KEY is set and
     ANTHROPIC_API_KEY is not, making it easy to run without Anthropic credentials.
+
+    Args:
+        registry: Optional DynamicToolRegistry with remote tools (A2A/MCP clients).
+                  Only supported by the 'anthropic' backend currently.
     """
     backend = backend.strip().lower()
 
@@ -97,7 +186,7 @@ def _build_agent(backend: str, name: str):
 
     if backend == "anthropic":
         from .brain.agent import JarvisAgent
-        return JarvisAgent(name=name)
+        return JarvisAgent(name=name, registry=registry)
 
     raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk', 'gemini' u 'ollama'.")
 
@@ -107,6 +196,9 @@ def main():
     args = parse_args()
 
     from .config import (
+        A2A_AGENTS,
+        A2A_HOST,
+        A2A_PORT,
         ANTHROPIC_API_KEY,
         GOOGLE_API_KEY,
         JARVIS_BACKEND,
@@ -115,6 +207,7 @@ def main():
         JARVIS_SPLASH_ENABLED,
         JARVIS_WAKE_WORD,
         JARVIS_WELCOME_MESSAGE,
+        MCP_SERVERS,
         VOICE_ENABLED,
     )
     from .interface.cli import (
@@ -132,6 +225,15 @@ def main():
     # Assistant name: CLI param overrides env, env overrides default.
     name = args.name if args.name is not None else JARVIS_NAME
 
+    # ------------------------------------------------------------------
+    # MCP server mode — takes over stdio, no interactive CLI
+    # ------------------------------------------------------------------
+    if args.serve_mcp:
+        from .mcp_support.server import run_mcp_server
+        print(f"  Iniciando servidor MCP stdio para '{name}'...", file=sys.stderr)
+        run_mcp_server()
+        return
+
     # Key validation per backend
     if backend == "anthropic" and not ANTHROPIC_API_KEY:
         print("[ERROR] ANTHROPIC_API_KEY no configurada.")
@@ -144,11 +246,42 @@ def main():
         sys.exit(1)
     # 'ollama' and 'adk' validate their own connections at construction time
 
+    # Collect A2A and MCP client specs (CLI args override/extend env vars)
+    a2a_urls = list(A2A_AGENTS) + list(args.connect_a2a)
+    mcp_specs = list(MCP_SERVERS) + list(args.connect_mcp)
+
+    # Build dynamic registry if remote tools are configured
+    registry = _build_dynamic_registry(a2a_urls, mcp_specs)
+
     try:
-        agent = _build_agent(backend, name)
+        agent = _build_agent(backend, name, registry=registry)
     except (ImportError, ValueError) as e:
         print_error(str(e))
         sys.exit(1)
+
+    # ------------------------------------------------------------------
+    # A2A server mode — starts HTTP server, no interactive CLI
+    # ------------------------------------------------------------------
+    if args.serve_a2a:
+        from .a2a.server import run_a2a_server
+
+        a2a_host = args.a2a_host or A2A_HOST
+        a2a_port = args.a2a_port or A2A_PORT
+
+        print(f"  Iniciando servidor A2A para '{name}' en {a2a_host}:{a2a_port}...")
+
+        def _agent_factory():
+            """Create a fresh agent per A2A session (isolated conversation history)."""
+            from .brain.agent import JarvisAgent
+            return JarvisAgent(name=name, registry=registry)
+
+        run_a2a_server(
+            agent_factory=_agent_factory,
+            host=a2a_host,
+            port=a2a_port,
+            name=name,
+        )
+        return
 
     voice_on = args.voice or VOICE_ENABLED
 
