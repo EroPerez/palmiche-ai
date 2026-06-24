@@ -216,8 +216,8 @@ class _ChatWindow(QMainWindow):
 
         # ── Info data bar ─────────────────────────────────────────────────────
         _data_bar = QLabel(
-            f"  PALMICHE // IA  ─────────────────────────"
-            f"  SYS:OK  //  NEURAL:ACTIVO  //  {self.name.upper()}"
+            f"  {self.name.upper()} // IA"
+            f"  ─────────────────────────  SYS:OK  //  NEURAL:ACTIVO"
         )
         _data_bar.setStyleSheet(
             "background-color: #091506;"
