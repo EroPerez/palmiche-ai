@@ -1,39 +1,88 @@
-"""System tray interface for Jarvis.
+"""System tray interface for Jarvis (PyQt6/PyQt5).
 
 Features:
-- Taskbar icon (pystray) — click to show/hide the chat window
-- Dark-themed chat window (tkinter, Catppuccin Mocha)
+- QSystemTrayIcon — click to show/hide the chat window
+- Dark-themed chat window (Catppuccin Mocha)
+- Window launches maximized with a smooth fade-in animation
 - Waveform animation in the header (idle / wake / thinking states)
-- Message timestamps and a bottom status bar (Listo / procesando / escuchando)
-- Clear button (🗑) and keyboard shortcuts: Esc hides, Ctrl+L clears the chat
-- Window centered on screen with a sensible minimum size
-- Background wake-word listener: saying "palmiche" shows the window and
-  focuses the input field, ready for a voice or text command
+- Message timestamps and a bottom status bar
+- Clear button and keyboard shortcuts: Esc hides, Ctrl+L clears chat
+- Background wake-word listener: saying the wake word shows the window
+  and focuses the input field
 
 Platform notes:
-  Linux  → pystray runs in a background thread; tkinter on the main thread.
-  macOS  → pystray runs on the main thread via setup(); tkinter in that thread.
+  Linux/macOS → QSystemTrayIcon + QApplication on the main thread.
 
-Requires: pip install pystray Pillow
+Requires: pip install PyQt6 Pillow   (or PyQt5 Pillow)
 Optional: pip install SpeechRecognition pyaudio   (for wake word)
 """
 import platform
+import sys
 import threading
 from datetime import datetime
 
 _SYSTEM = platform.system()
-
-# Wake word — can be overridden via config
 _DEFAULT_WAKE_WORD = "palmiche"
 
+# ---------------------------------------------------------------------------
+# Qt compatibility shim — supports PyQt6 and PyQt5
+# ---------------------------------------------------------------------------
+try:
+    from PyQt6.QtWidgets import (
+        QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+        QTextEdit, QLineEdit, QPushButton, QLabel,
+        QApplication, QSystemTrayIcon, QMenu,
+    )
+    from PyQt6.QtCore import (
+        Qt, QTimer, QPropertyAnimation, QEasingCurve,
+        pyqtSignal, QObject,
+    )
+    from PyQt6.QtGui import (
+        QColor, QTextCharFormat, QFont, QTextCursor,
+        QShortcut, QKeySequence, QIcon, QPixmap, QImage, QAction,
+    )
+    _QT6           = True
+    _CURSOR_HAND   = Qt.CursorShape.PointingHandCursor
+    _MOVE_END      = QTextCursor.MoveOperation.End
+    _FONT_BOLD     = QFont.Weight.Bold
+    _EASE_OUT      = QEasingCurve.Type.OutCubic
+    _TRAY_TRIGGER  = QSystemTrayIcon.ActivationReason.Trigger
+    _TRAY_DBLCLICK = QSystemTrayIcon.ActivationReason.DoubleClick
+
+except ImportError:
+    try:
+        from PyQt5.QtWidgets import (
+            QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+            QTextEdit, QLineEdit, QPushButton, QLabel,
+            QApplication, QSystemTrayIcon, QMenu, QAction, QShortcut,
+        )
+        from PyQt5.QtCore import (
+            Qt, QTimer, QPropertyAnimation, QEasingCurve,
+            pyqtSignal, QObject,
+        )
+        from PyQt5.QtGui import (
+            QColor, QTextCharFormat, QFont, QTextCursor,
+            QKeySequence, QIcon, QPixmap, QImage,
+        )
+        _QT6           = False
+        _CURSOR_HAND   = Qt.PointingHandCursor
+        _MOVE_END      = QTextCursor.End
+        _FONT_BOLD     = QFont.Bold
+        _EASE_OUT      = QEasingCurve.OutCubic
+        _TRAY_TRIGGER  = QSystemTrayIcon.Trigger
+        _TRAY_DBLCLICK = QSystemTrayIcon.DoubleClick
+
+    except ImportError:
+        raise ImportError(
+            "PyQt6 (o PyQt5) no está instalado.\n"
+            "Instala con:  pip install PyQt6 Pillow"
+        ) from None
+
 
 # ---------------------------------------------------------------------------
-# Tray icon image
+# Tray icon — horse-head silhouette (homage to Palmiche)
 # ---------------------------------------------------------------------------
 
-# Horse-head silhouette (alert ears, facing right), as an homage to Palmiche —
-# Elpidio Valdés's horse. This is original line art, NOT the copyrighted cartoon
-# artwork. Coordinates are in a 0–100 space and scaled to the icon size.
 _HORSE_HEAD = [
     (30, 90), (31, 64), (33, 50), (37, 40), (40, 26),
     (43, 12), (49, 28), (55, 16), (60, 32), (66, 40),
@@ -43,177 +92,231 @@ _HORSE_HEAD = [
 
 
 def _draw_horse_icon(size: int):
-    """Draw the built-in circular horse-head icon (homage to Palmiche)."""
+    """Draw the built-in circular horse-head icon with Pillow."""
     from PIL import Image, ImageDraw
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    s = size / 100.0
-    # Mambí-green disc with a darker rim
-    d.ellipse([2 * s, 2 * s, 98 * s, 98 * s], fill=(34, 110, 64, 255),
-              outline=(20, 70, 42, 255), width=max(1, int(2 * s)))
-    # Cream horse-head silhouette
-    d.polygon([(x * s, y * s) for x, y in _HORSE_HEAD], fill=(245, 238, 220, 255))
-    # Eye
-    d.ellipse([55 * s, 38 * s, 59 * s, 42 * s], fill=(34, 110, 64, 255))
+    d   = ImageDraw.Draw(img)
+    s   = size / 100.0
+    d.ellipse([2*s, 2*s, 98*s, 98*s], fill=(34, 110, 64, 255),
+              outline=(20, 70, 42, 255), width=max(1, int(2*s)))
+    d.polygon([(x*s, y*s) for x, y in _HORSE_HEAD], fill=(245, 238, 220, 255))
+    d.ellipse([55*s, 38*s, 59*s, 42*s], fill=(34, 110, 64, 255))
     return img
 
 
-def _make_icon_image(size: int = 64):
-    """Return the tray icon image.
-
-    Uses the file at JARVIS_TRAY_ICON if set and loadable (so you can plug in
-    your own Palmiche image); otherwise falls back to the built-in horse-head
-    icon drawn with PIL.
-    """
+def _make_pil_icon(size: int = 64):
+    """Return the tray icon as a Pillow Image, falling back to the built-in."""
     from PIL import Image
     try:
         from ..config import JARVIS_TRAY_ICON
-    except Exception:  # noqa: BLE001 - config import must never break the tray
+    except Exception:
         JARVIS_TRAY_ICON = ""
-
     if JARVIS_TRAY_ICON:
         try:
             return Image.open(JARVIS_TRAY_ICON).convert("RGBA").resize(
                 (size, size), Image.LANCZOS
             )
-        except Exception:  # noqa: BLE001 - bad path/format → use the built-in icon
+        except Exception:
             pass
     return _draw_horse_icon(size)
+
+
+def _pil_to_qicon(pil_img) -> QIcon:
+    """Convert a Pillow RGBA image to a QIcon."""
+    rgba  = pil_img.convert("RGBA")
+    data  = rgba.tobytes("raw", "RGBA")
+    fmt   = QImage.Format.Format_RGBA8888 if _QT6 else QImage.Format_RGBA8888
+    qimg  = QImage(data, rgba.width, rgba.height, fmt)
+    return QIcon(QPixmap.fromImage(qimg))
+
+
+# ---------------------------------------------------------------------------
+# Cross-thread bridge — routes background-thread calls to the Qt main thread
+# ---------------------------------------------------------------------------
+
+class _Bridge(QObject):
+    _sig = pyqtSignal(object)
+
+    def __init__(self):
+        super().__init__()
+        self._sig.connect(self._exec)
+
+    def _exec(self, fn):
+        fn()
+
+    def call(self, fn):
+        """Schedule fn() on the Qt main thread from any thread."""
+        self._sig.emit(fn)
+
+
+# ---------------------------------------------------------------------------
+# Tag → text-format mapping
+# ---------------------------------------------------------------------------
+
+_TAG_STYLES = {
+    "user":   {"color": "#89b4fa", "bold": True,  "italic": False, "size": 10},
+    "jarvis": {"color": "#a6e3a1", "bold": False, "italic": False, "size": 10},
+    "system": {"color": "#f5c2e7", "bold": False, "italic": True,  "size": 9},
+    "wake":   {"color": "#f9e2af", "bold": False, "italic": True,  "size": 9},
+    "error":  {"color": "#f38ba8", "bold": False, "italic": False, "size": 10},
+    "time":   {"color": "#6c7086", "bold": False, "italic": False, "size": 8},
+}
 
 
 # ---------------------------------------------------------------------------
 # Chat window
 # ---------------------------------------------------------------------------
 
-class _ChatWindow:
-    """Tkinter chat window with waveform animation and wake-word support."""
+class _ChatWindow(QMainWindow):
+    """PyQt chat window with waveform animation and wake-word support."""
 
-    def __init__(self, agent, name: str, wake_word: str = _DEFAULT_WAKE_WORD, welcome_message: str = ""):
-        """Store agent reference and UI state; call run() to build and start the window."""
-        self.agent = agent
-        self.name = name
-        self.wake_word = wake_word
+    def __init__(self, agent, name: str,
+                 wake_word: str = _DEFAULT_WAKE_WORD,
+                 welcome_message: str = ""):
+        super().__init__()
+        self.agent           = agent
+        self.name            = name
+        self.wake_word       = wake_word
         self.welcome_message = welcome_message
-        self.root = None
-        self._display = None
-        self._entry = None
-        self._anim = None          # WaveformAnimation
-        self._wake_listener = None # WakeWordListener
-        self._mic_btn = None       # microphone input button
-        self._status = None        # bottom status-bar label
-        self._busy = False         # True while the agent is processing
+        self._busy           = False
+        self._bridge         = _Bridge()
+        self._wake_listener  = None
+        self._anim           = None
+        self._mic_btn        = None
+        self._status_label   = None
+        self._display        = None
+        self._entry          = None
+        self._fade_anim      = None   # keep reference to prevent GC
+        self._fade_out_anim  = None
+        self._build()
 
     # ------------------------------------------------------------------ build
 
     def _build(self):
-        """Construct and configure all tkinter widgets, then start the wake-word listener."""
-        import tkinter as tk
-        from tkinter import scrolledtext
-
         from .animation import WaveformAnimation
-        from .wake_word import WakeWordListener
 
-        self.root = tk.Tk()
-        self.root.title(self.name)
-        self.root.geometry("720x580")
-        self.root.minsize(420, 360)
-        self.root.configure(bg="#1e1e2e")
-        self.root.resizable(True, True)
-        self.root.protocol("WM_DELETE_WINDOW", self.hide)
-        self._center_window(720, 580)
+        self.setWindowTitle(self.name)
+        self.setWindowOpacity(0.0)   # start transparent; show_with_animation fades in
 
-        # Keyboard shortcuts: Esc hides, Ctrl+L clears the conversation.
-        self.root.bind("<Escape>", lambda _e: self.hide())
-        self.root.bind("<Control-l>", lambda _e: self._clear_chat())
-        self.root.bind("<Control-L>", lambda _e: self._clear_chat())
+        # ── Central widget ────────────────────────────────────────────────────
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        # ── Header ──────────────────────────────────────────────────────────
-        header = tk.Frame(self.root, bg="#181825", pady=0)
-        header.pack(fill=tk.X)
+        # ── Header ────────────────────────────────────────────────────────────
+        header = QWidget()
+        header.setStyleSheet("background-color: #181825;")
+        header.setFixedHeight(48)
+        hl = QHBoxLayout(header)
+        hl.setContentsMargins(10, 4, 12, 4)
 
-        tk.Label(
-            header, text=f"  {self.name}",
-            bg="#181825", fg="#89b4fa",
-            font=("Monospace", 11, "bold"),
-        ).pack(side=tk.LEFT, pady=6)
-
-        # Waveform canvas in the header
-        wave_canvas = tk.Canvas(
-            header, width=260, height=40,
-            bg="#181825", bd=0, highlightthickness=0,
+        title_lbl = QLabel(f"  {self.name}")
+        title_lbl.setStyleSheet(
+            "color: #89b4fa; font-family: Monospace; font-size: 11pt;"
+            " font-weight: bold; background: transparent;"
         )
-        wave_canvas.pack(side=tk.RIGHT, padx=12, pady=2)
+        hl.addWidget(title_lbl)
+        hl.addStretch()
 
-        self._anim = WaveformAnimation(wave_canvas)
-        # Build after packing so winfo_width() has real values
-        self.root.after(50, self._anim.build)
+        self._anim = WaveformAnimation()
+        self._anim.setFixedWidth(260)
+        hl.addWidget(self._anim)
+        layout.addWidget(header)
 
-        # ── Chat display ─────────────────────────────────────────────────────
-        self._display = scrolledtext.ScrolledText(
-            self.root, state="disabled", wrap=tk.WORD,
-            font=("Monospace", 10), bg="#1e1e2e", fg="#cdd6f4",
-            insertbackground="white", padx=10, pady=8, bd=0,
-            selectbackground="#313244",
+        # ── Chat display ──────────────────────────────────────────────────────
+        self._display = QTextEdit()
+        self._display.setReadOnly(True)
+        self._display.setStyleSheet(
+            "QTextEdit {"
+            " background-color: #1e1e2e; color: #cdd6f4;"
+            " font-family: Monospace; font-size: 10pt;"
+            " padding: 8px; border: none;"
+            "}"
+            "QScrollBar:vertical { background: #181825; width: 8px; }"
+            "QScrollBar::handle:vertical { background: #45475a; border-radius: 4px; }"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
         )
-        self._display.pack(fill=tk.BOTH, expand=True, padx=8, pady=(4, 0))
-        self._display.tag_configure(
-            "user", foreground="#89b4fa", font=("Monospace", 10, "bold")
+        layout.addWidget(self._display, 1)
+
+        # ── Input row ─────────────────────────────────────────────────────────
+        input_row = QWidget()
+        input_row.setStyleSheet("background-color: #313244;")
+        il = QHBoxLayout(input_row)
+        il.setContentsMargins(8, 4, 8, 4)
+        il.setSpacing(4)
+
+        self._entry = QLineEdit()
+        self._entry.setStyleSheet(
+            "QLineEdit {"
+            " background-color: #313244; color: #cdd6f4;"
+            " font-family: Monospace; font-size: 10pt;"
+            " border: none; padding: 4px;"
+            "}"
         )
-        self._display.tag_configure("jarvis",  foreground="#a6e3a1")
-        self._display.tag_configure(
-            "system", foreground="#f5c2e7", font=("Monospace", 9, "italic")
+        self._entry.setPlaceholderText("Escribe un mensaje…")
+        self._entry.returnPressed.connect(self._on_send)
+        il.addWidget(self._entry)
+
+        _btn_send = (
+            "QPushButton { background-color: #89b4fa; color: #1e1e2e;"
+            " font-family: Monospace; font-size: 11pt; font-weight: bold;"
+            " border: none; padding: 6px 12px; }"
+            "QPushButton:hover { background-color: #74c7ec; }"
+            "QPushButton:disabled { background-color: #45475a; color: #6c7086; }"
         )
-        self._display.tag_configure("wake",    foreground="#f9e2af",
-                                     font=("Monospace", 9, "italic"))
-        self._display.tag_configure("error",   foreground="#f38ba8")
-        self._display.tag_configure("time",    foreground="#6c7086",
-                                     font=("Monospace", 8))
-
-        # ── Input row ────────────────────────────────────────────────────────
-        row = tk.Frame(self.root, bg="#313244", pady=4)
-        row.pack(fill=tk.X, padx=8, pady=8)
-
-        self._entry = tk.Entry(
-            row, font=("Monospace", 10),
-            bg="#313244", fg="#cdd6f4", insertbackground="white",
-            relief=tk.FLAT, bd=6,
+        _btn_dim = (
+            "QPushButton { background-color: #313244; color: #cdd6f4;"
+            " font-family: Monospace; font-size: 11pt;"
+            " border: none; padding: 6px 8px; }"
+            "QPushButton:hover { background-color: #45475a; }"
+            "QPushButton:disabled { color: #6c7086; }"
         )
-        self._entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self._entry.bind("<Return>",   self._on_send)
-        self._entry.bind("<KP_Enter>", self._on_send)
 
-        tk.Button(
-            row, text="↩", command=self._on_send,
-            bg="#89b4fa", fg="#1e1e2e", relief=tk.FLAT,
-            padx=12, font=("Monospace", 11, "bold"), cursor="hand2",
-        ).pack(side=tk.RIGHT, padx=(4, 0))
+        send_btn = QPushButton("↩")
+        send_btn.setStyleSheet(_btn_send)
+        send_btn.setCursor(_CURSOR_HAND)
+        send_btn.clicked.connect(self._on_send)
+        il.addWidget(send_btn)
 
-        self._mic_btn = tk.Button(
-            row, text="🎤", command=self._start_voice_input,
-            bg="#313244", fg="#cdd6f4", relief=tk.FLAT,
-            padx=8, font=("Monospace", 11), cursor="hand2",
-            activebackground="#45475a", activeforeground="#f9e2af",
+        self._mic_btn = QPushButton("🎤")
+        self._mic_btn.setStyleSheet(_btn_dim)
+        self._mic_btn.setCursor(_CURSOR_HAND)
+        self._mic_btn.clicked.connect(self._start_voice_input)
+        il.addWidget(self._mic_btn)
+
+        clear_btn = QPushButton("🗑")
+        clear_btn.setStyleSheet(_btn_dim)
+        clear_btn.setCursor(_CURSOR_HAND)
+        clear_btn.clicked.connect(self._clear_chat)
+        il.addWidget(clear_btn)
+
+        layout.addWidget(input_row)
+
+        # ── Status bar ────────────────────────────────────────────────────────
+        self._status_label = QLabel("")
+        self._status_label.setStyleSheet(
+            "background-color: #181825; color: #a6adc8;"
+            " font-family: Monospace; font-size: 9pt; padding: 3px 10px;"
         )
-        self._mic_btn.pack(side=tk.RIGHT, padx=(4, 0))
+        layout.addWidget(self._status_label)
 
-        tk.Button(
-            row, text="🗑", command=self._clear_chat,
-            bg="#313244", fg="#cdd6f4", relief=tk.FLAT,
-            padx=8, font=("Monospace", 11), cursor="hand2",
-            activebackground="#45475a", activeforeground="#f38ba8",
-        ).pack(side=tk.RIGHT, padx=(4, 0))
+        self.setStyleSheet("QMainWindow { background-color: #1e1e2e; }")
 
-        # ── Status bar ───────────────────────────────────────────────────────
-        self._status = tk.Label(
-            self.root, anchor="w", text="", bg="#181825", fg="#a6adc8",
-            font=("Monospace", 9), padx=10, pady=3,
-        )
-        self._status.pack(fill=tk.X)
+        # ── Keyboard shortcuts ────────────────────────────────────────────────
+        QShortcut(QKeySequence("Escape"), self, self.hide)
+        QShortcut(QKeySequence("Ctrl+L"), self, self._clear_chat)
 
+        # ── Seed the display ──────────────────────────────────────────────────
         self._append(f"Sistema: {self.name} listo\n", "system")
         self._set_status("Listo", "#a6e3a1")
 
-        # ── Wake word listener ───────────────────────────────────────────────
+        # ── Start animation ───────────────────────────────────────────────────
+        self._anim.build()
+
+        # ── Wake-word listener ────────────────────────────────────────────────
+        from .wake_word import WakeWordListener
         self._wake_listener = WakeWordListener(
             wake_word=self.wake_word,
             on_wake=self._on_wake,
@@ -222,118 +325,115 @@ class _ChatWindow:
         )
         self._wake_listener.start()
 
-    # ---------------------------------------------------------------- I/O
+    # ----------------------------------------------------------------- I/O
 
     def _append(self, text: str, tag: str = "", stamp: bool = False):
-        """Append *text* with *tag* styling; if *stamp*, prefix a dim [HH:MM] timestamp."""
-        self._display.config(state="normal")
+        """Insert styled text into the chat display."""
+        cursor = self._display.textCursor()
+        cursor.movePosition(_MOVE_END)
+
         if stamp:
-            self._display.insert("end", f"[{datetime.now():%H:%M}] ", "time")
-        self._display.insert("end", text, tag)
-        self._display.config(state="disabled")
-        self._display.see("end")
+            tfmt = QTextCharFormat()
+            tfmt.setForeground(QColor("#6c7086"))
+            tfmt.setFont(QFont("Monospace", 8))
+            cursor.insertText(f"[{datetime.now():%H:%M}] ", tfmt)
+
+        fmt   = QTextCharFormat()
+        style = _TAG_STYLES.get(tag)
+        if style:
+            fmt.setForeground(QColor(style["color"]))
+            fmt.setFont(QFont("Monospace", style["size"]))
+            if style["bold"]:
+                fmt.setFontWeight(_FONT_BOLD)
+            fmt.setFontItalic(style["italic"])
+        else:
+            fmt.setForeground(QColor("#cdd6f4"))
+            fmt.setFont(QFont("Monospace", 10))
+
+        cursor.insertText(text, fmt)
+        self._display.setTextCursor(cursor)
+        self._display.ensureCursorVisible()
 
     def _set_status(self, text: str, color: str = "#a6adc8"):
-        """Update the bottom status-bar text and color (no-op if not built yet)."""
-        if self._status:
-            self._status.config(text=text, fg=color)
+        if self._status_label:
+            self._status_label.setStyleSheet(
+                f"background-color: #181825; color: {color};"
+                " font-family: Monospace; font-size: 9pt; padding: 3px 10px;"
+            )
+            self._status_label.setText(text)
 
     def _clear_chat(self):
-        """Clear the chat display and the agent's conversation history."""
         if self._busy:
             return
-        if self._display:
-            self._display.config(state="normal")
-            self._display.delete("1.0", "end")
-            self._display.config(state="disabled")
+        self._display.clear()
         history = getattr(self.agent, "history", None)
         if history is not None and hasattr(history, "clear"):
             try:
                 history.clear()
-            except Exception:  # noqa: BLE001 - clearing history must never crash the UI
+            except Exception:
                 pass
         self._append(f"Sistema: {self.name} listo\n", "system")
         self._set_status("Historial borrado", "#f5c2e7")
 
-    def _center_window(self, width: int, height: int):
-        """Position the window at the center of the screen."""
-        try:
-            self.root.update_idletasks()
-            sw = self.root.winfo_screenwidth()
-            sh = self.root.winfo_screenheight()
-            x = max(0, (sw - width) // 2)
-            y = max(0, (sh - height) // 3)
-            self.root.geometry(f"{width}x{height}+{x}+{y}")
-        except Exception:  # noqa: BLE001 - centering is cosmetic
-            pass
+    # ----------------------------------------------------------------- send/reply
 
-    def _on_send(self, _event=None):
-        """Read the input field, echo the user message, and dispatch agent call in a thread."""
-        msg = self._entry.get().strip()
+    def _on_send(self):
+        msg = self._entry.text().strip()
         if not msg:
             return
-        self._entry.delete(0, "end")
-        self._entry.config(state="disabled")
+        self._entry.clear()
+        self._entry.setEnabled(False)
         self._busy = True
         self._append(f"Tú: {msg}\n", "user", stamp=True)
         if self._anim:
             self._anim.set_state("thinking")
         self._set_status(f"{self.name} está procesando…", "#89dceb")
-        threading.Thread(
-            target=self._call_agent, args=(msg,), daemon=True
-        ).start()
+        threading.Thread(target=self._call_agent, args=(msg,), daemon=True).start()
 
     def _call_agent(self, msg: str):
-        """Run agent.chat() in a daemon thread and schedule the reply on the main thread."""
+        """Run agent.chat() in a daemon thread; post reply back to main thread."""
         try:
             reply = self.agent.chat(msg)
             tag   = "jarvis"
         except Exception as exc:
             reply = f"Error: {exc}"
             tag   = "error"
-        self.root.after(0, self._on_reply, reply, tag)
+        self._bridge.call(lambda: self._on_reply(reply, tag))
 
     def _on_reply(self, reply: str, tag: str):
-        """Display the agent reply and reset the UI to idle state (main thread)."""
         self._append(f"{self.name}: {reply}\n\n", tag, stamp=True)
         self._busy = False
-        self._entry.config(state="normal")
-        self._entry.focus_set()
+        self._entry.setEnabled(True)
+        self._entry.setFocus()
         if self._anim:
             self._anim.set_state("idle")
         self._set_status("Listo", "#a6e3a1")
 
-    # ----------------------------------------------------------- wake word
+    # ----------------------------------------------------------------- wake word
 
     def _on_wake(self):
-        """Called from the wake-word background thread."""
-        if self.root:
-            self.root.after(0, self._handle_wake)
+        self._bridge.call(self._handle_wake)
 
     def _handle_wake(self):
-        """Runs on the tkinter main thread."""
-        self.show()
+        self.show_with_animation()
         self._append(f"[{self.name} activado por voz]\n", "wake")
         self._set_status("Activado por voz — escuchando…", "#f9e2af")
         if self._anim:
             self._anim.set_state("wake")
-            # Return to idle after 1.5 s
-            self.root.after(1500, self._wake_to_idle)
+            QTimer.singleShot(1500, self._wake_to_idle)
         if self._entry:
-            self._entry.config(state="normal")
-            self._entry.focus_set()
+            self._entry.setEnabled(True)
+            self._entry.setFocus()
 
     def _wake_to_idle(self):
-        """Return the animation and status bar to idle after a wake burst."""
         if self._anim:
             self._anim.set_state("idle")
         if not self._busy:
             self._set_status("Listo", "#a6e3a1")
 
-    # --------------------------------------------------------- voice input
+    # ----------------------------------------------------------------- voice input
 
     def _start_voice_input(self):
-        """Activate one-shot voice capture from the mic button."""
         if not self._wake_listener:
             return
         self._append("[Escuchando comando de voz…]\n", "wake")
@@ -341,92 +441,84 @@ class _ChatWindow:
         if self._anim:
             self._anim.set_state("wake")
         if self._mic_btn:
-            self._mic_btn.config(state="disabled", bg="#45475a")
+            self._mic_btn.setEnabled(False)
         if self._entry:
-            self._entry.config(state="disabled")
+            self._entry.setEnabled(False)
         self._wake_listener.listen_once(self._on_voice_input_done)
 
     def _on_voice_command(self, text: str):
-        """Called from background thread when a post-wake voice command is transcribed."""
-        if self.root:
-            self.root.after(0, self._dispatch_voice_command, text)
+        self._bridge.call(lambda: self._dispatch_voice_command(text))
 
     def _dispatch_voice_command(self, text: str):
-        """Populate the entry with the voice command and send it (main thread)."""
         if self._entry:
-            self._entry.config(state="normal")
-            self._entry.delete(0, "end")
-            self._entry.insert(0, text)
+            self._entry.setEnabled(True)
+            self._entry.setText(text)
         self._on_send()
 
     def _on_voice_input_done(self, text):
-        """Callback from listen_once — schedule UI update on the main thread."""
-        if self.root:
-            self.root.after(0, self._apply_voice_input, text)
+        self._bridge.call(lambda: self._apply_voice_input(text))
 
     def _apply_voice_input(self, text):
-        """Populate the entry with transcribed text and send, or report failure (main thread)."""
         if self._mic_btn:
-            self._mic_btn.config(state="normal", bg="#313244")
+            self._mic_btn.setEnabled(True)
         if self._anim:
             self._anim.set_state("idle")
         if text:
             if self._entry:
-                self._entry.config(state="normal")
-                self._entry.delete(0, "end")
-                self._entry.insert(0, text)
+                self._entry.setEnabled(True)
+                self._entry.setText(text)
             self._on_send()
         else:
             self._append("[No se entendió el comando de voz]\n", "system")
             self._set_status("No se entendió el comando de voz", "#f38ba8")
             if self._entry:
-                self._entry.config(state="normal")
+                self._entry.setEnabled(True)
 
-    # -------------------------------------------------------- window control
+    # ----------------------------------------------------------------- window control
 
-    def show(self):
-        """Restore the window from minimized/hidden state and bring it to the front."""
-        if self.root:
-            self.root.deiconify()
-            self.root.lift()
-            self.root.focus_force()
+    def show_with_animation(self):
+        """Show the window maximized with a smooth fade-in animation."""
+        if self.isVisible() and not self.isMinimized():
+            self.raise_()
+            self.activateWindow()
+            return
+        self.setWindowOpacity(0.0)
+        self.showMaximized()
+        self.raise_()
+        self.activateWindow()
+
+        anim = QPropertyAnimation(self, b"windowOpacity")
+        anim.setDuration(500)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(_EASE_OUT)
+        anim.start()
+        self._fade_anim = anim  # prevent GC
 
     def hide(self):
-        """Withdraw the window without stopping the tray icon or agent."""
-        if self.root:
-            self.root.withdraw()
+        """Fade out and hide the window."""
+        anim = QPropertyAnimation(self, b"windowOpacity")
+        anim.setDuration(250)
+        anim.setStartValue(self.windowOpacity())
+        anim.setEndValue(0.0)
+        anim.finished.connect(lambda: QWidget.hide(self))
+        anim.start()
+        self._fade_out_anim = anim
 
-    def destroy(self):
-        """Stop the wake-word listener, animation, and destroy the tkinter window."""
+    def closeEvent(self, event):  # noqa: N802
+        """Intercept the × button to hide rather than quit."""
+        event.ignore()
+        self.hide()
+
+    def _on_quit(self):
+        """Stop all background workers and exit the Qt application."""
         if self._wake_listener:
             self._wake_listener.stop()
         if self._anim:
             self._anim.stop()
-        if self.root:
-            self.root.destroy()
-
-    def run(self):
-        """Build the window (hidden) and start the tkinter event loop."""
-        self._build()
-        self.root.withdraw()
-        self.root.mainloop()
-
-
-# ---------------------------------------------------------------------------
-# Pystray helpers
-# ---------------------------------------------------------------------------
-
-def _make_pystray_icon(name: str, pystray_mod):
-    """Create a pystray Icon instance with the Jarvis circular icon image."""
-    return pystray_mod.Icon("jarvis", _make_icon_image(), name)
-
-
-def _build_menu(name: str, pystray_mod, on_open, on_quit):
-    """Build the right-click context menu with Open and Quit items."""
-    return pystray_mod.Menu(
-        pystray_mod.MenuItem(f"Abrir {name}", on_open, default=True),
-        pystray_mod.MenuItem("Salir", on_quit),
-    )
+        app = QApplication.instance()
+        if app:
+            app.quit()
 
 
 # ---------------------------------------------------------------------------
@@ -437,85 +529,50 @@ def run_tray(
     agent,
     name: str = "Jarvis",
     wake_word: str = _DEFAULT_WAKE_WORD,
-    welcome_message: str = "Sistemas en línea. ¿En qué puedo ayudarte?"
+    welcome_message: str = "Sistemas en línea. ¿En qué puedo ayudarte?",
 ) -> None:
-    """Start the system tray icon with animated chat window and wake-word detection.
+    """Start the PyQt chat window with system tray icon and wake-word detection.
 
-    Linux  → pystray in background thread; tkinter on main thread.
-    macOS  → pystray on main thread via setup(); tkinter in setup thread.
+    The window opens maximized with a fade-in animation.
+    The tray icon provides Open/Quit actions.
     """
-    try:
-        import pystray  # noqa: F401
-    except ImportError:
-        raise ImportError(
-            "pystray no está instalado.\n"
-            "Instala con: pip install pystray Pillow"
-        ) from None
-
-    if _SYSTEM == "Linux":
-        _run_linux(agent, name, wake_word, welcome_message)
-    elif _SYSTEM == "Darwin":
-        _run_macos(agent, name, wake_word)
-    else:
+    if _SYSTEM not in ("Linux", "Darwin"):
         raise RuntimeError(f"Bandeja del sistema no soportada en {_SYSTEM}")
 
-
-def _run_linux(agent, name: str, wake_word: str, welcome_message: str = "") -> None:
-    """Linux path: pystray in a background thread, tkinter mainloop on the main thread."""
-    import pystray
+    app = QApplication.instance() or QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
 
     win = _ChatWindow(agent, name, wake_word, welcome_message)
 
-    def on_open(icon, item):
-        if win.root:
-            win.root.after(0, win.show)
-
-    def on_quit(icon, item):
-        if win.root:
-            win.root.after(0, win.destroy)
-        icon.stop()
-
-    ico = _make_pystray_icon(name, pystray)
-    ico.menu = _build_menu(name, pystray, on_open, on_quit)
-
+    # ── System tray icon ──────────────────────────────────────────────────────
     try:
-        ico.run_detached()
-    except AttributeError:
-        threading.Thread(target=ico.run, daemon=True).start()
+        icon = _pil_to_qicon(_make_pil_icon(64))
+    except Exception:
+        icon = app.style().standardIcon(
+            app.style().StandardPixmap.SP_ComputerIcon if _QT6
+            else app.style().SP_ComputerIcon
+        )
 
-    win.run()   # tkinter mainloop on main thread
+    tray = QSystemTrayIcon(icon, app)
 
+    menu = QMenu()
+    open_act = menu.addAction(f"Abrir {name}")
+    open_act.triggered.connect(win.show_with_animation)
+    menu.addSeparator()
+    quit_act = menu.addAction("Salir")
+    quit_act.triggered.connect(win._on_quit)
 
-def _run_macos(agent, name: str, wake_word: str, welcome_message: str = "") -> None:
-    """macOS path: pystray on the main thread via setup(); tkinter built inside setup()."""
-    import pystray
+    tray.setContextMenu(menu)
+    tray.setToolTip(name)
 
-    win_holder: list = [None]
+    def _on_tray_activated(reason):
+        if reason in (_TRAY_TRIGGER, _TRAY_DBLCLICK):
+            win.show_with_animation()
 
-    def setup(icon):
-        icon.visible = True
-        try:
-            w = _ChatWindow(agent, name, wake_word, welcome_message)
-            win_holder[0] = w
-            w.run()
-        except Exception as exc:
-            icon.stop()
-            raise RuntimeError(f"Error al iniciar la ventana de chat: {exc}") from exc
+    tray.activated.connect(_on_tray_activated)
+    tray.show()
 
-    def on_open(icon, item):
-        w = win_holder[0]
-        if w and w.root:
-            w.root.after(0, w.show)
+    # ── Show maximized with animation ─────────────────────────────────────────
+    win.show_with_animation()
 
-    def on_quit(icon, item):
-        w = win_holder[0]
-        if w and w.root:
-            w.root.after(0, w.destroy)
-        icon.stop()
-
-    try:
-        ico = _make_pystray_icon(name, pystray)
-        ico.menu = _build_menu(name, pystray, on_open, on_quit)
-        ico.run(setup=setup)
-    except Exception as exc:
-        raise RuntimeError(f"Error al iniciar la bandeja del sistema en macOS: {exc}") from exc
+    app.exec()
