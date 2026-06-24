@@ -585,13 +585,13 @@ def run_tray(
     tray.show()
 
     # ── Play startup audio (if configured via JARVIS_WELCOME_AUDIO) ──────────
-    _play_startup_audio()
+    _play_startup_audio(app)
 
     app.exec()
 
 
-def _play_startup_audio() -> None:
-    """Play JARVIS_WELCOME_AUDIO in a daemon thread if the file exists."""
+def _play_startup_audio(app) -> None:
+    """Play JARVIS_WELCOME_AUDIO via QMediaPlayer (primary) or subprocess (fallback)."""
     try:
         from ..config import JARVIS_WELCOME_AUDIO
     except Exception:
@@ -599,20 +599,52 @@ def _play_startup_audio() -> None:
     if not JARVIS_WELCOME_AUDIO:
         return
     import os
-    import threading
-    if not os.path.isfile(JARVIS_WELCOME_AUDIO):
+    path = os.path.abspath(JARVIS_WELCOME_AUDIO)
+    if not os.path.isfile(path):
         return
 
+    # ── Primary: QMediaPlayer — no external tools needed ─────────────────────
+    try:
+        if _QT6:
+            from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+            from PyQt6.QtCore import QUrl
+            _player = QMediaPlayer()
+            _audio  = QAudioOutput()
+            _player.setAudioOutput(_audio)
+            _player.setSource(QUrl.fromLocalFile(path))
+        else:
+            from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+            from PyQt5.QtCore import QUrl
+            _player = QMediaPlayer()
+            _player.setMedia(QMediaContent(QUrl.fromLocalFile(path)))
+            _audio  = None
+
+        def _start():
+            _player.play()
+
+        QTimer.singleShot(300, _start)
+        # Keep references alive for the duration of the session
+        app._audio_player = _player
+        app._audio_output  = _audio
+        return
+    except Exception:
+        pass  # QtMultimedia not available — fall through to subprocess
+
+    # ── Fallback: subprocess players ─────────────────────────────────────────
     def _play():
         import subprocess
-        path = JARVIS_WELCOME_AUDIO
-        for player in (
+        ext = os.path.splitext(path)[1].lower()
+        candidates = [
             ["mpg123", "-q", path],
             ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
-            ["aplay", path],
-        ):
+            ["cvlc",   "--play-and-exit", "--quiet", path],
+        ]
+        if ext in (".wav", ".ogg"):
+            candidates += [["paplay", path], ["aplay", path]]
+
+        for cmd in candidates:
             try:
-                if subprocess.run(player, capture_output=True).returncode == 0:
+                if subprocess.run(cmd, capture_output=True).returncode == 0:
                     return
             except FileNotFoundError:
                 continue
