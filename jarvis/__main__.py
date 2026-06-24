@@ -199,10 +199,15 @@ def main():
         try:
             if voice_on:
                 from .interface.voice import listen
-                text = listen()
+                print_info("🎤 Escuchando... (di algo o presiona Ctrl+C para escribir)")
+                try:
+                    text = listen()
+                except KeyboardInterrupt:
+                    text = get_user_input()
                 if text:
                     console.print(f"[bold cyan]Tú:[/bold cyan] {text}")
                 else:
+                    print_info("No se detectó voz. Intenta de nuevo o escribe /voz para desactivar.")
                     text = get_user_input()
             else:
                 text = get_user_input()
@@ -212,6 +217,9 @@ def main():
 
             cmd = text.strip().lower()
             if cmd in ("salir", "exit", "quit", "q", "bye", "adios", "adiós"):
+                if voice_on:
+                    from .interface.voice import speak
+                    speak(_goodbye())
                 print_info(_goodbye())
                 break
 
@@ -220,6 +228,17 @@ def main():
                 console.clear()
                 print_banner(name, backend)
                 print_info("Historial borrado.")
+                continue
+
+            if cmd in ("voz", "/voz", "voice", "/voice"):
+                was_voice_on = voice_on
+                voice_on = not voice_on
+                status = "activado 🎤" if voice_on else "desactivado ⌨️"
+                msg = f"Modo voz {status}"
+                print_info(msg)
+                if voice_on or was_voice_on:
+                    from .interface.voice import speak
+                    speak(msg)
                 continue
 
             print_thinking(name)
