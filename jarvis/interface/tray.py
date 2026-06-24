@@ -172,14 +172,17 @@ class _ChatWindow(QMainWindow):
 
     def __init__(self, agent, name: str,
                  wake_word: str = _DEFAULT_WAKE_WORD,
-                 welcome_message: str = ""):
+                 welcome_message: str = "",
+                 goodbye_message: str = ""):
         super().__init__()
         self.agent           = agent
         self.name            = name
         self.wake_word       = wake_word
         self.welcome_message = welcome_message
+        self.goodbye_message = goodbye_message
         self._busy           = False
         self._voice_mode     = False
+        self._has_greeted    = False   # welcome is spoken only once
         self._bridge         = _Bridge()
         self._wake_listener  = None
         self._anim           = None
@@ -466,12 +469,16 @@ class _ChatWindow(QMainWindow):
             self._mic_btn.setStyleSheet(self._btn_mic_active)
             self._mic_btn.setText("🎤 ON")
         self._append("[Modo voz activado — escuchando continuamente]\n", "wake")
-        self._set_status("Hablando…", "#89dceb")
         from .wake_word import _speak_async
-        _speak_async(
-            self.welcome_message,
-            on_done=lambda: self._bridge.call(self._on_activation_audio_done),
-        )
+        if self.welcome_message and not self._has_greeted:
+            self._has_greeted = True
+            self._set_status("Hablando…", "#89dceb")
+            _speak_async(
+                self.welcome_message,
+                on_done=lambda: self._bridge.call(self._on_activation_audio_done),
+            )
+        else:
+            self._bridge.call(self._on_activation_audio_done)
 
     def _on_activation_audio_done(self):
         if self._voice_mode:
@@ -583,6 +590,9 @@ class _ChatWindow(QMainWindow):
             self._wake_listener.stop()
         if self._anim:
             self._anim.stop()
+        if self.goodbye_message:
+            from .wake_word import _speak_sync
+            _speak_sync(self.goodbye_message)
         app = QApplication.instance()
         if app:
             app.quit()
@@ -597,6 +607,7 @@ def run_tray(
     name: str = "Jarvis",
     wake_word: str = _DEFAULT_WAKE_WORD,
     welcome_message: str = "Sistemas en línea. ¿En qué puedo ayudarte?",
+    goodbye_message: str = "",
 ) -> None:
     """Start the PyQt chat window with system tray icon and wake-word detection.
 
@@ -609,7 +620,7 @@ def run_tray(
     app = QApplication.instance() or QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
-    win = _ChatWindow(agent, name, wake_word, welcome_message)
+    win = _ChatWindow(agent, name, wake_word, welcome_message, goodbye_message)
 
     # ── System tray icon ──────────────────────────────────────────────────────
     try:

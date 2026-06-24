@@ -8,8 +8,54 @@ Requires: pip install SpeechRecognition pyaudio
 import ctypes
 import logging
 import os
+import re
 import threading
 from typing import Callable, Optional
+
+# ---------------------------------------------------------------------------
+# Text preprocessing — strip markdown and emojis before TTS
+# ---------------------------------------------------------------------------
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"
+    "\U0001F300-\U0001F5FF"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F700-\U0001FAFF"
+    "\U00002702-\U000027B0"
+    "\U0001F1E0-\U0001F1FF"
+    "\U00002500-\U00002BEF"
+    "\U00002300-\U000023FF"
+    "]+",
+    flags=re.UNICODE,
+)
+
+
+def _clean_for_tts(text: str) -> str:
+    """Remove markdown syntax and emojis so TTS reads only natural prose."""
+    # Code blocks (must come before inline code)
+    text = re.sub(r"```[\s\S]*?```", "", text)
+    # Inline code
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    # Markdown links → keep label
+    text = re.sub(r"!\[[^\]]*\]\([^\)]+\)", "", text)
+    text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
+    # Bold / italic
+    text = re.sub(r"\*{1,3}([^*\n]+)\*{1,3}", r"\1", text)
+    text = re.sub(r"_{1,3}([^_\n]+)_{1,3}", r"\1", text)
+    # Headings
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    # Blockquotes and list markers
+    text = re.sub(r"^>\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^[\s]*[-*+]\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^[\s]*\d+\.\s+", "", text, flags=re.MULTILINE)
+    # Horizontal rules
+    text = re.sub(r"^[-*_]{3,}\s*$", "", text, flags=re.MULTILINE)
+    # Emojis
+    text = _EMOJI_RE.sub("", text)
+    # Collapse excess whitespace
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +126,9 @@ def _speak_async(text: str, lang: str = "es", on_done=None) -> None:
 
 def _speak_sync(text: str, lang: str = "es") -> None:
     """Speak *text* synchronously using the best available TTS engine."""
+    text = _clean_for_tts(text)
+    if not text:
+        return
     # ── Tier 1: gTTS (best quality) ──────────────────────────────────────
     try:
         import os
@@ -164,6 +213,7 @@ class WakeWordListener:
         self.response_text = response_text
         self._running = False
         self._paused = False           # pause main loop during listen_once()
+        self._greeted = False          # greeting is spoken only once
         self._thread: Optional[threading.Thread] = None
 
     # ----------------------------------------------------------------- public
@@ -236,7 +286,8 @@ class WakeWordListener:
                     logger.debug("Escuchado: %s", text)
                     if self.wake_word in text:
                         logger.info("¡Wake word detectada! '%s'", self.wake_word)
-                        if self.response_text:
+                        if self.response_text and not self._greeted:
+                            self._greeted = True
                             _speak_async(self.response_text)
                         if self.on_wake:
                             self.on_wake()
