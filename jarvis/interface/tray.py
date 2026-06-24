@@ -323,7 +323,14 @@ class _ChatWindow(QMainWindow):
             on_command=self._on_voice_command,
             response_text=self.welcome_message,
         )
-        self._wake_listener.start()
+        if not self._wake_listener.start():
+            # SpeechRecognition/pyaudio not installed — disable mic button
+            self._wake_listener = None
+            if self._mic_btn:
+                self._mic_btn.setEnabled(False)
+                self._mic_btn.setToolTip(
+                    "Voz no disponible — instala: pip install SpeechRecognition pyaudio"
+                )
 
     # ----------------------------------------------------------------- I/O
 
@@ -435,6 +442,11 @@ class _ChatWindow(QMainWindow):
 
     def _start_voice_input(self):
         if not self._wake_listener:
+            self._append(
+                "[Voz no disponible — instala: pip install SpeechRecognition pyaudio]\n",
+                "error",
+            )
+            self._set_status("Voz no disponible", "#f38ba8")
             return
         self._append("[Escuchando comando de voz…]\n", "wake")
         self._set_status("Escuchando comando de voz…", "#f9e2af")
