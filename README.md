@@ -132,16 +132,15 @@ python -m jarvis --backend ollama
 
 #### Modo bandeja del sistema (tray)
 
-Requiere `tkinter` (no siempre incluido con Python) y `pystray` + `Pillow`.
+Requiere **PyQt6** y Pillow. En Linux también se necesitan las bibliotecas XCB.
 
 ```bash
-# Linux
-sudo apt install python3-tk            # Ubuntu/Debian
-sudo dnf install python3-tkinter       # Fedora/RHEL
+# Linux (Ubuntu/Debian)
+sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+                 libxcb-keysyms1 libxcb-render-util0
 
 pip install "palmiche-jarvis[tray]"
-# o manualmente:
-pip install pystray Pillow
+# equivale a: pip install PyQt6 Pillow
 
 python -m jarvis --tray
 ```
@@ -169,11 +168,14 @@ python -m jarvis --tray       # la voz solo funciona en modo tray
 #### Instalación completa (todos los componentes)
 
 ```bash
-# Linux: dependencias del sistema primero
-sudo apt install python3-tk python3-dev portaudio19-dev
+# Linux — dependencias del sistema primero
+sudo apt install \
+    libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+    libxcb-keysyms1 libxcb-render-util0 \
+    python3-dev portaudio19-dev ffmpeg mpg123
 
 pip install "palmiche-jarvis[all]"
-# equivale a: pip install "palmiche-jarvis[voice,tray,adk]"
+# equivale a: pip install "palmiche-jarvis[voice,tray,adk,assets]"
 ```
 
 ## Configuración
@@ -199,7 +201,8 @@ nano jarvis/.env
 | `JARVIS_VOICE_ENABLED` | `false` | Activa voz (requiere dependencias extra) |
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
 | `JARVIS_EVENTS_FILE` | `~/.jarvis_events.json` | Archivo del calendario local de eventos |
-| `JARVIS_TRAY_ICON` | — | Ruta a una imagen propia para el ícono de bandeja (vacío = ícono de caballo integrado) |
+| `JARVIS_TRAY_ICON` | — | Ruta a imagen PNG/ICO para el ícono de bandeja (vacío = ícono de caballo integrado) |
+| `JARVIS_WELCOME_AUDIO` | — | Ruta a MP3/WAV reproducido al arrancar la bandeja (genera con `python extract_assets.py`) |
 
 ## Guía de uso
 
@@ -484,29 +487,40 @@ python -m jarvis --backend ollama
 
 ## Modo bandeja del sistema
 
-Inicia Jarvis como ícono en la barra de tareas con una ventana de chat:
+Inicia Jarvis como ícono en la barra de tareas con una ventana de chat (PyQt6):
 
 ```bash
-# Linux: tkinter debe estar instalado (no siempre viene con Python)
-sudo apt install python3-tk        # Ubuntu/Debian
-sudo dnf install python3-tkinter   # Fedora/RHEL
+# Linux (Ubuntu/Debian) — bibliotecas XCB necesarias
+sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+                 libxcb-keysyms1 libxcb-render-util0
 
-pip install pystray Pillow
+pip install "palmiche-jarvis[tray]"   # PyQt6 + Pillow
 python -m jarvis --tray
 # o combinar con cualquier backend:
 python -m jarvis --tray --backend gemini
 ```
 
-Haz clic en el ícono para abrir/cerrar la ventana de chat. La ventana puede ocultarse sin cerrar el proceso.
+La app **arranca minimizada** en la bandeja. La ventana aparece al:
+- Hacer clic en el ícono de la bandeja
+- Decir la palabra clave de activación por voz (si `[voice]` está instalado)
+- Escribir `salir` / `exit` / `quit` en el chat cierra la aplicación completamente
 
 La ventana de chat incluye:
 
+- **Animación HUD** estilo Iron Man en el encabezado (estados: idle / escuchando / procesando)
 - **Barra de estado** inferior con color (Listo / procesando / escuchando / error)
 - **Timestamps** `[HH:MM]` en cada mensaje
-- **Botón 🗑** y atajos de teclado: `Esc` oculta la ventana, `Ctrl+L` limpia la conversación
-- **Animación de onda** en el encabezado (idle / wake / thinking) y **botón 🎤** para entrada por voz
-- Ventana **centrada** en pantalla con tamaño mínimo
-- **Ícono** de bandeja con una cabeza de caballo (homenaje a Palmiche). Puedes usar tu propia imagen con `JARVIS_TRAY_ICON=/ruta/a/imagen.png`
+- **Botón 🗑** y atajos: `Esc` oculta la ventana, `Ctrl+L` limpia la conversación
+- **Botón 🎤** para entrada de voz (requiere `[voice]`)
+- Ventana **centrada** en pantalla, fade-in/out suave al mostrar/ocultar
+- **Ícono** de bandeja con una cabeza de caballo (homenaje a Palmiche)
+
+Variables `.env` del modo bandeja:
+
+| Variable | Descripción |
+|---|---|
+| `JARVIS_TRAY_ICON` | Ruta a imagen PNG/ICO propia (vacío = ícono integrado) |
+| `JARVIS_WELCOME_AUDIO` | Ruta a MP3/WAV reproducido al arrancar (genera con `python extract_assets.py`) |
 
 ## Seguridad
 
@@ -518,13 +532,15 @@ La ventana de chat incluye:
 
 | Funcionalidad | Linux | macOS |
 |---|---|---|
+| Bandeja del sistema (XCB) | `sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0` | — |
 | Control de medios | `sudo apt install playerctl` | Integrado (Music.app) |
 | Capturas de pantalla | `sudo apt install scrot` | Integrado (`screencapture`) |
 | Control de brillo | `sudo apt install brightnessctl` | — |
 | Info WiFi | `nmcli` (NetworkManager) | Integrado (`airport`) |
-| Bandeja del sistema | `sudo apt install python3-tk` | Integrado |
-| Voz (reconocimiento) | `sudo apt install python3-dev portaudio19-dev` + `pip install SpeechRecognition pyttsx3 pyaudio gtts` | `brew install portaudio` + pip |
-| Voz (respuesta audio HD) | `sudo apt install mpg123` (para reproducir gTTS) | Integrado (`ffplay` vía ffmpeg) |
+| Notificaciones | `sudo apt install libnotify-bin` | Integrado (osascript) |
+| Voz (reconocimiento) | `sudo apt install python3-dev portaudio19-dev` + `pip install "palmiche-jarvis[voice]"` | `brew install portaudio` + pip |
+| Voz (respuesta audio) | `sudo apt install mpg123` | `brew install ffmpeg` |
+| Assets (ícono/audio) | `sudo apt install ffmpeg` + `pip install "palmiche-jarvis[assets]"` | `brew install ffmpeg` + pip |
 
 ### Acciones de energía sin contraseña (Linux)
 
