@@ -198,9 +198,12 @@ def main():
     while True:
         try:
             if voice_on:
-                from .interface.voice import listen, speak
+                from .interface.voice import listen
                 print_info("🎤 Escuchando... (di algo o presiona Ctrl+C para escribir)")
-                text = listen()
+                try:
+                    text = listen()
+                except KeyboardInterrupt:
+                    text = get_user_input()
                 if text:
                     console.print(f"[bold cyan]Tú:[/bold cyan] {text}")
                 else:
@@ -228,13 +231,14 @@ def main():
                 continue
 
             if cmd in ("voz", "/voz", "voice", "/voice"):
+                was_voice_on = voice_on
                 voice_on = not voice_on
                 status = "activado 🎤" if voice_on else "desactivado ⌨️"
                 msg = f"Modo voz {status}"
                 print_info(msg)
-                if voice_on:
+                if voice_on or was_voice_on:
                     from .interface.voice import speak
-                    speak(f"Modo voz {status}")
+                    speak(msg)
                 continue
 
             print_thinking(name)
