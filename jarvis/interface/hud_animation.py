@@ -45,15 +45,15 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Palette
 # ---------------------------------------------------------------------------
-_BG     = "#040c14"
-_GRID   = "#071828"
-_CYAN   = "#00d4ff"
-_BLUE   = "#0055aa"
-_LTBLUE = "#0099dd"
-_AMBER  = "#ffaa00"
-_GREEN  = "#00ff88"
-_DIM    = "#1a3a5a"
-_WHITE  = "#e8f8ff"
+_BG     = "#030d06"
+_GRID   = "#091506"
+_CYAN   = "#00c853"
+_BLUE   = "#0a3d1a"
+_LTBLUE = "#1b7a3d"
+_AMBER  = "#ffab00"
+_GREEN  = "#69f0ae"
+_DIM    = "#1a4a28"
+_WHITE  = "#f5eedc"
 
 _STATE_COL = {"idle": _CYAN, "wake": _AMBER, "thinking": _GREEN}
 
@@ -222,7 +222,7 @@ class HUDAnimation(QWidget):
         p.drawLine(W - m - sz, H - m, W - m, H - m)
         p.drawLine(W - m, H - m, W - m, H - m - sz)
         # Tick extensions
-        pen2 = QPen(QColor("#00d4ff55"), 1)
+        pen2 = QPen(QColor("#00c85555"), 1)
         p.setPen(pen2)
         tk = 9
         p.drawLine(m + sz + 3, m,         m + sz + 3 + tk, m)
@@ -281,7 +281,7 @@ class HUDAnimation(QWidget):
         pulse_rate = {"idle": 0.08, "wake": 0.28, "thinking": 0.16}[self._state]
         r          = R * (0.82 + 0.18 * math.sin(self._t * pulse_rate))
 
-        inner_hex = {"idle": "#00aaff", "wake": "#ffcc00", "thinking": "#00ff88"}[self._state]
+        inner_hex = {"idle": "#00c853", "wake": "#ffcc00", "thinking": "#69f0ae"}[self._state]
         inner     = QColor(inner_hex)
 
         # Outer glow

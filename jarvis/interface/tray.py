@@ -154,12 +154,12 @@ class _Bridge(QObject):
 # ---------------------------------------------------------------------------
 
 _TAG_STYLES = {
-    "user":   {"color": "#89b4fa", "bold": True,  "italic": False, "size": 10},
-    "jarvis": {"color": "#a6e3a1", "bold": False, "italic": False, "size": 10},
-    "system": {"color": "#f5c2e7", "bold": False, "italic": True,  "size": 9},
-    "wake":   {"color": "#f9e2af", "bold": False, "italic": True,  "size": 9},
-    "error":  {"color": "#f38ba8", "bold": False, "italic": False, "size": 10},
-    "time":   {"color": "#6c7086", "bold": False, "italic": False, "size": 8},
+    "user":   {"color": "#00c853", "bold": True,  "italic": False, "size": 10},
+    "jarvis": {"color": "#f5eedc", "bold": False, "italic": False, "size": 10},
+    "system": {"color": "#69f0ae", "bold": False, "italic": True,  "size": 9},
+    "wake":   {"color": "#ffab00", "bold": False, "italic": True,  "size": 9},
+    "error":  {"color": "#ff1744", "bold": False, "italic": False, "size": 10},
+    "time":   {"color": "#1b5e32", "bold": False, "italic": False, "size": 8},
 }
 
 
@@ -211,62 +211,87 @@ class _ChatWindow(QMainWindow):
 
         # ── HUD header ────────────────────────────────────────────────────────
         self._anim = HUDAnimation(name=self.name)
-        self._anim.setFixedHeight(220)
+        self._anim.setFixedHeight(240)
         layout.addWidget(self._anim)
+
+        # ── Info data bar ─────────────────────────────────────────────────────
+        _data_bar = QLabel(
+            f"  PALMICHE // IA  ─────────────────────────"
+            f"  SYS:OK  //  NEURAL:ACTIVO  //  {self.name.upper()}"
+        )
+        _data_bar.setStyleSheet(
+            "background-color: #091506;"
+            " color: #1b5e32; font-family: Monospace; font-size: 8pt;"
+            " padding: 2px 14px;"
+            " border-top: 1px solid #0f2914;"
+            " border-bottom: 1px solid #0f2914;"
+        )
+        layout.addWidget(_data_bar)
 
         # ── Chat display ──────────────────────────────────────────────────────
         self._display = QTextEdit()
         self._display.setReadOnly(True)
         self._display.setStyleSheet(
             "QTextEdit {"
-            " background-color: #1e1e2e; color: #cdd6f4;"
-            " font-family: Monospace; font-size: 10pt;"
-            " padding: 8px; border: none;"
+            " background-color: #030d06; color: #b9f6ca;"
+            " font-family: 'Courier New', Monospace; font-size: 10pt;"
+            " padding: 10px 10px 10px 14px; border: none;"
+            " border-left: 2px solid #1a5e32;"
+            " selection-background-color: #0a3d1a;"
+            " selection-color: #f5eedc;"
             "}"
-            "QScrollBar:vertical { background: #181825; width: 8px; }"
-            "QScrollBar::handle:vertical { background: #45475a; border-radius: 4px; }"
+            "QScrollBar:vertical { background: #030d06; width: 8px; border: none; }"
+            "QScrollBar::handle:vertical { background: #1a5e32; border-radius: 0px; }"
+            "QScrollBar::handle:vertical:hover { background: #00c853; }"
             "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
         )
         layout.addWidget(self._display, 1)
 
         # ── Input row ─────────────────────────────────────────────────────────
         input_row = QWidget()
-        input_row.setStyleSheet("background-color: #313244;")
+        input_row.setStyleSheet(
+            "background-color: #091506; border-top: 1px solid #1a5e32;"
+        )
         il = QHBoxLayout(input_row)
-        il.setContentsMargins(8, 4, 8, 4)
-        il.setSpacing(4)
+        il.setContentsMargins(8, 6, 8, 6)
+        il.setSpacing(6)
 
         self._entry = QLineEdit()
         self._entry.setStyleSheet(
             "QLineEdit {"
-            " background-color: #313244; color: #cdd6f4;"
-            " font-family: Monospace; font-size: 10pt;"
-            " border: none; padding: 4px;"
+            " background-color: #030d06; color: #b9f6ca;"
+            " font-family: 'Courier New', Monospace; font-size: 10pt;"
+            " border: 1px solid #1a5e32; padding: 5px 8px;"
             "}"
+            "QLineEdit:focus { border-color: #00c853; }"
         )
-        self._entry.setPlaceholderText("Escribe un mensaje…")
+        self._entry.setPlaceholderText("// ENTRADA DE COMANDO ...")
         self._entry.returnPressed.connect(self._on_send)
         il.addWidget(self._entry)
 
         _btn_send = (
-            "QPushButton { background-color: #89b4fa; color: #1e1e2e;"
+            "QPushButton { background-color: #0a3d1a; color: #00c853;"
             " font-family: Monospace; font-size: 11pt; font-weight: bold;"
-            " border: none; padding: 6px 12px; }"
-            "QPushButton:hover { background-color: #74c7ec; }"
-            "QPushButton:disabled { background-color: #45475a; color: #6c7086; }"
+            " border: 1px solid #00c853; padding: 5px 12px; }"
+            "QPushButton:hover { background-color: #1a5e32; color: #69f0ae;"
+            " border-color: #69f0ae; }"
+            "QPushButton:disabled { background-color: #030d06; color: #1a5e32;"
+            " border-color: #1a5e32; }"
         )
         self._btn_dim = (
-            "QPushButton { background-color: #313244; color: #cdd6f4;"
+            "QPushButton { background-color: #030d06; color: #2e7d52;"
             " font-family: Monospace; font-size: 11pt;"
-            " border: none; padding: 6px 8px; }"
-            "QPushButton:hover { background-color: #45475a; }"
-            "QPushButton:disabled { color: #6c7086; }"
+            " border: 1px solid #1a5e32; padding: 5px 8px; }"
+            "QPushButton:hover { background-color: #0a1a0f; color: #00c853;"
+            " border-color: #00c853; }"
+            "QPushButton:disabled { color: #1a3d22; border-color: #0a2216; }"
         )
         self._btn_mic_active = (
-            "QPushButton { background-color: #f38ba8; color: #1e1e2e;"
+            "QPushButton { background-color: #3d2000; color: #ffab00;"
             " font-family: Monospace; font-size: 11pt; font-weight: bold;"
-            " border: none; padding: 6px 8px; }"
-            "QPushButton:hover { background-color: #eba0ac; }"
+            " border: 1px solid #ffab00; padding: 5px 8px; }"
+            "QPushButton:hover { background-color: #5e3200; color: #ffd740;"
+            " border-color: #ffd740; }"
         )
 
         send_btn = QPushButton("↩")
@@ -292,20 +317,21 @@ class _ChatWindow(QMainWindow):
         # ── Status bar ────────────────────────────────────────────────────────
         self._status_label = QLabel("")
         self._status_label.setStyleSheet(
-            "background-color: #181825; color: #a6adc8;"
+            "background-color: #030d06; color: #1b5e32;"
             " font-family: Monospace; font-size: 9pt; padding: 3px 10px;"
+            " border-top: 1px solid #0a1a0f;"
         )
         layout.addWidget(self._status_label)
 
-        self.setStyleSheet("QMainWindow { background-color: #1e1e2e; }")
+        self.setStyleSheet("QMainWindow { background-color: #030d06; }")
 
         # ── Keyboard shortcuts ────────────────────────────────────────────────
-        QShortcut(QKeySequence("Escape"), self, self.hide)
+        QShortcut(QKeySequence("Escape"), self, self._on_escape)
         QShortcut(QKeySequence("Ctrl+L"), self, self._clear_chat)
 
         # ── Seed the display ──────────────────────────────────────────────────
-        self._append(f"Sistema: {self.name} listo\n", "system")
-        self._set_status("Listo", "#a6e3a1")
+        self._append(f"// {self.name.upper()} OPERATIVO\n", "system")
+        self._set_status("LISTO", "#00c853")
 
         # ── Start animation ───────────────────────────────────────────────────
         self._anim.build()
@@ -336,7 +362,7 @@ class _ChatWindow(QMainWindow):
 
         if stamp:
             tfmt = QTextCharFormat()
-            tfmt.setForeground(QColor("#6c7086"))
+            tfmt.setForeground(QColor("#1b5e32"))
             tfmt.setFont(QFont("Monospace", 8))
             cursor.insertText(f"[{datetime.now():%H:%M}] ", tfmt)
 
@@ -356,11 +382,12 @@ class _ChatWindow(QMainWindow):
         self._display.setTextCursor(cursor)
         self._display.ensureCursorVisible()
 
-    def _set_status(self, text: str, color: str = "#a6adc8"):
+    def _set_status(self, text: str, color: str = "#2e7d52"):
         if self._status_label:
             self._status_label.setStyleSheet(
-                f"background-color: #181825; color: {color};"
+                f"background-color: #030d06; color: {color};"
                 " font-family: Monospace; font-size: 9pt; padding: 3px 10px;"
+                " border-top: 1px solid #0a1a0f;"
             )
             self._status_label.setText(text)
 
@@ -374,8 +401,8 @@ class _ChatWindow(QMainWindow):
                 history.clear()
             except Exception:
                 pass
-        self._append(f"Sistema: {self.name} listo\n", "system")
-        self._set_status("Historial borrado", "#f5c2e7")
+        self._append(f"// {self.name.upper()} OPERATIVO\n", "system")
+        self._set_status("HISTORIAL BORRADO", "#69f0ae")
 
     # ----------------------------------------------------------------- send/reply
 
@@ -395,7 +422,7 @@ class _ChatWindow(QMainWindow):
         self._append(f"Tú: {msg}\n", "user", stamp=True)
         if self._anim:
             self._anim.set_state("thinking")
-        self._set_status(f"{self.name} está procesando…", "#89dceb")
+        self._set_status("PROCESANDO ...", "#69f0ae")
         threading.Thread(target=self._call_agent, args=(msg,), daemon=True).start()
 
     def _call_agent(self, msg: str):
@@ -415,12 +442,12 @@ class _ChatWindow(QMainWindow):
             self._anim.set_state("idle")
         if self._voice_mode:
             from .wake_word import _speak_async
-            self._set_status("Hablando…", "#89dceb")
+            self._set_status("REPRODUCIENDO ...", "#ffab00")
             _speak_async(reply, on_done=lambda: self._bridge.call(self._on_tts_done))
         else:
             self._entry.setEnabled(True)
             self._entry.setFocus()
-            self._set_status("Listo", "#a6e3a1")
+            self._set_status("LISTO", "#00c853")
 
     def _on_tts_done(self):
         if self._voice_mode:
@@ -432,9 +459,13 @@ class _ChatWindow(QMainWindow):
         self._bridge.call(self._handle_wake)
 
     def _handle_wake(self):
-        self.show_with_animation()
+        if not self.isVisible() or self.isMinimized():
+            self._show_fullscreen_animated()
+        else:
+            self.raise_()
+            self.activateWindow()
         self._append(f"[{self.name} activado por voz]\n", "wake")
-        self._set_status("Activado por voz — escuchando…", "#f9e2af")
+        self._set_status("VOZ DETECTADA — ESCUCHANDO ...", "#ffab00")
         if self._anim:
             self._anim.set_state("wake")
             QTimer.singleShot(1500, self._wake_to_idle)
@@ -446,7 +477,7 @@ class _ChatWindow(QMainWindow):
         if self._anim:
             self._anim.set_state("idle")
         if not self._busy:
-            self._set_status("Listo", "#a6e3a1")
+            self._set_status("LISTO", "#00c853")
 
     # ----------------------------------------------------------------- voice mode
 
@@ -462,7 +493,7 @@ class _ChatWindow(QMainWindow):
                 "[Voz no disponible — instala: pip install SpeechRecognition pyaudio]\n",
                 "error",
             )
-            self._set_status("Voz no disponible", "#f38ba8")
+            self._set_status("VOZ NO DISPONIBLE", "#ff1744")
             return
         self._voice_mode = True
         if self._mic_btn:
@@ -472,7 +503,7 @@ class _ChatWindow(QMainWindow):
         from .wake_word import _speak_async
         if self.welcome_message and not self._has_greeted:
             self._has_greeted = True
-            self._set_status("Hablando…", "#89dceb")
+            self._set_status("REPRODUCIENDO ...", "#ffab00")
             _speak_async(
                 self.welcome_message,
                 on_done=lambda: self._bridge.call(self._on_activation_audio_done),
@@ -482,7 +513,7 @@ class _ChatWindow(QMainWindow):
 
     def _on_activation_audio_done(self):
         if self._voice_mode:
-            self._set_status("Modo voz activado", "#f9e2af")
+            self._set_status("MODO VOZ ACTIVO", "#ffab00")
             self._start_voice_listen()
 
     def _deactivate_voice_mode(self):
@@ -493,7 +524,7 @@ class _ChatWindow(QMainWindow):
         if self._anim:
             self._anim.set_state("idle")
         self._append("[Modo voz desactivado]\n", "system")
-        self._set_status("Listo", "#a6e3a1")
+        self._set_status("LISTO", "#00c853")
         if self._entry:
             self._entry.setEnabled(True)
             self._entry.setFocus()
@@ -501,7 +532,7 @@ class _ChatWindow(QMainWindow):
     def _start_voice_listen(self):
         if not self._voice_mode or not self._wake_listener:
             return
-        self._set_status("Escuchando…", "#f9e2af")
+        self._set_status("ESCUCHANDO ...", "#ffab00")
         if self._anim:
             self._anim.set_state("wake")
         if self._entry:
@@ -534,7 +565,7 @@ class _ChatWindow(QMainWindow):
                 QTimer.singleShot(500, self._start_voice_listen)
             else:
                 self._append("[No se entendió el comando de voz]\n", "system")
-                self._set_status("No se entendió el comando de voz", "#f38ba8")
+                self._set_status("NO SE ENTENDIÓ EL COMANDO", "#ff1744")
                 if self._entry:
                     self._entry.setEnabled(True)
 
@@ -567,6 +598,33 @@ class _ChatWindow(QMainWindow):
         anim.setEasingCurve(_EASE_OUT)
         anim.start()
         self._fade_anim = anim  # prevent GC
+
+    def _show_fullscreen_animated(self):
+        """Show the window fullscreen with fade-in (triggered by voice wake)."""
+        self.setWindowOpacity(0.0)
+        self.showFullScreen()
+        self.raise_()
+        self.activateWindow()
+        anim = QPropertyAnimation(self, b"windowOpacity")
+        anim.setDuration(600)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(_EASE_OUT)
+        anim.start()
+        self._fade_anim = anim
+
+    def _on_escape(self):
+        """Exit fullscreen if active, otherwise fade-hide the window."""
+        if self.isFullScreen():
+            self.showNormal()
+            w, h   = 920, 760
+            screen = QApplication.primaryScreen().availableGeometry()
+            x      = screen.x() + (screen.width()  - w) // 2
+            y      = screen.y() + (screen.height() - h) // 3
+            self.resize(w, h)
+            self.move(x, y)
+        else:
+            self.hide()
 
     def hide(self):
         """Fade out and hide the window."""
