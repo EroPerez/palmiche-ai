@@ -466,9 +466,11 @@ class _ChatWindow(QMainWindow):
             self._mic_btn.setStyleSheet(self._btn_mic_active)
             self._mic_btn.setText("🎤 ON")
         self._append("[Modo voz activado — escuchando continuamente]\n", "wake")
-        self._set_status("Reproduciendo audio…", "#89dceb")
-        _play_activation_audio(
-            on_done=lambda: self._bridge.call(self._on_activation_audio_done)
+        self._set_status("Hablando…", "#89dceb")
+        from .wake_word import _speak_async
+        _speak_async(
+            self.welcome_message,
+            on_done=lambda: self._bridge.call(self._on_activation_audio_done),
         )
 
     def _on_activation_audio_done(self):
