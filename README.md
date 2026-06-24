@@ -9,7 +9,7 @@
 ## Características
 
 - Conversación natural en español o inglés con memoria de sesión persistente
-- 41 herramientas integradas para controlar el sistema, archivos, red, medios y más
+- **58 herramientas integradas** para controlar el sistema, archivos, red, medios, clima, notas, temporizadores, cálculo y más
 - Cuatro backends intercambiables: Anthropic SDK, Google ADK + LiteLLM, Google ADK + Gemini, y Ollama (local)
 - Entrada por voz opcional con reconocimiento de habla
 - Interfaz en terminal con Rich (colores, markdown, paneles)
@@ -201,6 +201,7 @@ nano jarvis/.env
 | `JARVIS_VOICE_ENABLED` | `false` | Activa voz (requiere dependencias extra) |
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
 | `JARVIS_EVENTS_FILE` | `~/.jarvis_events.json` | Archivo del calendario local de eventos |
+| `JARVIS_NOTES_FILE` | `~/.jarvis_notes.json` | Archivo de notas personales |
 | `JARVIS_TRAY_ICON` | — | Ruta a imagen PNG/ICO para el ícono de bandeja (vacío = ícono de caballo integrado) |
 | `JARVIS_WELCOME_AUDIO` | — | Ruta a MP3/WAV reproducido al arrancar la bandeja (genera con `python extract_assets.py`) |
 
@@ -291,6 +292,46 @@ Haz ping a google.com
 Busca en YouTube tutoriales de Python
 Abre github.com
 Busca en DuckDuckGo "mejores editores de código"
+Lee el artículo en https://example.com/noticia
+Muéstrame las últimas noticias del feed https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada
+```
+
+**Clima**
+```bash
+¿Qué tiempo hace en Madrid?
+¿Cómo estará el tiempo esta semana en Buenos Aires?
+Dame el pronóstico para los próximos 3 días en imperial
+```
+
+**Notas**
+```bash
+Crea una nota titulada "Ideas de proyecto" con estas ideas: ...
+Muéstrame todas mis notas con la etiqueta "trabajo"
+Busca en mis notas algo sobre "reunión"
+Lee la nota "Ideas de proyecto"
+```
+
+**Temporizadores y alarmas**
+```bash
+Pon un temporizador de 25 minutos para el pomodoro
+Pon una alarma a las 08:30 para levantarme
+¿Qué temporizadores tengo activos?
+Cancela el temporizador abc123
+```
+
+**Cálculo y conversión de unidades**
+```bash
+¿Cuánto es sqrt(144) + 2^10?
+Convierte 100 km a millas
+¿Cuántos grados Fahrenheit son 37°C?
+¿Cuántos GB son 1500 MB?
+```
+
+**Herramientas de texto**
+```bash
+Analiza este texto y dime cuántas palabras tiene: "..."
+Convierte "hola mundo" a slug
+¿Es "reconocer" un palíndromo?
 ```
 
 **Portapapeles y utilidades**
@@ -333,7 +374,9 @@ pip install "palmiche-jarvis[voice]"
 python -m jarvis --tray
 ```
 
-## Herramientas disponibles (41)
+## Herramientas disponibles (58)
+
+> Guía completa con preguntas frecuentes por herramienta: **[TOOLS.md](TOOLS.md)**
 
 ### Sistema
 
@@ -392,7 +435,9 @@ python -m jarvis --tray
 | Herramienta | Descripción |
 |---|---|
 | `open_url` | Abrir URL en el navegador predeterminado |
-| `web_search` | Buscar en Google, DuckDuckGo o YouTube |
+| `web_search` | Buscar en Google, DuckDuckGo o YouTube (modo incógnito) |
+| `fetch_webpage` | Descargar y extraer el texto legible de cualquier URL |
+| `get_rss_feed` | Obtener las últimas entradas de un feed RSS o Atom |
 
 ### Utilidades
 
@@ -403,6 +448,52 @@ python -m jarvis --tray
 | `send_notification` | Notificación de escritorio (low / normal / critical) |
 | `run_shell_command` | Ejecutar comando shell arbitrario (con confirmación) |
 | `setup_autostart` | Activar o desactivar el arranque automático con el sistema |
+
+### Clima
+
+Sin API key. Datos en tiempo real vía [wttr.in](https://wttr.in).
+
+| Herramienta | Descripción |
+|---|---|
+| `get_weather` | Clima actual: temperatura, humedad, viento, visibilidad y presión |
+| `get_forecast` | Pronóstico de 1-3 días con temperatura máx/mín y precipitación |
+
+### Notas
+
+Notas locales en JSON (`~/.jarvis_notes.json`, configurable con `JARVIS_NOTES_FILE`). Soporte de etiquetas y búsqueda de texto completo.
+
+| Herramienta | Descripción |
+|---|---|
+| `create_note` | Crear nueva nota o actualizar una existente con mismo título |
+| `list_notes` | Listar todas las notas, con filtro opcional por etiqueta |
+| `read_note` | Leer el contenido completo de una nota por título o id |
+| `search_notes` | Buscar en título y contenido de todas las notas |
+| `delete_note` | Eliminar nota por título o id |
+
+### Temporizadores y alarmas
+
+Corren en segundo plano y disparan notificaciones de escritorio al completarse.
+
+| Herramienta | Descripción |
+|---|---|
+| `set_timer` | Temporizador por duración en segundos (máx 24h) |
+| `set_alarm` | Alarma a una hora específica `HH:MM` (pasa al día siguiente si ya pasó) |
+| `list_timers` | Listar temporizadores activos con tiempo restante |
+| `cancel_timer` | Cancelar un temporizador por su id |
+
+### Calculadora y conversión de unidades
+
+| Herramienta | Descripción |
+|---|---|
+| `calculate` | Evalúa expresiones matemáticas de forma segura (AST, sin `eval`). Soporta `sqrt`, `sin/cos/tan`, `log`, `factorial`, constantes `pi`/`e`, y más |
+| `convert_units` | Convierte entre unidades de longitud, masa, temperatura, velocidad, área, volumen y almacenamiento digital |
+
+### Herramientas de texto
+
+| Herramienta | Descripción |
+|---|---|
+| `text_stats` | Palabras, caracteres, líneas, oraciones y tiempo estimado de lectura |
+| `text_transform` | Transforma texto: `upper`, `lower`, `title`, `slug`, `snake`, `camel`, `pascal`, `reverse`, `palindrome`, `strip_accents` y más |
 
 ### Calendario y eventos
 
