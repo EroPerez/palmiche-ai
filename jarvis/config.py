@@ -44,4 +44,8 @@ JARVIS_TRAY_ICON: str = os.getenv("JARVIS_TRAY_ICON", "")
 
 # Optional path to an MP3/WAV file played once on tray startup.
 # Run extract_assets.py to generate jarvis/assets/welcome.mp3 from the source video.
-JARVIS_WELCOME_AUDIO: str = os.getenv("JARVIS_WELCOME_AUDIO", "")
+_DEFAULT_WELCOME_AUDIO = str(Path(__file__).parent / "assets" / "welcome.mp3")
+JARVIS_WELCOME_AUDIO: str = os.getenv(
+    "JARVIS_WELCOME_AUDIO",
+    _DEFAULT_WELCOME_AUDIO if Path(_DEFAULT_WELCOME_AUDIO).is_file() else "",
+)
