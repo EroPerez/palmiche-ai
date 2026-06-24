@@ -28,6 +28,7 @@ voice = [
 ]
 tray = [
     "PyQt6>=6.4.0",
+    "PyQt6-Qt6-Multimedia>=6.4.0",
     "Pillow>=10.0.0",
 ]
 adk = [
