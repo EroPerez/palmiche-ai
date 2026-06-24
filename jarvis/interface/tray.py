@@ -179,6 +179,7 @@ class _ChatWindow(QMainWindow):
         self.wake_word       = wake_word
         self.welcome_message = welcome_message
         self._busy           = False
+        self._voice_mode     = False
         self._bridge         = _Bridge()
         self._wake_listener  = None
         self._anim           = None
@@ -251,12 +252,18 @@ class _ChatWindow(QMainWindow):
             "QPushButton:hover { background-color: #74c7ec; }"
             "QPushButton:disabled { background-color: #45475a; color: #6c7086; }"
         )
-        _btn_dim = (
+        self._btn_dim = (
             "QPushButton { background-color: #313244; color: #cdd6f4;"
             " font-family: Monospace; font-size: 11pt;"
             " border: none; padding: 6px 8px; }"
             "QPushButton:hover { background-color: #45475a; }"
             "QPushButton:disabled { color: #6c7086; }"
+        )
+        self._btn_mic_active = (
+            "QPushButton { background-color: #f38ba8; color: #1e1e2e;"
+            " font-family: Monospace; font-size: 11pt; font-weight: bold;"
+            " border: none; padding: 6px 8px; }"
+            "QPushButton:hover { background-color: #eba0ac; }"
         )
 
         send_btn = QPushButton("↩")
@@ -266,13 +273,13 @@ class _ChatWindow(QMainWindow):
         il.addWidget(send_btn)
 
         self._mic_btn = QPushButton("🎤")
-        self._mic_btn.setStyleSheet(_btn_dim)
+        self._mic_btn.setStyleSheet(self._btn_dim)
         self._mic_btn.setCursor(_CURSOR_HAND)
-        self._mic_btn.clicked.connect(self._start_voice_input)
+        self._mic_btn.clicked.connect(self._toggle_voice_mode)
         il.addWidget(self._mic_btn)
 
         clear_btn = QPushButton("🗑")
-        clear_btn.setStyleSheet(_btn_dim)
+        clear_btn.setStyleSheet(self._btn_dim)
         clear_btn.setCursor(_CURSOR_HAND)
         clear_btn.clicked.connect(self._clear_chat)
         il.addWidget(clear_btn)
@@ -401,11 +408,17 @@ class _ChatWindow(QMainWindow):
     def _on_reply(self, reply: str, tag: str):
         self._append(f"{self.name}: {reply}\n\n", tag, stamp=True)
         self._busy = False
-        self._entry.setEnabled(True)
-        self._entry.setFocus()
         if self._anim:
             self._anim.set_state("idle")
-        self._set_status("Listo", "#a6e3a1")
+        if self._voice_mode:
+            from .wake_word import _speak_async
+            _speak_async(reply)
+            self._set_status("Hablando…", "#89dceb")
+            QTimer.singleShot(max(1500, len(reply) * 50), self._start_voice_listen)
+        else:
+            self._entry.setEnabled(True)
+            self._entry.setFocus()
+            self._set_status("Listo", "#a6e3a1")
 
     # ----------------------------------------------------------------- wake word
 
@@ -429,9 +442,15 @@ class _ChatWindow(QMainWindow):
         if not self._busy:
             self._set_status("Listo", "#a6e3a1")
 
-    # ----------------------------------------------------------------- voice input
+    # ----------------------------------------------------------------- voice mode
 
-    def _start_voice_input(self):
+    def _toggle_voice_mode(self):
+        if self._voice_mode:
+            self._deactivate_voice_mode()
+        else:
+            self._activate_voice_mode()
+
+    def _activate_voice_mode(self):
         if not self._wake_listener:
             self._append(
                 "[Voz no disponible — instala: pip install SpeechRecognition pyaudio]\n",
@@ -439,12 +458,34 @@ class _ChatWindow(QMainWindow):
             )
             self._set_status("Voz no disponible", "#f38ba8")
             return
-        self._append("[Escuchando comando de voz…]\n", "wake")
-        self._set_status("Escuchando comando de voz…", "#f9e2af")
+        self._voice_mode = True
+        if self._mic_btn:
+            self._mic_btn.setStyleSheet(self._btn_mic_active)
+            self._mic_btn.setText("🎤 ON")
+        _play_activation_audio()
+        self._append("[Modo voz activado — escuchando continuamente]\n", "wake")
+        self._set_status("Modo voz activado", "#f9e2af")
+        self._start_voice_listen()
+
+    def _deactivate_voice_mode(self):
+        self._voice_mode = False
+        if self._mic_btn:
+            self._mic_btn.setStyleSheet(self._btn_dim)
+            self._mic_btn.setText("🎤")
+        if self._anim:
+            self._anim.set_state("idle")
+        self._append("[Modo voz desactivado]\n", "system")
+        self._set_status("Listo", "#a6e3a1")
+        if self._entry:
+            self._entry.setEnabled(True)
+            self._entry.setFocus()
+
+    def _start_voice_listen(self):
+        if not self._voice_mode or not self._wake_listener:
+            return
+        self._set_status("Escuchando…", "#f9e2af")
         if self._anim:
             self._anim.set_state("wake")
-        if self._mic_btn:
-            self._mic_btn.setEnabled(False)
         if self._entry:
             self._entry.setEnabled(False)
         self._wake_listener.listen_once(self._on_voice_input_done)
@@ -462,8 +503,6 @@ class _ChatWindow(QMainWindow):
         self._bridge.call(lambda: self._apply_voice_input(text))
 
     def _apply_voice_input(self, text):
-        if self._mic_btn:
-            self._mic_btn.setEnabled(True)
         if self._anim:
             self._anim.set_state("idle")
         if text:
@@ -472,10 +511,14 @@ class _ChatWindow(QMainWindow):
                 self._entry.setText(text)
             self._on_send()
         else:
-            self._append("[No se entendió el comando de voz]\n", "system")
-            self._set_status("No se entendió el comando de voz", "#f38ba8")
-            if self._entry:
-                self._entry.setEnabled(True)
+            if self._voice_mode:
+                self._append("[No se entendió — escuchando de nuevo…]\n", "system")
+                QTimer.singleShot(500, self._start_voice_listen)
+            else:
+                self._append("[No se entendió el comando de voz]\n", "system")
+                self._set_status("No se entendió el comando de voz", "#f38ba8")
+                if self._entry:
+                    self._entry.setEnabled(True)
 
     # ----------------------------------------------------------------- window control
 
@@ -524,6 +567,7 @@ class _ChatWindow(QMainWindow):
 
     def _on_quit(self):
         """Stop all background workers and exit the Qt application."""
+        self._voice_mode = False
         if self._wake_listener:
             self._wake_listener.stop()
         if self._anim:
@@ -590,17 +634,54 @@ def run_tray(
     app.exec()
 
 
-def _play_startup_audio(app) -> None:
-    """Play JARVIS_WELCOME_AUDIO via QMediaPlayer (primary) or subprocess (fallback)."""
+def _get_welcome_audio_path():
+    """Return the absolute path to JARVIS_WELCOME_AUDIO if it exists, else None."""
     try:
         from ..config import JARVIS_WELCOME_AUDIO
     except Exception:
-        return
+        return None
     if not JARVIS_WELCOME_AUDIO:
-        return
+        return None
     import os
     path = os.path.abspath(JARVIS_WELCOME_AUDIO)
-    if not os.path.isfile(path):
+    return path if os.path.isfile(path) else None
+
+
+def _play_audio_file(path: str) -> None:
+    """Play an audio file via subprocess in a daemon thread."""
+    import os
+
+    def _play():
+        import subprocess
+        ext = os.path.splitext(path)[1].lower()
+        candidates = [
+            ["mpg123", "-q", path],
+            ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
+            ["cvlc",   "--play-and-exit", "--quiet", path],
+        ]
+        if ext in (".wav", ".ogg"):
+            candidates += [["paplay", path], ["aplay", path]]
+        for cmd in candidates:
+            try:
+                if subprocess.run(cmd, capture_output=True).returncode == 0:
+                    return
+            except FileNotFoundError:
+                continue
+
+    threading.Thread(target=_play, daemon=True, name="jarvis-audio-play").start()
+
+
+def _play_activation_audio() -> None:
+    """Play the welcome audio when voice mode is activated."""
+    path = _get_welcome_audio_path()
+    if path:
+        _play_audio_file(path)
+
+
+def _play_startup_audio(app) -> None:
+    """Play JARVIS_WELCOME_AUDIO via QMediaPlayer (primary) or subprocess (fallback)."""
+    path = _get_welcome_audio_path()
+    if not path:
         return
 
     # ── Primary: QMediaPlayer — no external tools needed ─────────────────────
@@ -630,23 +711,4 @@ def _play_startup_audio(app) -> None:
     except Exception:
         pass  # QtMultimedia not available — fall through to subprocess
 
-    # ── Fallback: subprocess players ─────────────────────────────────────────
-    def _play():
-        import subprocess
-        ext = os.path.splitext(path)[1].lower()
-        candidates = [
-            ["mpg123", "-q", path],
-            ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
-            ["cvlc",   "--play-and-exit", "--quiet", path],
-        ]
-        if ext in (".wav", ".ogg"):
-            candidates += [["paplay", path], ["aplay", path]]
-
-        for cmd in candidates:
-            try:
-                if subprocess.run(cmd, capture_output=True).returncode == 0:
-                    return
-            except FileNotFoundError:
-                continue
-
-    threading.Thread(target=_play, daemon=True, name="jarvis-startup-audio").start()
+    _play_audio_file(path)
