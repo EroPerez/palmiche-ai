@@ -369,9 +369,15 @@ class _ChatWindow(QMainWindow):
 
     # ----------------------------------------------------------------- send/reply
 
+    _QUIT_CMDS = frozenset(("salir", "exit", "quit", "q", "bye", "adios", "adiós"))
+
     def _on_send(self):
         msg = self._entry.text().strip()
         if not msg:
+            return
+        if msg.lower() in self._QUIT_CMDS:
+            self._entry.clear()
+            self._on_quit()
             return
         self._entry.clear()
         self._entry.setEnabled(False)
