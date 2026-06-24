@@ -22,38 +22,42 @@ from datetime import datetime
 try:
     from PyQt6.QtCore import QTimer, Qt, QPointF, QRectF
     from PyQt6.QtGui import (
-        QColor, QPainter, QPen, QBrush, QFont, QRadialGradient,
+        QColor, QPainter, QPen, QBrush, QFont, QRadialGradient, QPixmap,
     )
     from PyQt6.QtWidgets import QWidget
     _QT6 = True
-    _AA      = QPainter.RenderHint.Antialiasing
-    _TXTAA   = QPainter.RenderHint.TextAntialiasing
-    _NOBRUSH = Qt.BrushStyle.NoBrush
-    _NOPEN   = Qt.PenStyle.NoPen
+    _AA          = QPainter.RenderHint.Antialiasing
+    _TXTAA       = QPainter.RenderHint.TextAntialiasing
+    _NOBRUSH     = Qt.BrushStyle.NoBrush
+    _NOPEN       = Qt.PenStyle.NoPen
+    _KEEP_EXPAND = Qt.AspectRatioMode.KeepAspectRatioByExpanding
+    _SMOOTH_XFM  = Qt.TransformationMode.SmoothTransformation
 except ImportError:
     from PyQt5.QtCore import QTimer, Qt, QPointF, QRectF
     from PyQt5.QtGui import (
-        QColor, QPainter, QPen, QBrush, QFont, QRadialGradient,
+        QColor, QPainter, QPen, QBrush, QFont, QRadialGradient, QPixmap,
     )
     from PyQt5.QtWidgets import QWidget
     _QT6 = False
-    _AA      = QPainter.Antialiasing
-    _TXTAA   = QPainter.TextAntialiasing
-    _NOBRUSH = Qt.NoBrush
-    _NOPEN   = Qt.NoPen
+    _AA          = QPainter.Antialiasing
+    _TXTAA       = QPainter.TextAntialiasing
+    _NOBRUSH     = Qt.NoBrush
+    _NOPEN       = Qt.NoPen
+    _KEEP_EXPAND = Qt.KeepAspectRatioByExpanding
+    _SMOOTH_XFM  = Qt.SmoothTransformation
 
 # ---------------------------------------------------------------------------
 # Palette
 # ---------------------------------------------------------------------------
-_BG     = "#040c14"
-_GRID   = "#071828"
-_CYAN   = "#00d4ff"
-_BLUE   = "#0055aa"
-_LTBLUE = "#0099dd"
-_AMBER  = "#ffaa00"
-_GREEN  = "#00ff88"
-_DIM    = "#1a3a5a"
-_WHITE  = "#e8f8ff"
+_BG     = "#030d06"
+_GRID   = "#091506"
+_CYAN   = "#00c853"
+_BLUE   = "#0a3d1a"
+_LTBLUE = "#1b7a3d"
+_AMBER  = "#ffab00"
+_GREEN  = "#69f0ae"
+_DIM    = "#1a4a28"
+_WHITE  = "#f5eedc"
 
 _STATE_COL = {"idle": _CYAN, "wake": _AMBER, "thinking": _GREEN}
 
@@ -81,11 +85,14 @@ class HUDAnimation(QWidget):
     N_BARS = 24
     FPS    = 30
 
-    def __init__(self, parent=None, name: str = "J.A.R.V.I.S"):
+    def __init__(self, parent=None, name: str = "J.A.R.V.I.S", bg_path: str = ""):
         super().__init__(parent)
         self._name   = name
         self._t      = 0
         self._state  = "idle"
+        self._bg_pixmap = QPixmap(bg_path) if bg_path else QPixmap()
+        if self._bg_pixmap.isNull():
+            self._bg_pixmap = None
 
         # Ring angles (degrees, 0 = top, CW)
         self._a1 = 0.0
@@ -170,7 +177,16 @@ class HUDAnimation(QWidget):
         R   = min(cx * 0.82, cy * 0.90)
         col = QColor(_STATE_COL[self._state])
 
-        p.fillRect(self.rect(), QColor(_BG))
+        if self._bg_pixmap:
+            scaled = self._bg_pixmap.scaled(self.size(), _KEEP_EXPAND, _SMOOTH_XFM)
+            sx = (scaled.width()  - W) // 2
+            sy = (scaled.height() - H) // 2
+            p.drawPixmap(-sx, -sy, scaled)
+            ovl = QColor(_BG)
+            ovl.setAlpha(200)
+            p.fillRect(self.rect(), ovl)
+        else:
+            p.fillRect(self.rect(), QColor(_BG))
         self._draw_grid(p, W, H)
         self._draw_scan(p, W, H)
         self._draw_brackets(p, W, H)
@@ -222,7 +238,7 @@ class HUDAnimation(QWidget):
         p.drawLine(W - m - sz, H - m, W - m, H - m)
         p.drawLine(W - m, H - m, W - m, H - m - sz)
         # Tick extensions
-        pen2 = QPen(QColor("#00d4ff55"), 1)
+        pen2 = QPen(QColor("#00c85555"), 1)
         p.setPen(pen2)
         tk = 9
         p.drawLine(m + sz + 3, m,         m + sz + 3 + tk, m)
@@ -281,7 +297,7 @@ class HUDAnimation(QWidget):
         pulse_rate = {"idle": 0.08, "wake": 0.28, "thinking": 0.16}[self._state]
         r          = R * (0.82 + 0.18 * math.sin(self._t * pulse_rate))
 
-        inner_hex = {"idle": "#00aaff", "wake": "#ffcc00", "thinking": "#00ff88"}[self._state]
+        inner_hex = {"idle": "#00c853", "wake": "#ffcc00", "thinking": "#69f0ae"}[self._state]
         inner     = QColor(inner_hex)
 
         # Outer glow
