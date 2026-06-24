@@ -20,16 +20,8 @@ def listen() -> Optional[str]:
 
 def speak(text: str):
     """Convert text to speech. Silently skipped if dependencies missing."""
+    from .wake_word import _speak_sync
     try:
-        import pyttsx3
-
-        engine = pyttsx3.init()
-        engine.setProperty("rate", 175)
-        for voice in engine.getProperty("voices"):
-            if "spanish" in voice.name.lower() or "_es" in voice.id.lower():
-                engine.setProperty("voice", voice.id)
-                break
-        engine.say(text)
-        engine.runAndWait()
+        _speak_sync(text)
     except Exception:
         pass
