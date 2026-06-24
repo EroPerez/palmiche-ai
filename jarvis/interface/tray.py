@@ -412,13 +412,16 @@ class _ChatWindow(QMainWindow):
             self._anim.set_state("idle")
         if self._voice_mode:
             from .wake_word import _speak_async
-            _speak_async(reply)
             self._set_status("Hablando…", "#89dceb")
-            QTimer.singleShot(max(1500, len(reply) * 50), self._start_voice_listen)
+            _speak_async(reply, on_done=lambda: self._bridge.call(self._on_tts_done))
         else:
             self._entry.setEnabled(True)
             self._entry.setFocus()
             self._set_status("Listo", "#a6e3a1")
+
+    def _on_tts_done(self):
+        if self._voice_mode:
+            self._start_voice_listen()
 
     # ----------------------------------------------------------------- wake word
 
@@ -462,10 +465,16 @@ class _ChatWindow(QMainWindow):
         if self._mic_btn:
             self._mic_btn.setStyleSheet(self._btn_mic_active)
             self._mic_btn.setText("🎤 ON")
-        _play_activation_audio()
         self._append("[Modo voz activado — escuchando continuamente]\n", "wake")
-        self._set_status("Modo voz activado", "#f9e2af")
-        self._start_voice_listen()
+        self._set_status("Reproduciendo audio…", "#89dceb")
+        _play_activation_audio(
+            on_done=lambda: self._bridge.call(self._on_activation_audio_done)
+        )
+
+    def _on_activation_audio_done(self):
+        if self._voice_mode:
+            self._set_status("Modo voz activado", "#f9e2af")
+            self._start_voice_listen()
 
     def _deactivate_voice_mode(self):
         self._voice_mode = False
@@ -647,7 +656,7 @@ def _get_welcome_audio_path():
     return path if os.path.isfile(path) else None
 
 
-def _play_audio_file(path: str) -> None:
+def _play_audio_file(path: str, on_done=None) -> None:
     """Play an audio file via subprocess in a daemon thread."""
     import os
 
@@ -661,21 +670,27 @@ def _play_audio_file(path: str) -> None:
         ]
         if ext in (".wav", ".ogg"):
             candidates += [["paplay", path], ["aplay", path]]
-        for cmd in candidates:
-            try:
-                if subprocess.run(cmd, capture_output=True).returncode == 0:
-                    return
-            except FileNotFoundError:
-                continue
+        try:
+            for cmd in candidates:
+                try:
+                    if subprocess.run(cmd, capture_output=True).returncode == 0:
+                        return
+                except FileNotFoundError:
+                    continue
+        finally:
+            if on_done:
+                on_done()
 
     threading.Thread(target=_play, daemon=True, name="jarvis-audio-play").start()
 
 
-def _play_activation_audio() -> None:
+def _play_activation_audio(on_done=None) -> None:
     """Play the welcome audio when voice mode is activated."""
     path = _get_welcome_audio_path()
     if path:
-        _play_audio_file(path)
+        _play_audio_file(path, on_done=on_done)
+    elif on_done:
+        on_done()
 
 
 def _play_startup_audio(app) -> None:
