@@ -323,7 +323,14 @@ class _ChatWindow(QMainWindow):
             on_command=self._on_voice_command,
             response_text=self.welcome_message,
         )
-        self._wake_listener.start()
+        if not self._wake_listener.start():
+            # SpeechRecognition/pyaudio not installed — disable mic button
+            self._wake_listener = None
+            if self._mic_btn:
+                self._mic_btn.setEnabled(False)
+                self._mic_btn.setToolTip(
+                    "Voz no disponible — instala: pip install SpeechRecognition pyaudio"
+                )
 
     # ----------------------------------------------------------------- I/O
 
@@ -435,16 +442,31 @@ class _ChatWindow(QMainWindow):
 
     def _start_voice_input(self):
         if not self._wake_listener:
+            self._append(
+                "[Voz no disponible — instala: pip install SpeechRecognition pyaudio]\n",
+                "error",
+            )
+            self._set_status("Voz no disponible", "#f38ba8")
             return
-        self._append("[Escuchando comando de voz…]\n", "wake")
-        self._set_status("Escuchando comando de voz…", "#f9e2af")
-        if self._anim:
-            self._anim.set_state("wake")
-        if self._mic_btn:
-            self._mic_btn.setEnabled(False)
-        if self._entry:
-            self._entry.setEnabled(False)
-        self._wake_listener.listen_once(self._on_voice_input_done)
+        try:
+            self._append("[Escuchando comando de voz…]\n", "wake")
+            self._set_status("Escuchando comando de voz…", "#f9e2af")
+            if self._anim:
+                self._anim.set_state("wake")
+            if self._mic_btn:
+                self._mic_btn.setEnabled(False)
+            if self._entry:
+                self._entry.setEnabled(False)
+            self._wake_listener.listen_once(self._on_voice_input_done)
+        except Exception as exc:
+            self._append(f"[Error de voz: {exc}]\n", "error")
+            self._set_status("Error de voz", "#f38ba8")
+            if self._mic_btn:
+                self._mic_btn.setEnabled(True)
+            if self._entry:
+                self._entry.setEnabled(True)
+            if self._anim:
+                self._anim.set_state("idle")
 
     def _on_voice_command(self, text: str):
         self._bridge.call(lambda: self._dispatch_voice_command(text))
@@ -477,13 +499,22 @@ class _ChatWindow(QMainWindow):
     # ----------------------------------------------------------------- window control
 
     def show_with_animation(self):
-        """Show the window maximized with a smooth fade-in animation."""
+        """Show the window centered on screen with a smooth fade-in animation."""
         if self.isVisible() and not self.isMinimized():
             self.raise_()
             self.activateWindow()
             return
+
+        # Size and center on the primary screen
+        w, h   = 820, 640
+        screen = QApplication.primaryScreen().availableGeometry()
+        x      = screen.x() + (screen.width()  - w) // 2
+        y      = screen.y() + (screen.height() - h) // 3
+        self.resize(w, h)
+        self.move(x, y)
+
         self.setWindowOpacity(0.0)
-        self.showMaximized()
+        self.show()
         self.raise_()
         self.activateWindow()
 
