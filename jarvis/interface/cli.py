@@ -21,7 +21,8 @@ def print_banner(name: str = "Jarvis", backend: str = "anthropic"):
         f"[dim]backend:[/dim] {backend_label}\n"
         f"  [dim]Just A Rather Very Intelligent System[/dim]\n\n"
         f"  [dim]Escribe [bold]salir[/bold] para terminar "
-        f"| [bold]limpiar[/bold] para borrar historial[/dim]"
+        f"| [bold]limpiar[/bold] para borrar historial"
+        f"| [bold]/voz[/bold] para alternar modo voz[/dim]"
     )
     console.print()
     console.print(
