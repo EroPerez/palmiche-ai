@@ -587,9 +587,6 @@ def run_tray(
     # ── Play startup audio (if configured via JARVIS_WELCOME_AUDIO) ──────────
     _play_startup_audio()
 
-    # ── Show centered with animation ──────────────────────────────────────────
-    win.show_with_animation()
-
     app.exec()
 
 
