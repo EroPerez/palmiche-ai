@@ -16,6 +16,7 @@ Platform notes:
 Requires: pip install PyQt6 Pillow   (or PyQt5 Pillow)
 Optional: pip install SpeechRecognition pyaudio   (for wake word)
 """
+import os
 import platform
 import sys
 import threading
@@ -131,6 +132,38 @@ def _pil_to_qicon(pil_img) -> QIcon:
 
 
 # ---------------------------------------------------------------------------
+# Assets — font and background image (resolved relative to this file)
+# ---------------------------------------------------------------------------
+
+_JARVIS_FONT = "'Courier New', Monospace"   # replaced at runtime after QApplication starts
+
+_ASSETS_DIR  = os.path.join(os.path.dirname(__file__), "..", "assets")
+_BG_IMAGE    = os.path.abspath(os.path.join(_ASSETS_DIR, "space-bg.jpg"))
+if not os.path.isfile(_BG_IMAGE):
+    _BG_IMAGE = ""
+
+
+def _load_application_font() -> str:
+    """Load TheGoodMonolith.woff and return a QSS font-family string."""
+    path = os.path.abspath(os.path.join(_ASSETS_DIR, "TheGoodMonolith.woff"))
+    if not os.path.isfile(path):
+        return "'Courier New', Monospace"
+    try:
+        if _QT6:
+            from PyQt6.QtGui import QFontDatabase
+        else:
+            from PyQt5.QtGui import QFontDatabase
+        fid = QFontDatabase.addApplicationFont(path)
+        if fid != -1:
+            families = QFontDatabase.applicationFontFamilies(fid)
+            if families:
+                return f"'{families[0]}', 'Courier New', Monospace"
+    except Exception:
+        pass
+    return "'Courier New', Monospace"
+
+
+# ---------------------------------------------------------------------------
 # Cross-thread bridge — routes background-thread calls to the Qt main thread
 # ---------------------------------------------------------------------------
 
@@ -210,7 +243,7 @@ class _ChatWindow(QMainWindow):
         layout.setSpacing(0)
 
         # ── HUD header ────────────────────────────────────────────────────────
-        self._anim = HUDAnimation(name=self.name)
+        self._anim = HUDAnimation(name=self.name, bg_path=_BG_IMAGE)
         self._anim.setFixedHeight(240)
         layout.addWidget(self._anim)
 
@@ -323,7 +356,10 @@ class _ChatWindow(QMainWindow):
         )
         layout.addWidget(self._status_label)
 
-        self.setStyleSheet("QMainWindow { background-color: #030d06; }")
+        self.setStyleSheet(
+            f"* {{ font-family: {_JARVIS_FONT}; }}"
+            " QMainWindow { background-color: #030d06; }"
+        )
 
         # ── Keyboard shortcuts ────────────────────────────────────────────────
         QShortcut(QKeySequence("Escape"), self, self._on_escape)
@@ -677,6 +713,9 @@ def run_tray(
 
     app = QApplication.instance() or QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+
+    global _JARVIS_FONT
+    _JARVIS_FONT = _load_application_font()
 
     win = _ChatWindow(agent, name, wake_word, welcome_message, goodbye_message)
 

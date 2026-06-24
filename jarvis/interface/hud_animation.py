@@ -22,25 +22,29 @@ from datetime import datetime
 try:
     from PyQt6.QtCore import QTimer, Qt, QPointF, QRectF
     from PyQt6.QtGui import (
-        QColor, QPainter, QPen, QBrush, QFont, QRadialGradient,
+        QColor, QPainter, QPen, QBrush, QFont, QRadialGradient, QPixmap,
     )
     from PyQt6.QtWidgets import QWidget
     _QT6 = True
-    _AA      = QPainter.RenderHint.Antialiasing
-    _TXTAA   = QPainter.RenderHint.TextAntialiasing
-    _NOBRUSH = Qt.BrushStyle.NoBrush
-    _NOPEN   = Qt.PenStyle.NoPen
+    _AA          = QPainter.RenderHint.Antialiasing
+    _TXTAA       = QPainter.RenderHint.TextAntialiasing
+    _NOBRUSH     = Qt.BrushStyle.NoBrush
+    _NOPEN       = Qt.PenStyle.NoPen
+    _KEEP_EXPAND = Qt.AspectRatioMode.KeepAspectRatioByExpanding
+    _SMOOTH_XFM  = Qt.TransformationMode.SmoothTransformation
 except ImportError:
     from PyQt5.QtCore import QTimer, Qt, QPointF, QRectF
     from PyQt5.QtGui import (
-        QColor, QPainter, QPen, QBrush, QFont, QRadialGradient,
+        QColor, QPainter, QPen, QBrush, QFont, QRadialGradient, QPixmap,
     )
     from PyQt5.QtWidgets import QWidget
     _QT6 = False
-    _AA      = QPainter.Antialiasing
-    _TXTAA   = QPainter.TextAntialiasing
-    _NOBRUSH = Qt.NoBrush
-    _NOPEN   = Qt.NoPen
+    _AA          = QPainter.Antialiasing
+    _TXTAA       = QPainter.TextAntialiasing
+    _NOBRUSH     = Qt.NoBrush
+    _NOPEN       = Qt.NoPen
+    _KEEP_EXPAND = Qt.KeepAspectRatioByExpanding
+    _SMOOTH_XFM  = Qt.SmoothTransformation
 
 # ---------------------------------------------------------------------------
 # Palette
@@ -81,11 +85,14 @@ class HUDAnimation(QWidget):
     N_BARS = 24
     FPS    = 30
 
-    def __init__(self, parent=None, name: str = "J.A.R.V.I.S"):
+    def __init__(self, parent=None, name: str = "J.A.R.V.I.S", bg_path: str = ""):
         super().__init__(parent)
         self._name   = name
         self._t      = 0
         self._state  = "idle"
+        self._bg_pixmap = QPixmap(bg_path) if bg_path else QPixmap()
+        if self._bg_pixmap.isNull():
+            self._bg_pixmap = None
 
         # Ring angles (degrees, 0 = top, CW)
         self._a1 = 0.0
@@ -170,7 +177,16 @@ class HUDAnimation(QWidget):
         R   = min(cx * 0.82, cy * 0.90)
         col = QColor(_STATE_COL[self._state])
 
-        p.fillRect(self.rect(), QColor(_BG))
+        if self._bg_pixmap:
+            scaled = self._bg_pixmap.scaled(self.size(), _KEEP_EXPAND, _SMOOTH_XFM)
+            sx = (scaled.width()  - W) // 2
+            sy = (scaled.height() - H) // 2
+            p.drawPixmap(-sx, -sy, scaled)
+            ovl = QColor(_BG)
+            ovl.setAlpha(200)
+            p.fillRect(self.rect(), ovl)
+        else:
+            p.fillRect(self.rect(), QColor(_BG))
         self._draw_grid(p, W, H)
         self._draw_scan(p, W, H)
         self._draw_brackets(p, W, H)
