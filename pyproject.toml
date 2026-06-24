@@ -37,8 +37,11 @@ adk = [
 gemini = [
     "google-adk>=1.0.0",
 ]
+assets = [
+    "yt-dlp>=2024.1.0",
+]
 all = [
-    "palmiche-jarvis[voice,tray,adk]",
+    "palmiche-jarvis[voice,tray,adk,assets]",
 ]
 
 [project.scripts]

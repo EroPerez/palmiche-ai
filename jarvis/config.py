@@ -41,3 +41,7 @@ JARVIS_OLLAMA_MODEL: str = os.getenv("JARVIS_OLLAMA_MODEL", "llama3.2")
 # Optional path to a custom tray icon image (PNG/ICO). Empty → use the built-in
 # horse-head icon. Use this to point at your own Palmiche image if you have one.
 JARVIS_TRAY_ICON: str = os.getenv("JARVIS_TRAY_ICON", "")
+
+# Optional path to an MP3/WAV file played once on tray startup.
+# Run extract_assets.py to generate jarvis/assets/welcome.mp3 from the source video.
+JARVIS_WELCOME_AUDIO: str = os.getenv("JARVIS_WELCOME_AUDIO", "")

@@ -193,7 +193,7 @@ class _ChatWindow(QMainWindow):
     # ------------------------------------------------------------------ build
 
     def _build(self):
-        from .animation import WaveformAnimation
+        from .hud_animation import HUDAnimation
 
         self.setWindowTitle(self.name)
         self.setWindowOpacity(0.0)   # start transparent; show_with_animation fades in
@@ -205,25 +205,10 @@ class _ChatWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # ── Header ────────────────────────────────────────────────────────────
-        header = QWidget()
-        header.setStyleSheet("background-color: #181825;")
-        header.setFixedHeight(48)
-        hl = QHBoxLayout(header)
-        hl.setContentsMargins(10, 4, 12, 4)
-
-        title_lbl = QLabel(f"  {self.name}")
-        title_lbl.setStyleSheet(
-            "color: #89b4fa; font-family: Monospace; font-size: 11pt;"
-            " font-weight: bold; background: transparent;"
-        )
-        hl.addWidget(title_lbl)
-        hl.addStretch()
-
-        self._anim = WaveformAnimation()
-        self._anim.setFixedWidth(260)
-        hl.addWidget(self._anim)
-        layout.addWidget(header)
+        # ── HUD header ────────────────────────────────────────────────────────
+        self._anim = HUDAnimation(name=self.name)
+        self._anim.setFixedHeight(220)
+        layout.addWidget(self._anim)
 
         # ── Chat display ──────────────────────────────────────────────────────
         self._display = QTextEdit()
@@ -384,9 +369,15 @@ class _ChatWindow(QMainWindow):
 
     # ----------------------------------------------------------------- send/reply
 
+    _QUIT_CMDS = frozenset(("salir", "exit", "quit", "q", "bye", "adios", "adiós"))
+
     def _on_send(self):
         msg = self._entry.text().strip()
         if not msg:
+            return
+        if msg.lower() in self._QUIT_CMDS:
+            self._entry.clear()
+            self._on_quit()
             return
         self._entry.clear()
         self._entry.setEnabled(False)
@@ -489,13 +480,22 @@ class _ChatWindow(QMainWindow):
     # ----------------------------------------------------------------- window control
 
     def show_with_animation(self):
-        """Show the window maximized with a smooth fade-in animation."""
+        """Show the window centered on screen with a smooth fade-in animation."""
         if self.isVisible() and not self.isMinimized():
             self.raise_()
             self.activateWindow()
             return
+
+        # Size and center on the primary screen
+        w, h   = 920, 760
+        screen = QApplication.primaryScreen().availableGeometry()
+        x      = screen.x() + (screen.width()  - w) // 2
+        y      = screen.y() + (screen.height() - h) // 3
+        self.resize(w, h)
+        self.move(x, y)
+
         self.setWindowOpacity(0.0)
-        self.showMaximized()
+        self.show()
         self.raise_()
         self.activateWindow()
 
@@ -584,7 +584,37 @@ def run_tray(
     tray.activated.connect(_on_tray_activated)
     tray.show()
 
-    # ── Show maximized with animation ─────────────────────────────────────────
-    win.show_with_animation()
+    # ── Play startup audio (if configured via JARVIS_WELCOME_AUDIO) ──────────
+    _play_startup_audio()
 
     app.exec()
+
+
+def _play_startup_audio() -> None:
+    """Play JARVIS_WELCOME_AUDIO in a daemon thread if the file exists."""
+    try:
+        from ..config import JARVIS_WELCOME_AUDIO
+    except Exception:
+        return
+    if not JARVIS_WELCOME_AUDIO:
+        return
+    import os
+    import threading
+    if not os.path.isfile(JARVIS_WELCOME_AUDIO):
+        return
+
+    def _play():
+        import subprocess
+        path = JARVIS_WELCOME_AUDIO
+        for player in (
+            ["mpg123", "-q", path],
+            ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
+            ["aplay", path],
+        ):
+            try:
+                if subprocess.run(player, capture_output=True).returncode == 0:
+                    return
+            except FileNotFoundError:
+                continue
+
+    threading.Thread(target=_play, daemon=True, name="jarvis-startup-audio").start()
