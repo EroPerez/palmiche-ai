@@ -4,7 +4,7 @@ from .files import (
     search_files, open_file, list_directory, read_file, create_directory,
     write_file, delete_file, move_file, copy_file,
 )
-from .web import open_url, web_search
+from .web import open_url, web_search, fetch_webpage, get_rss_feed
 from .clipboard import get_clipboard, set_clipboard
 from .notifications import send_notification
 from .shell import run_shell_command
@@ -17,6 +17,11 @@ from .dev import (
     format_json, hash_text, encode_decode, generate_uuid,
     convert_timestamp, http_request, git_status, find_process_on_port,
 )
+from .weather import get_weather, get_forecast
+from .notes import create_note, list_notes, read_note, search_notes, delete_note
+from .timer import set_timer, set_alarm, list_timers, cancel_timer
+from .calculator import calculate, convert_units
+from .text_tools import text_stats, text_transform
 
 TOOL_DEFINITIONS = [
     {
@@ -588,6 +593,283 @@ TOOL_DEFINITIONS = [
             "required": ["port"],
         },
     },
+    # ── Weather ──────────────────────────────────────────────────────────────
+    {
+        "name": "get_weather",
+        "description": (
+            "Obtiene el clima actual para una ciudad (temperatura, humedad, viento, visibilidad). "
+            "Si no se especifica ciudad, usa la ubicación por IP. No requiere API key."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "description": "Ciudad o lugar (ej: 'Madrid', 'New York'). Vacío = detectar por IP.",
+                },
+                "units": {
+                    "type": "string",
+                    "enum": ["metric", "imperial"],
+                    "description": "Sistema de unidades: metric (°C, km/h) o imperial (°F, mph). Default: metric.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "get_forecast",
+        "description": "Obtiene el pronóstico del tiempo para los próximos 1-3 días.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "description": "Ciudad o lugar. Vacío = detectar por IP.",
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "Número de días de pronóstico (1-3). Default: 3.",
+                },
+                "units": {
+                    "type": "string",
+                    "enum": ["metric", "imperial"],
+                    "description": "Sistema de unidades. Default: metric.",
+                },
+            },
+            "required": [],
+        },
+    },
+    # ── Notes ─────────────────────────────────────────────────────────────────
+    {
+        "name": "create_note",
+        "description": "Crea o actualiza una nota personal con título, contenido y etiquetas opcionales.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Título de la nota"},
+                "content": {"type": "string", "description": "Contenido de la nota"},
+                "tags": {
+                    "type": "string",
+                    "description": "Etiquetas separadas por coma (ej: 'trabajo, ideas')",
+                },
+            },
+            "required": ["title", "content"],
+        },
+    },
+    {
+        "name": "list_notes",
+        "description": "Lista todas las notas guardadas, opcionalmente filtradas por etiqueta.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tag": {"type": "string", "description": "Filtrar por etiqueta (opcional)"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "read_note",
+        "description": "Lee el contenido completo de una nota por título o id.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Título o id de la nota"},
+            },
+            "required": ["title"],
+        },
+    },
+    {
+        "name": "search_notes",
+        "description": "Busca notas por título o contenido.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Término de búsqueda"},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "delete_note",
+        "description": "Elimina una nota por título o id.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Título o id de la nota a eliminar"},
+            },
+            "required": ["title"],
+        },
+    },
+    # ── Timers & Alarms ───────────────────────────────────────────────────────
+    {
+        "name": "set_timer",
+        "description": (
+            "Inicia un temporizador que envía una notificación de escritorio al finalizar. "
+            "Corre en segundo plano; el proceso debe seguir activo."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "seconds": {
+                    "type": "integer",
+                    "description": "Duración en segundos (máx 86400 = 24h)",
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Descripción del temporizador (opcional)",
+                },
+            },
+            "required": ["seconds"],
+        },
+    },
+    {
+        "name": "set_alarm",
+        "description": "Configura una alarma para una hora específica del día (formato HH:MM, 24h). Si ya pasó, se programa para mañana.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "alarm_time": {
+                    "type": "string",
+                    "description": "Hora de la alarma en formato HH:MM (ej: '08:30', '14:00')",
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Descripción de la alarma (opcional)",
+                },
+            },
+            "required": ["alarm_time"],
+        },
+    },
+    {
+        "name": "list_timers",
+        "description": "Muestra todos los temporizadores activos con el tiempo restante.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "cancel_timer",
+        "description": "Cancela un temporizador activo por su id.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "timer_id": {"type": "string", "description": "Id del temporizador (6 caracteres)"},
+            },
+            "required": ["timer_id"],
+        },
+    },
+    # ── Calculator & Unit Converter ───────────────────────────────────────────
+    {
+        "name": "calculate",
+        "description": (
+            "Evalúa expresiones matemáticas de forma segura. Soporta +−×÷^, sqrt, sin/cos/tan, "
+            "log, abs, round, factorial, y constantes pi/e. Ej: 'sqrt(144)', '2^10', 'sin(pi/2)'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "type": "string",
+                    "description": "Expresión matemática a evaluar",
+                },
+            },
+            "required": ["expression"],
+        },
+    },
+    {
+        "name": "convert_units",
+        "description": (
+            "Convierte entre unidades de medida. Categorías: longitud (m, km, mi, ft, in…), "
+            "masa (kg, g, lb, oz…), temperatura (°C, °F, K), velocidad (km/h, mph, m/s, kt), "
+            "área, volumen, almacenamiento digital (GB, MB…)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "type": "number",
+                    "description": "Valor numérico a convertir",
+                },
+                "from_unit": {
+                    "type": "string",
+                    "description": "Unidad de origen (ej: 'km', 'lb', '°C', 'GB')",
+                },
+                "to_unit": {
+                    "type": "string",
+                    "description": "Unidad de destino (ej: 'mi', 'kg', '°F', 'MB')",
+                },
+            },
+            "required": ["value", "from_unit", "to_unit"],
+        },
+    },
+    # ── Text Tools ────────────────────────────────────────────────────────────
+    {
+        "name": "text_stats",
+        "description": "Analiza un texto y devuelve estadísticas: palabras, caracteres, líneas, oraciones y tiempo estimado de lectura.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Texto a analizar"},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "text_transform",
+        "description": (
+            "Transforma un texto aplicando una operación. Operaciones disponibles: "
+            "upper, lower, title, capitalize, reverse, trim, slug, snake, camel, pascal, "
+            "strip_accents, count_vowels, palindrome."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Texto a transformar"},
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "upper", "lower", "title", "capitalize", "reverse", "trim",
+                        "slug", "snake", "camel", "pascal", "strip_accents",
+                        "count_vowels", "palindrome",
+                    ],
+                    "description": "Transformación a aplicar",
+                },
+            },
+            "required": ["text", "operation"],
+        },
+    },
+    # ── Web content ───────────────────────────────────────────────────────────
+    {
+        "name": "fetch_webpage",
+        "description": (
+            "Descarga y extrae el texto legible de una página web (elimina HTML, scripts y estilos). "
+            "Útil para leer artículos, documentación o cualquier contenido web."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL de la página a leer"},
+                "max_chars": {
+                    "type": "integer",
+                    "description": "Máximo de caracteres a devolver (500-10000, default 3000)",
+                },
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "get_rss_feed",
+        "description": "Obtiene las últimas entradas de un feed RSS o Atom: título, enlace y fecha de publicación.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "URL del feed RSS/Atom"},
+                "max_items": {
+                    "type": "integer",
+                    "description": "Número máximo de entradas a mostrar (default 10)",
+                },
+            },
+            "required": ["url"],
+        },
+    },
 ]
 
 
@@ -662,6 +944,29 @@ def execute_tool(name: str, inputs: dict) -> str:
         ),
         "git_status": lambda i: git_status(i.get("path", ".")),
         "find_process_on_port": lambda i: find_process_on_port(i["port"]),
+        # Weather
+        "get_weather": lambda i: get_weather(i.get("city", ""), i.get("units", "metric")),
+        "get_forecast": lambda i: get_forecast(i.get("city", ""), i.get("days", 3), i.get("units", "metric")),
+        # Notes
+        "create_note": lambda i: create_note(i["title"], i["content"], i.get("tags", "")),
+        "list_notes": lambda i: list_notes(i.get("tag", "")),
+        "read_note": lambda i: read_note(i["title"]),
+        "search_notes": lambda i: search_notes(i["query"]),
+        "delete_note": lambda i: delete_note(i["title"]),
+        # Timers
+        "set_timer": lambda i: set_timer(i["seconds"], i.get("label", "")),
+        "set_alarm": lambda i: set_alarm(i["alarm_time"], i.get("label", "")),
+        "list_timers": lambda i: list_timers(),
+        "cancel_timer": lambda i: cancel_timer(i["timer_id"]),
+        # Calculator & units
+        "calculate": lambda i: calculate(i["expression"]),
+        "convert_units": lambda i: convert_units(i["value"], i["from_unit"], i["to_unit"]),
+        # Text tools
+        "text_stats": lambda i: text_stats(i["text"]),
+        "text_transform": lambda i: text_transform(i["text"], i["operation"]),
+        # Web content
+        "fetch_webpage": lambda i: fetch_webpage(i["url"], i.get("max_chars", 3000)),
+        "get_rss_feed": lambda i: get_rss_feed(i["url"], i.get("max_items", 10)),
     }
 
     if name not in handlers:
