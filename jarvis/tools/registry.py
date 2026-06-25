@@ -284,7 +284,9 @@ TOOL_DEFINITIONS = [
             "Ejecuta un comando de shell arbitrario. "
             "Usar solo cuando no haya herramienta dedicada. Timeout: 30 segundos. "
             "Explica al usuario qué hará el comando y confirma antes de llamar con confirmed=true. "
-            "Si el comando usa sudo y JARVIS_SUDO_PASSWORD está configurada, la contraseña se pasa automáticamente."
+            "Si el comando usa sudo y JARVIS_SUDO_PASSWORD está configurada, la contraseña se pasa automáticamente. "
+            "Si el comando falla por permisos insuficientes, el resultado lo indicará y puedes reintentar con use_sudo=true "
+            "después de informar al usuario y obtener su confirmación."
         ),
         "input_schema": {
             "type": "object",
@@ -297,6 +299,13 @@ TOOL_DEFINITIONS = [
                 "confirmed": {
                     "type": "boolean",
                     "description": "El usuario confirmó que este comando puede ejecutarse",
+                },
+                "use_sudo": {
+                    "type": "boolean",
+                    "description": (
+                        "Reintentar el comando con sudo. Usar cuando un comando previo falló por permisos. "
+                        "Requiere confirmación del usuario y JARVIS_SUDO_PASSWORD configurada."
+                    ),
                 },
             },
             "required": ["command"],
@@ -912,7 +921,7 @@ def execute_tool(name: str, inputs: dict) -> str:
             i["title"], i["message"], i.get("urgency", "normal")
         ),
         "run_shell_command": lambda i: run_shell_command(
-            i["command"], i.get("working_dir", "~")
+            i["command"], i.get("working_dir", "~"), i.get("use_sudo", False)
         ),
         "write_file": lambda i: write_file(i["path"], i["content"], i.get("mode", "write")),
         "delete_file": lambda i: delete_file(i["path"]),
