@@ -8,16 +8,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+trap 'kill $(jobs -p) 2>/dev/null; exit 130' INT TERM
+
 # ─── Colores ─────────────────────────────────────────────────────────────────
-_G='\033[0;32m'   # verde
-_BG='\033[1;32m'  # verde brillante
-_DG='\033[2;32m'  # verde tenue
-_CY='\033[0;36m'  # cyan
-_YL='\033[1;33m'  # amarillo
-_RD='\033[0;31m'  # rojo
-_WH='\033[1;37m'  # blanco
-_DIM='\033[2m'    # dim
-_NC='\033[0m'     # reset
+_G=$'\033[0;32m'   # verde
+_BG=$'\033[1;32m'  # verde brillante
+_DG=$'\033[2;32m'  # verde tenue
+_CY=$'\033[0;36m'  # cyan
+_YL=$'\033[1;33m'  # amarillo
+_RD=$'\033[0;31m'  # rojo
+_WH=$'\033[1;37m'  # blanco
+_DIM=$'\033[2m'    # dim
+_NC=$'\033[0m'     # reset
 
 # ─── Utilidades ──────────────────────────────────────────────────────────────
 _width=70
@@ -30,7 +32,7 @@ _print_center() {
 }
 
 _hr() {
-    printf "${_DG}%${_width}s${_NC}\n" | tr ' ' '─'
+    printf "${_DG}%${_width}s${_NC}\n" | tr ' ' '_'
 }
 
 _progress_bar() {
@@ -38,8 +40,8 @@ _progress_bar() {
     local filled=$(( pct * 40 / 100 ))
     local empty=$(( 40 - filled ))
     printf "  ${_DIM}%-22s${_NC} ${_DG}[${_NC}" "$label"
-    printf "${_BG}%${filled}s${_NC}" | tr ' ' '█'
-    printf "${_DIM}%${empty}s${_NC}" | tr ' ' '░'
+    printf "${_BG}%${filled}s${_NC}" | tr ' ' '='
+    printf "${_DIM}%${empty}s${_NC}" | tr ' ' '-'
     printf "${_DG}]${_NC} ${_BG}%3d%%${_NC}\n" "$pct"
 }
 
@@ -89,11 +91,11 @@ _run_with_spinner() {
     shift
     _loading_animation "$label" &
     local spin_pid=$!
-    "$@" >/dev/null 2>&1
-    local exit_code=$?
+    local exit_code=0
+    "$@" >/dev/null 2>&1 || exit_code=$?
     kill "$spin_pid" 2>/dev/null
     wait "$spin_pid" 2>/dev/null
-    printf "\r"
+    printf "\r\033[K"
     if [ $exit_code -eq 0 ]; then
         _ok "$label"
     else
@@ -146,14 +148,14 @@ _setup_venv() {
         _ok "Entorno virtual existente reutilizado"
     fi
     source .venv/bin/activate
-    _run_with_spinner "Actualizando pip" pip install --upgrade pip
+    _run_with_spinner "Actualizando pip" pip install --upgrade pip --quiet --no-input || true
 }
 
 # ─── Instalación de dependencias ──────────────────────────────────────────────
 _pip_install() {
     local label="$1"
     shift
-    _run_with_spinner "$label" pip install --quiet "$@"
+    _run_with_spinner "$label" pip install --quiet --no-input "$@"
 }
 
 _install_group() {
@@ -164,8 +166,8 @@ _install_group() {
             ;;
         voice)
             _pip_install "Reconocimiento de voz (SpeechRecognition)" SpeechRecognition pyttsx3 gtts
-            if ! _pip_install "Audio (pyaudio)" pyaudio 2>/dev/null; then
-                _warn "pyaudio falló — instala: sudo apt install portaudio19-dev python3-pyaudio"
+            if ! _pip_install "Audio (pyaudio)" pyaudio; then
+                _warn "Requiere: sudo apt install portaudio19-dev python3-pyaudio"
             fi
             ;;
         tray)
@@ -304,8 +306,8 @@ _progress_sequence() {
     for group in "${groups[@]}"; do
         done=$(( done + 1 ))
         local pct=$(( done * 100 / total ))
+        _install_group "$group" || true
         _progress_bar "$(printf '%-20s' "$group")" "$pct"
-        _install_group "$group"
         echo ""
     done
 }
@@ -326,15 +328,16 @@ main() {
     echo ""
 
     # Siempre instalar núcleo
-    _progress_bar "core" 0
-    _install_group core
+    _info "Instalando núcleo..."
+    echo ""
+    _install_group core || { _err "La instalación del núcleo falló. Verifica tu conexión e intenta de nuevo."; exit 1; }
     echo ""
 
     _hr
     _print_menu
 
     local choice
-    read -rp "  Selección [0-3]: " choice
+    read -erp "  Selección [0-3]: " choice
     echo ""
 
     case "$choice" in
@@ -350,7 +353,7 @@ main() {
         3)
             _print_module_menu
             local selections
-            read -ra selections
+            read -era selections
 
             local selected_groups=()
             for sel in "${selections[@]}"; do
