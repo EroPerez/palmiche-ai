@@ -47,6 +47,7 @@ class _PlaywrightComputer:
     SCREEN_HEIGHT = 900
 
     def __init__(self, initial_url: str = "https://www.google.com", headless: bool = True):
+        """Launch Chromium via Playwright and open *initial_url*."""
         try:
             from playwright.sync_api import sync_playwright
         except ImportError as exc:
@@ -71,6 +72,7 @@ class _PlaywrightComputer:
             self._page.goto(initial_url)
 
     def close(self):
+        """Close the browser and stop Playwright."""
         try:
             self._browser.close()
             self._pw.stop()
@@ -78,70 +80,86 @@ class _PlaywrightComputer:
             pass
 
     def screen_size(self) -> tuple[int, int]:
+        """Return the viewport dimensions as (width, height)."""
         return self.SCREEN_WIDTH, self.SCREEN_HEIGHT
 
     def _state(self) -> _EnvState:
+        """Capture the current page screenshot and URL as an EnvState."""
         png = self._page.screenshot(full_page=False)
         return _EnvState(screenshot=png, url=self._page.url)
 
     # --- Navigation ---
 
     def navigate(self, url: str) -> _EnvState:
+        """Navigate to *url* and return the new page state."""
         self._page.goto(url)
         return self._state()
 
     def go_back(self) -> _EnvState:
+        """Navigate back in browser history."""
         self._page.go_back()
         return self._state()
 
     def go_forward(self) -> _EnvState:
+        """Navigate forward in browser history."""
         self._page.go_forward()
         return self._state()
 
     def open_web_browser(self) -> _EnvState:
+        """Return the current page state (browser is already open)."""
         return self._state()
 
     def search(self) -> _EnvState:
+        """Focus the browser address bar via Ctrl+L."""
         self._page.keyboard.press("Control+l")
         return self._state()
 
     # --- Mouse ---
 
     def click_at(self, x: int, y: int) -> _EnvState:
+        """Left-click at pixel coordinates (x, y)."""
         self._page.mouse.click(x, y)
         return self._state()
 
     def double_click_at(self, x: int, y: int) -> _EnvState:
+        """Double-click at pixel coordinates (x, y)."""
         self._page.mouse.dblclick(x, y)
         return self._state()
 
     def triple_click_at(self, x: int, y: int) -> _EnvState:
+        """Triple-click (select all text) at pixel coordinates (x, y)."""
         self._page.mouse.click(x, y, click_count=3)
         return self._state()
 
     def middle_click_at(self, x: int, y: int) -> _EnvState:
+        """Middle-click at (x, y) to open links in a new tab."""
         self._page.mouse.click(x, y, button="middle")
         return self._state()
 
     def right_click_at(self, x: int, y: int) -> _EnvState:
+        """Right-click at (x, y) to open the context menu."""
         self._page.mouse.click(x, y, button="right")
         return self._state()
 
     def hover_at(self, x: int, y: int) -> _EnvState:
+        """Move the mouse pointer to (x, y) without clicking."""
         self._page.mouse.move(x, y)
         return self._state()
 
     def mouse_down(self, x: int, y: int) -> _EnvState:
+        """Move to (x, y) and press the left mouse button down."""
         self._page.mouse.move(x, y)
         self._page.mouse.down()
         return self._state()
 
     def mouse_up(self, x: int, y: int) -> _EnvState:
+        """Move to (x, y) and release the left mouse button."""
         self._page.mouse.move(x, y)
         self._page.mouse.up()
         return self._state()
 
     def drag_and_drop(self, x: int, y: int, destination_x: int, destination_y: int) -> _EnvState:
+        """Drag from (x, y) and drop at (destination_x, destination_y)."""
         self._page.mouse.move(x, y)
         self._page.mouse.down()
         self._page.mouse.move(destination_x, destination_y)
@@ -151,6 +169,7 @@ class _PlaywrightComputer:
     # --- Keyboard ---
 
     def type_text(self, text: str, press_enter: bool = False) -> _EnvState:
+        """Type *text* into the focused element, optionally pressing Enter."""
         self._page.keyboard.type(text)
         if press_enter:
             self._page.keyboard.press("Enter")
@@ -160,6 +179,7 @@ class _PlaywrightComputer:
         self, x: int, y: int, text: str,
         press_enter: bool = False, clear_before_typing: bool = True
     ) -> _EnvState:
+        """Click at (x, y), optionally select all, then type *text*."""
         self._page.mouse.click(x, y)
         if clear_before_typing:
             self._page.keyboard.press("Control+a")
@@ -169,6 +189,7 @@ class _PlaywrightComputer:
         return self._state()
 
     def key_combination(self, keys: list[str] | str) -> _EnvState:
+        """Press a key combination such as ['Control', 'c'] or 'Control+c'."""
         if isinstance(keys, list):
             combo = "+".join(keys)
         else:
@@ -177,25 +198,30 @@ class _PlaywrightComputer:
         return self._state()
 
     def press_key(self, key: str) -> _EnvState:
+        """Tap a single key by name (e.g. 'Enter', 'Tab', 'Escape')."""
         self._page.keyboard.press(key)
         return self._state()
 
     def key_down(self, key: str) -> _EnvState:
+        """Hold *key* down without releasing it."""
         self._page.keyboard.down(key)
         return self._state()
 
     def key_up(self, key: str) -> _EnvState:
+        """Release a previously held-down *key*."""
         self._page.keyboard.up(key)
         return self._state()
 
     # --- Scroll ---
 
     def scroll_document(self, direction: str) -> _EnvState:
+        """Scroll the whole document up or down by 400 px."""
         delta = -400 if direction == "up" else 400
         self._page.evaluate(f"window.scrollBy(0, {delta})")
         return self._state()
 
     def scroll_at(self, x: int, y: int, direction: str, magnitude: int = 400) -> _EnvState:
+        """Move to (x, y) and scroll in *direction* by *magnitude* pixels."""
         dx = dy = 0
         if direction == "up":
             dy = -magnitude
@@ -212,13 +238,16 @@ class _PlaywrightComputer:
     # --- Misc ---
 
     def take_screenshot(self) -> _EnvState:
+        """Capture and return the current page state."""
         return self._state()
 
     def wait(self, seconds: int = 1) -> _EnvState:
+        """Pause execution for *seconds* (capped at 30) then return state."""
         time.sleep(max(0, min(seconds, 30)))
         return self._state()
 
     def wait_5_seconds(self) -> _EnvState:
+        """Pause for 5 seconds (convenience wrapper around wait)."""
         return self.wait(5)
 
 
@@ -226,6 +255,7 @@ class _DesktopComputer:
     """Full-desktop computer controlled via pyautogui + mss."""
 
     def __init__(self):
+        """Initialise pyautogui and verify it is installed."""
         try:
             import pyautogui  # noqa: F401
         except ImportError as exc:
@@ -239,10 +269,12 @@ class _DesktopComputer:
         pyautogui.PAUSE = 0.05
 
     def screen_size(self) -> tuple[int, int]:
+        """Return the full-desktop screen dimensions as (width, height)."""
         import pyautogui
         return pyautogui.size()
 
     def _screenshot_png(self) -> bytes:
+        """Grab the full desktop and return it as PNG bytes."""
         try:
             import mss
             import mss.tools
@@ -257,81 +289,100 @@ class _DesktopComputer:
             return buf.getvalue()
 
     def _state(self) -> _EnvState:
+        """Capture a desktop screenshot and return it as an EnvState."""
         return _EnvState(screenshot=self._screenshot_png(), url="")
 
-    # --- Navigation (no-ops on desktop) ---
+    # --- Navigation ---
+
     def navigate(self, url: str) -> _EnvState:
+        """Open *url* in the default web browser."""
         import webbrowser
         webbrowser.open(url)
         time.sleep(1.5)
         return self._state()
 
     def go_back(self) -> _EnvState:
+        """No-op on desktop; returns the current state."""
         return self._state()
 
     def go_forward(self) -> _EnvState:
+        """No-op on desktop; returns the current state."""
         return self._state()
 
     def open_web_browser(self) -> _EnvState:
+        """Open Google in the default web browser."""
         import webbrowser
         webbrowser.open("https://www.google.com")
         time.sleep(1.5)
         return self._state()
 
     def search(self) -> _EnvState:
+        """No-op on desktop; returns the current state."""
         return self._state()
 
     # --- Mouse ---
+
     def click_at(self, x: int, y: int) -> _EnvState:
+        """Left-click at screen coordinates (x, y)."""
         import pyautogui
         pyautogui.click(x, y)
         return self._state()
 
     def double_click_at(self, x: int, y: int) -> _EnvState:
+        """Double-click at screen coordinates (x, y)."""
         import pyautogui
         pyautogui.doubleClick(x, y)
         return self._state()
 
     def triple_click_at(self, x: int, y: int) -> _EnvState:
+        """Triple-click at screen coordinates (x, y)."""
         import pyautogui
         pyautogui.tripleClick(x, y)
         return self._state()
 
     def middle_click_at(self, x: int, y: int) -> _EnvState:
+        """Middle-click at screen coordinates (x, y)."""
         import pyautogui
         pyautogui.click(x, y, button="middle")
         return self._state()
 
     def right_click_at(self, x: int, y: int) -> _EnvState:
+        """Right-click at screen coordinates (x, y)."""
         import pyautogui
         pyautogui.rightClick(x, y)
         return self._state()
 
     def hover_at(self, x: int, y: int) -> _EnvState:
+        """Move the mouse pointer to (x, y)."""
         import pyautogui
         pyautogui.moveTo(x, y)
         return self._state()
 
     def mouse_down(self, x: int, y: int) -> _EnvState:
+        """Move to (x, y) and press the left mouse button."""
         import pyautogui
         pyautogui.moveTo(x, y)
         pyautogui.mouseDown()
         return self._state()
 
     def mouse_up(self, x: int, y: int) -> _EnvState:
+        """Move to (x, y) and release the left mouse button."""
         import pyautogui
         pyautogui.moveTo(x, y)
         pyautogui.mouseUp()
         return self._state()
 
     def drag_and_drop(self, x: int, y: int, destination_x: int, destination_y: int) -> _EnvState:
+        """Drag from (x, y) to (destination_x, destination_y)."""
         import pyautogui
         pyautogui.moveTo(x, y)
         pyautogui.dragTo(destination_x, destination_y, button="left", duration=0.5)
         return self._state()
 
     # --- Keyboard ---
+
     def type_text(self, text: str, press_enter: bool = False) -> _EnvState:
+        """Type *text* into the currently focused element."""
         import pyautogui
         pyautogui.typewrite(text, interval=0.02)
         if press_enter:
@@ -342,6 +393,7 @@ class _DesktopComputer:
         self, x: int, y: int, text: str,
         press_enter: bool = False, clear_before_typing: bool = True
     ) -> _EnvState:
+        """Click at (x, y), optionally select all, then type *text*."""
         import pyautogui
         pyautogui.click(x, y)
         if clear_before_typing:
@@ -352,6 +404,7 @@ class _DesktopComputer:
         return self._state()
 
     def key_combination(self, keys: list[str] | str) -> _EnvState:
+        """Press a key combination via pyautogui.hotkey."""
         import pyautogui
         if isinstance(keys, str):
             keys = [k.strip() for k in keys.replace("+", " ").split()]
@@ -359,28 +412,34 @@ class _DesktopComputer:
         return self._state()
 
     def press_key(self, key: str) -> _EnvState:
+        """Tap a single key by name."""
         import pyautogui
         pyautogui.press(key)
         return self._state()
 
     def key_down(self, key: str) -> _EnvState:
+        """Hold *key* down without releasing it."""
         import pyautogui
         pyautogui.keyDown(key)
         return self._state()
 
     def key_up(self, key: str) -> _EnvState:
+        """Release a previously held *key*."""
         import pyautogui
         pyautogui.keyUp(key)
         return self._state()
 
     # --- Scroll ---
+
     def scroll_document(self, direction: str) -> _EnvState:
+        """Scroll the page up or down by 5 pyautogui scroll clicks."""
         import pyautogui
         clicks = 5 if direction == "down" else -5
         pyautogui.scroll(clicks)
         return self._state()
 
     def scroll_at(self, x: int, y: int, direction: str, magnitude: int = 400) -> _EnvState:
+        """Move to (x, y) and scroll in *direction* by *magnitude* pixels."""
         import pyautogui
         pyautogui.moveTo(x, y)
         clicks = -(magnitude // 80) if direction == "down" else (magnitude // 80)
@@ -391,14 +450,18 @@ class _DesktopComputer:
         return self._state()
 
     # --- Misc ---
+
     def take_screenshot(self) -> _EnvState:
+        """Capture and return the current desktop state."""
         return self._state()
 
     def wait(self, seconds: int = 1) -> _EnvState:
+        """Pause for *seconds* (capped at 30) then return state."""
         time.sleep(max(0, min(seconds, 30)))
         return self._state()
 
     def wait_5_seconds(self) -> _EnvState:
+        """Pause for 5 seconds (convenience wrapper)."""
         return self.wait(5)
 
 
@@ -430,6 +493,7 @@ class _PalmicheComputerAgent:
     """Agentic loop that uses Gemini computer use to drive a Computer backend."""
 
     def __init__(self, computer: _PlaywrightComputer | _DesktopComputer, task: str, model: str):
+        """Initialise the Gemini client, build config, and take the first screenshot."""
         try:
             from google import genai
             from google.genai import types as gtypes
@@ -582,6 +646,7 @@ class _PalmicheComputerAgent:
             return {"error": f"Acción no soportada: {name}"}
 
     def _run_one_iteration(self) -> Literal["COMPLETE", "CONTINUE"]:
+        """Call Gemini once, dispatch all returned function calls, and return status."""
         from google.genai.types import Content, Part, FunctionResponse, FinishReason
 
         try:
@@ -754,9 +819,18 @@ def computer_use_task(
         finally:
             pass
     else:
-        computer = _PlaywrightComputer(initial_url=initial_url, headless=headless)
-        agent = _PalmicheComputerAgent(computer, task, resolved_model)
-        try:
-            return agent.run(max_iterations)
-        finally:
-            computer.close()
+        # Playwright's sync API raises an error when called inside an already-running
+        # asyncio event loop (tray mode / ADK backend / any async context).
+        # Running in a dedicated thread gives a clean environment with no event loop,
+        # so playwright can create its own without conflict.
+        import concurrent.futures
+
+        def _run_playwright() -> str:
+            computer = _PlaywrightComputer(initial_url=initial_url, headless=headless)
+            try:
+                return _PalmicheComputerAgent(computer, task, resolved_model).run(max_iterations)
+            finally:
+                computer.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(_run_playwright).result()
