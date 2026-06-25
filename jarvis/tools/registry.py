@@ -1008,6 +1008,7 @@ def _log_tool_call(name: str, inputs: dict, result: str, error: bool = False) ->
     if len(result) > 1000:
         entry += "\n  ... (truncado en log)"
     logger.info(entry + "\n")
+    print(f"Tool call logged: {name} (success={not error})")
 
 
 def execute_tool(name: str, inputs: dict) -> str:

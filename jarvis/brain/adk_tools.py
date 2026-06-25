@@ -3,7 +3,30 @@
 Google ADK auto-generates tool schemas from function signatures and docstrings,
 so each wrapper must have precise type hints and descriptive Args sections.
 """
+import functools
+import inspect
 from typing import Literal, Optional
+
+from ..tools.registry import _log_tool_call
+
+
+def _with_logging(fn):
+    """Wrap an ADK tool function to log its execution via the Jarvis tool logger."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        sig = inspect.signature(fn)
+        bound = sig.bind(*args, **kwargs)
+        bound.apply_defaults()
+        inputs = dict(bound.arguments)
+        try:
+            result = fn(*args, **kwargs)
+            _log_tool_call(fn.__name__, inputs, str(result))
+            return result
+        except Exception as exc:
+            msg = f"Error ejecutando {fn.__name__}: {exc}"
+            _log_tool_call(fn.__name__, inputs, msg, error=True)
+            raise
+    return wrapper
 
 from ..tools.system import (
     get_system_info as _get_system_info,
@@ -36,6 +59,39 @@ from ..tools.network import get_network_info as _get_network_info, ping_host as 
 from ..tools.media import media_control as _media_control, get_media_status as _get_media_status
 from ..tools.screenshot import take_screenshot as _take_screenshot
 from ..tools.autostart import setup_autostart as _setup_autostart
+from ..tools.calculator import calculate as _calculate, convert_units as _convert_units
+from ..tools.weather import get_weather as _get_weather, get_forecast as _get_forecast
+from ..tools.timer import (
+    set_timer as _set_timer,
+    set_alarm as _set_alarm,
+    list_timers as _list_timers,
+    cancel_timer as _cancel_timer,
+)
+from ..tools.events import (
+    add_event as _add_event,
+    list_events as _list_events,
+    upcoming_events as _upcoming_events,
+    delete_event as _delete_event,
+)
+from ..tools.notes import (
+    create_note as _create_note,
+    list_notes as _list_notes,
+    read_note as _read_note,
+    search_notes as _search_notes,
+    delete_note as _delete_note,
+)
+from ..tools.text_tools import text_stats as _text_stats, text_transform as _text_transform
+from ..tools.dev import (
+    format_json as _format_json,
+    hash_text as _hash_text,
+    encode_decode as _encode_decode,
+    generate_uuid as _generate_uuid,
+    convert_timestamp as _convert_timestamp,
+    http_request as _http_request,
+    git_status as _git_status,
+    find_process_on_port as _find_process_on_port,
+)
+from ..tools.computer_use import computer_use_task as _computer_use_task
 
 
 def get_system_info() -> str:
@@ -319,34 +375,372 @@ def setup_autostart(
     return _setup_autostart(enable, tray, backend)
 
 
+def calculate(expression: str) -> str:
+    """Evalúa una expresión matemática de forma segura. Soporta +−×÷^, funciones como sqrt/sin/log y constantes pi/e.
+
+    Args:
+        expression: Expresión a evaluar (ej: '2 + 3 * 4', 'sqrt(144)', 'sin(pi/2)').
+    """
+    return _calculate(expression)
+
+
+def convert_units(value: float, from_unit: str, to_unit: str) -> str:
+    """Convierte un valor entre unidades de medida (longitud, masa, temperatura, velocidad, área, volumen, almacenamiento).
+
+    Args:
+        value: Valor numérico a convertir.
+        from_unit: Unidad de origen (ej: km, lb, °C, mph, gal).
+        to_unit: Unidad de destino (ej: m, kg, °F, km/h, L).
+    """
+    return _convert_units(value, from_unit, to_unit)
+
+
+def get_weather(city: str = "", units: Literal["metric", "imperial"] = "metric") -> str:
+    """Obtiene las condiciones meteorológicas actuales para una ciudad.
+
+    Args:
+        city: Nombre de la ciudad. Si está vacío, se detecta automáticamente por IP.
+        units: Sistema de unidades: metric (°C, km/h) o imperial (°F, mph).
+    """
+    return _get_weather(city, units)
+
+
+def get_forecast(
+    city: str = "",
+    days: int = 3,
+    units: Literal["metric", "imperial"] = "metric",
+) -> str:
+    """Obtiene el pronóstico del tiempo para los próximos días.
+
+    Args:
+        city: Nombre de la ciudad. Si está vacío, se detecta automáticamente por IP.
+        days: Número de días a pronosticar (1-3). Por defecto: 3.
+        units: Sistema de unidades: metric (°C) o imperial (°F).
+    """
+    return _get_forecast(city, days, units)
+
+
+def set_timer(seconds: int, label: str = "") -> str:
+    """Inicia un temporizador de cuenta regresiva. Envía una notificación de escritorio al finalizar.
+
+    Args:
+        seconds: Duración en segundos (máximo 86400 = 24h).
+        label: Etiqueta descriptiva del temporizador (opcional).
+    """
+    return _set_timer(seconds, label)
+
+
+def set_alarm(alarm_time: str, label: str = "") -> str:
+    """Programa una alarma para una hora específica del día (formato HH:MM, 24h). Si ya pasó, se programa para mañana.
+
+    Args:
+        alarm_time: Hora de la alarma en formato HH:MM (ej: 08:30, 14:00).
+        label: Etiqueta descriptiva de la alarma (opcional).
+    """
+    return _set_alarm(alarm_time, label)
+
+
+def list_timers() -> str:
+    """Lista todos los temporizadores activos con su tiempo restante."""
+    return _list_timers()
+
+
+def cancel_timer(timer_id: str) -> str:
+    """Cancela un temporizador activo por su id.
+
+    Args:
+        timer_id: Id del temporizador (mostrado entre corchetes al crearlo).
+    """
+    return _cancel_timer(timer_id)
+
+
+def add_event(
+    title: str,
+    date: str,
+    time: str = "",
+    description: str = "",
+    location: str = "",
+) -> str:
+    """Crea un evento en el calendario local.
+
+    Args:
+        title: Título del evento.
+        date: Fecha en formato YYYY-MM-DD, o 'hoy'/'mañana'.
+        time: Hora en formato HH:MM (24h). Opcional.
+        description: Descripción del evento. Opcional.
+        location: Ubicación del evento. Opcional.
+    """
+    return _add_event(title, date, time, description, location)
+
+
+def list_events(start: str = "", end: str = "") -> str:
+    """Lista los eventos del calendario, opcionalmente filtrados por rango de fechas.
+
+    Args:
+        start: Fecha de inicio del filtro en formato YYYY-MM-DD o 'hoy'/'mañana'. Opcional.
+        end: Fecha de fin del filtro en formato YYYY-MM-DD o 'hoy'/'mañana'. Opcional.
+    """
+    return _list_events(start, end)
+
+
+def upcoming_events(days: int = 7) -> str:
+    """Lista los próximos eventos desde hoy hasta N días en el futuro.
+
+    Args:
+        days: Número de días a mostrar (1-365). Por defecto: 7.
+    """
+    return _upcoming_events(days)
+
+
+def delete_event(event_id: str) -> str:
+    """Elimina un evento del calendario por su id.
+
+    Args:
+        event_id: Id corto del evento (mostrado entre corchetes al listarlo).
+    """
+    return _delete_event(event_id)
+
+
+def create_note(title: str, content: str, tags: str = "") -> str:
+    """Crea una nota personal o actualiza una existente con el mismo título.
+
+    Args:
+        title: Título de la nota.
+        content: Contenido de la nota.
+        tags: Etiquetas separadas por comas (ej: 'trabajo, ideas'). Opcional.
+    """
+    return _create_note(title, content, tags)
+
+
+def list_notes(tag: str = "") -> str:
+    """Lista todas las notas guardadas, opcionalmente filtradas por etiqueta.
+
+    Args:
+        tag: Etiqueta por la que filtrar. Si está vacío, muestra todas.
+    """
+    return _list_notes(tag)
+
+
+def read_note(title: str) -> str:
+    """Lee el contenido completo de una nota por título o por id.
+
+    Args:
+        title: Título o id corto de la nota.
+    """
+    return _read_note(title)
+
+
+def search_notes(query: str) -> str:
+    """Busca notas por título o contenido (sin distinción de mayúsculas).
+
+    Args:
+        query: Término de búsqueda.
+    """
+    return _search_notes(query)
+
+
+def delete_note(title: str) -> str:
+    """Elimina una nota por título o id.
+
+    Args:
+        title: Título o id corto de la nota a eliminar.
+    """
+    return _delete_note(title)
+
+
+def text_stats(text: str) -> str:
+    """Cuenta palabras, caracteres, líneas, oraciones y estima el tiempo de lectura de un texto.
+
+    Args:
+        text: Texto a analizar.
+    """
+    return _text_stats(text)
+
+
+def text_transform(
+    text: str,
+    operation: Literal[
+        "upper", "lower", "title", "capitalize", "reverse", "trim",
+        "slug", "snake", "camel", "pascal", "strip_accents",
+        "count_vowels", "palindrome",
+    ],
+) -> str:
+    """Aplica una transformación de texto.
+
+    Args:
+        text: Texto de entrada.
+        operation: Transformación a aplicar: upper, lower, title, capitalize, reverse, trim,
+                   slug, snake, camel, pascal, strip_accents, count_vowels o palindrome.
+    """
+    return _text_transform(text, operation)
+
+
+def format_json(text: str, indent: int = 2) -> str:
+    """Valida y formatea un string JSON con la indentación indicada.
+
+    Args:
+        text: String JSON a formatear.
+        indent: Nivel de indentación (espacios). Por defecto: 2.
+    """
+    return _format_json(text, indent)
+
+
+def hash_text(text: str, algorithm: Literal["md5", "sha1", "sha256", "sha512"] = "sha256") -> str:
+    """Calcula el hash hexadecimal de un texto.
+
+    Args:
+        text: Texto a hashear.
+        algorithm: Algoritmo de hash: md5, sha1, sha256 o sha512. Por defecto: sha256.
+    """
+    return _hash_text(text, algorithm)
+
+
+def encode_decode(
+    text: str,
+    scheme: Literal["base64", "url", "hex"] = "base64",
+    operation: Literal["encode", "decode"] = "encode",
+) -> str:
+    """Codifica o decodifica texto usando base64, URL o hex.
+
+    Args:
+        text: Texto a procesar.
+        scheme: Esquema de codificación: base64, url o hex.
+        operation: encode para codificar, decode para decodificar.
+    """
+    return _encode_decode(text, scheme, operation)
+
+
+def generate_uuid(count: int = 1) -> str:
+    """Genera uno o más UUID4 aleatorios.
+
+    Args:
+        count: Número de UUIDs a generar (1-50). Por defecto: 1.
+    """
+    return _generate_uuid(count)
+
+
+def convert_timestamp(value: str = "now") -> str:
+    """Convierte entre timestamp Unix (epoch) e ISO-8601. 'now' devuelve la hora actual.
+
+    Args:
+        value: Valor a convertir: 'now', número epoch (entero/flotante) o fecha ISO-8601.
+    """
+    return _convert_timestamp(value)
+
+
+def http_request(
+    url: str,
+    method: Literal["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"] = "GET",
+    body: str = "",
+) -> str:
+    """Realiza una petición HTTP y devuelve el estado, cabeceras clave y una previsualización del cuerpo.
+
+    Args:
+        url: URL de destino (con o sin esquema https://).
+        method: Método HTTP: GET, POST, PUT, DELETE, PATCH o HEAD. Por defecto: GET.
+        body: Cuerpo de la petición para POST/PUT/PATCH. Opcional.
+    """
+    return _http_request(url, method, body)
+
+
+def git_status(path: str = ".") -> str:
+    """Muestra la rama, el estado del árbol de trabajo y los últimos commits de un repositorio git.
+
+    Args:
+        path: Ruta al repositorio git. Por defecto: directorio actual.
+    """
+    return _git_status(path)
+
+
+def find_process_on_port(port: int) -> str:
+    """Encuentra qué proceso está escuchando en un puerto TCP.
+
+    Args:
+        port: Número de puerto a inspeccionar.
+    """
+    return _find_process_on_port(port)
+
+
+def computer_use_task(
+    task: str,
+    backend: Literal["playwright", "desktop"] = "playwright",
+    initial_url: str = "https://www.google.com",
+    max_iterations: int = 30,
+    model: str = "",
+    headless: bool = True,
+) -> str:
+    """Ejecuta una tarea de uso de computadora usando la inteligencia visual de Gemini.
+
+    Palmiche-AI tomará el control de un navegador (o el escritorio completo) y
+    completará la tarea paso a paso usando la capacidad computer use de Gemini.
+
+    Args:
+        task: Descripción en lenguaje natural de lo que hacer (ej: 'Busca el clima en La Habana').
+        backend: 'playwright' para control de navegador (predeterminado) o 'desktop' para control total del escritorio.
+        initial_url: URL inicial al usar el backend playwright.
+        max_iterations: Límite de seguridad en el número de iteraciones del agente.
+        model: Modelo Gemini a usar. Por defecto usa COMPUTER_USE_MODEL o 'gemini-2.5-flash'.
+        headless: Ejecutar el navegador en modo sin cabeza. Por defecto True; False para depurar.
+    """
+    return _computer_use_task(task, backend, initial_url, max_iterations, model, headless)
+
+
 ADK_TOOLS = [
-    get_system_info,
-    get_battery_info,
-    control_volume,
-    control_brightness,
-    power_action,
-    open_application,
-    close_application,
-    list_running_apps,
-    search_files,
-    open_file,
-    list_directory,
-    read_file,
-    create_directory,
-    write_file,
-    delete_file,
-    move_file,
-    copy_file,
-    open_url,
-    web_search,
-    get_clipboard,
-    set_clipboard,
-    send_notification,
-    run_shell_command,
-    get_network_info,
-    ping_host,
-    media_control,
-    get_media_status,
-    take_screenshot,
-    setup_autostart,
+    _with_logging(get_system_info),
+    _with_logging(get_battery_info),
+    _with_logging(control_volume),
+    _with_logging(control_brightness),
+    _with_logging(power_action),
+    _with_logging(open_application),
+    _with_logging(close_application),
+    _with_logging(list_running_apps),
+    _with_logging(search_files),
+    _with_logging(open_file),
+    _with_logging(list_directory),
+    _with_logging(read_file),
+    _with_logging(create_directory),
+    _with_logging(write_file),
+    _with_logging(delete_file),
+    _with_logging(move_file),
+    _with_logging(copy_file),
+    _with_logging(open_url),
+    _with_logging(web_search),
+    _with_logging(get_clipboard),
+    _with_logging(set_clipboard),
+    _with_logging(send_notification),
+    _with_logging(run_shell_command),
+    _with_logging(get_network_info),
+    _with_logging(ping_host),
+    _with_logging(media_control),
+    _with_logging(get_media_status),
+    _with_logging(take_screenshot),
+    _with_logging(setup_autostart),
+    _with_logging(calculate),
+    _with_logging(convert_units),
+    _with_logging(get_weather),
+    _with_logging(get_forecast),
+    _with_logging(set_timer),
+    _with_logging(set_alarm),
+    _with_logging(list_timers),
+    _with_logging(cancel_timer),
+    _with_logging(add_event),
+    _with_logging(list_events),
+    _with_logging(upcoming_events),
+    _with_logging(delete_event),
+    _with_logging(create_note),
+    _with_logging(list_notes),
+    _with_logging(read_note),
+    _with_logging(search_notes),
+    _with_logging(delete_note),
+    _with_logging(text_stats),
+    _with_logging(text_transform),
+    _with_logging(format_json),
+    _with_logging(hash_text),
+    _with_logging(encode_decode),
+    _with_logging(generate_uuid),
+    _with_logging(convert_timestamp),
+    _with_logging(http_request),
+    _with_logging(git_status),
+    _with_logging(find_process_on_port),
+    _with_logging(computer_use_task),
 ]

@@ -4,7 +4,7 @@ Used by A2A client and MCP client integrations to inject remote tools into the a
 """
 from __future__ import annotations
 
-from .registry import TOOL_DEFINITIONS, execute_tool as _static_execute
+from .registry import TOOL_DEFINITIONS, execute_tool as _static_execute, _log_tool_call
 
 
 class DynamicToolRegistry:
@@ -33,7 +33,11 @@ class DynamicToolRegistry:
         """Dispatch a tool call to the appropriate handler."""
         if name in self._handlers:
             try:
-                return str(self._handlers[name](inputs))
+                result = str(self._handlers[name](inputs))
+                _log_tool_call(name, inputs, result)
+                return result
             except Exception as exc:
-                return f"Error ejecutando herramienta remota '{name}': {exc}"
+                msg = f"Error ejecutando herramienta remota '{name}': {exc}"
+                _log_tool_call(name, inputs, msg, error=True)
+                return msg
         return str(_static_execute(name, inputs))
