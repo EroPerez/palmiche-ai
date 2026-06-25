@@ -91,6 +91,48 @@ def _suppress_alsa_errors() -> None:
         pass  # libasound not available (macOS, etc.)
 
 
+def _audio_device_available() -> bool:
+    """Return True if at least one input audio device is available.
+
+    PortAudio aborts the process with a C assertion failure when no valid
+    input device exists.  This pre-check avoids that crash by probing via
+    the lower-level sounddevice/ctypes interface first.
+    """
+    # Strategy 1: use sounddevice (thin ctypes wrapper around PortAudio)
+    try:
+        import sounddevice as sd
+        devs = sd.query_devices()
+        for d in (devs if isinstance(devs, list) else [devs]):
+            if d.get("max_input_channels", 0) > 0:
+                return True
+        return False
+    except Exception:
+        pass
+
+    # Strategy 2: check /proc/asound (Linux only — fast, no C code)
+    try:
+        cards = os.path.exists("/proc/asound/cards")
+        if not cards:
+            return False
+        with open("/proc/asound/cards") as f:
+            return bool(f.read().strip())
+    except Exception:
+        pass
+
+    # Strategy 3: try spawning arecord --list-devices
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["arecord", "-l"], capture_output=True, text=True, timeout=5,
+        )
+        return "card" in result.stdout.lower()
+    except Exception:
+        pass
+
+    # Can't determine — assume available and let PyAudio try
+    return True
+
+
 def _open_microphone_quietly(mic):
     """Enter the Microphone context while redirecting fd 2 to suppress JACK messages."""
     devnull = os.open(os.devnull, os.O_WRONLY)
@@ -263,6 +305,12 @@ class WakeWordListener:
             return False
 
         _suppress_alsa_errors()
+
+        if not _audio_device_available():
+            logger.warning(
+                "Wake word desactivado — no se encontró dispositivo de audio de entrada"
+            )
+            return False
 
         self._running = True
         self._thread = threading.Thread(

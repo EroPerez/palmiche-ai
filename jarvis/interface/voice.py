@@ -5,6 +5,12 @@ from typing import Optional
 def listen() -> Optional[str]:
     """Record from microphone and return recognized text, or None on failure."""
     try:
+        from .wake_word import _suppress_alsa_errors, _audio_device_available
+
+        _suppress_alsa_errors()
+        if not _audio_device_available():
+            return None
+
         import speech_recognition as sr
 
         recognizer = sr.Recognizer()
