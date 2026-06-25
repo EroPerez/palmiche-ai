@@ -3,6 +3,9 @@ import platform
 import time
 import psutil
 
+from ..config import JARVIS_SUDO_PASSWORD
+from .shell import _is_permission_error
+
 
 def get_system_info() -> str:
     """Return a formatted summary of CPU, RAM, disk usage, and system uptime."""
@@ -134,16 +137,51 @@ def _run_power_cmd(cmd: list) -> tuple[bool, str]:
     polkit/permission denial, no active session) surface instead of being
     silently reported as success. A TimeoutExpired is treated as success
     because actions like suspend may not return promptly.
+
+    If the command starts with ``sudo`` and ``JARVIS_SUDO_PASSWORD`` is set,
+    ``-S`` is injected so the password can be piped via stdin.  If a non-sudo
+    command fails with a permission error and the password is available, it is
+    retried automatically with ``sudo -S``.
     """
+    actual_cmd = list(cmd)
+    stdin_data = None
+
+    if cmd and cmd[0] == "sudo" and JARVIS_SUDO_PASSWORD:
+        if "-S" not in actual_cmd:
+            actual_cmd.insert(1, "-S")
+        stdin_data = JARVIS_SUDO_PASSWORD + "\n"
+
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        r = subprocess.run(
+            actual_cmd, capture_output=True, text=True, timeout=15,
+            input=stdin_data,
+        )
     except FileNotFoundError:
         return False, f"{cmd[0]}: comando no encontrado"
     except subprocess.TimeoutExpired:
         return True, ""
+
     if r.returncode == 0:
         return True, ""
+
     err = (r.stderr or r.stdout or "").strip()
+
+    if cmd[0] != "sudo" and JARVIS_SUDO_PASSWORD and _is_permission_error(err):
+        sudo_cmd = ["sudo", "-S"] + list(cmd)
+        try:
+            r2 = subprocess.run(
+                sudo_cmd, capture_output=True, text=True, timeout=15,
+                input=JARVIS_SUDO_PASSWORD + "\n",
+            )
+        except FileNotFoundError:
+            return False, f"sudo: comando no encontrado"
+        except subprocess.TimeoutExpired:
+            return True, ""
+        if r2.returncode == 0:
+            return True, ""
+        err = (r2.stderr or r2.stdout or "").strip()
+        return False, f"{cmd[0]} (con sudo): {err or f'código de salida {r2.returncode}'}"
+
     return False, f"{cmd[0]}: {err or f'código de salida {r.returncode}'}"
 
 
