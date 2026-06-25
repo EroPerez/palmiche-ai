@@ -1,6 +1,6 @@
 # Guía de herramientas — Palmiche J.A.R.V.I.S.
 
-Referencia completa de las **58 herramientas** disponibles, con ejemplos de uso conversacional y preguntas frecuentes (FAQ) para cada categoría.
+Referencia completa de las **59 herramientas** disponibles, con ejemplos de uso conversacional y preguntas frecuentes (FAQ) para cada categoría.
 
 ---
 
@@ -22,6 +22,7 @@ Referencia completa de las **58 herramientas** disponibles, con ejemplos de uso 
 14. [Calendario y eventos](#14-calendario-y-eventos)
 15. [Developer](#15-developer)
 16. [Sistema — energía y autoarranque](#16-sistema--energía-y-autoarranque)
+17. [Computer Use ★](#17-computer-use-)
 
 ---
 
@@ -1211,6 +1212,77 @@ En Linux crea un archivo `.desktop` en `~/.config/autostart/`. En macOS usa un L
 
 **¿Arranca en modo tray o terminal?**
 Por defecto en modo tray (`--tray`). Puedes cambiarlo con el parámetro `tray=false`.
+
+---
+
+---
+
+## 17. Computer Use ★
+
+> Requiere `pip install "palmiche-jarvis[computer-use]"` y `GOOGLE_API_KEY` en `.env`.
+
+### `computer_use_task`
+
+Controla visualmente un **navegador Chromium** (backend `playwright`) o el **escritorio completo** (backend `desktop`) para completar tareas descritas en lenguaje natural. El agente usa Gemini para ver la pantalla y decide qué acciones ejecutar en cada paso.
+
+Inspirado en [google-gemini/computer-use-preview](https://github.com/google-gemini/computer-use-preview).
+
+**Parámetros:**
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `task` | string | — | Tarea en lenguaje natural |
+| `backend` | string | `"playwright"` | `"playwright"` (browser) o `"desktop"` (escritorio) |
+| `initial_url` | string | `"https://www.google.com"` | URL de inicio (solo backend playwright) |
+| `max_iterations` | integer | `30` | Límite de pasos del agente visual |
+
+**Acciones que puede ejecutar Gemini:**
+
+| Acción | Descripción |
+|---|---|
+| `click` / `double_click` / `triple_click` | Clic simple, doble o triple en coordenadas |
+| `right_click` / `middle_click` | Clic secundario o con rueda |
+| `type` | Escribir texto (con Enter opcional) |
+| `scroll` | Desplazamiento en cualquier dirección con magnitud |
+| `drag_and_drop` | Arrastrar desde origen a destino |
+| `navigate` | Navegar a una URL |
+| `go_back` / `go_forward` | Historial del navegador |
+| `press_key` / `hotkey` | Tecla individual o combinación (Ctrl+C, Alt+F4…) |
+| `take_screenshot` | Captura explícita para ver el estado |
+| `wait` | Esperar N segundos |
+
+**Ejemplos de uso:**
+```
+Busca el precio del Bitcoin hoy en el navegador
+Abre YouTube y pon música de jazz
+Navega a wikipedia.org y busca "Revolución cubana"
+Rellena el formulario de contacto en example.com con nombre "Juan" y email "juan@test.com"
+Ve a google.com, busca "mejores restaurantes en La Habana" y dime los 3 primeros resultados
+Descarga la imagen de portada de la página https://example.com
+```
+
+**FAQ:**
+
+**¿Necesito tener Chromium instalado previamente?**
+No. Playwright descarga su propio Chromium al ejecutar `playwright install chromium`. No interfiere con el navegador del sistema.
+
+**¿Funciona en modo headless? ¿Se abre alguna ventana?**
+Por defecto sí, funciona en modo headless (sin ventana visible). Para depuración puedes pasar `headless=False` (solo desde Python directamente).
+
+**¿Qué modelos de Gemini soportan computer use?**
+El modelo recomendado es `gemini-2.5-flash`. Los modelos que soportan la API `ComputerUse` son los de la familia `gemini-2.5` y versiones específicas con soporte de computer use habilitado.
+
+**¿El backend `desktop` puede controlar cualquier aplicación?**
+Sí, puede controlar cualquier aplicación visible en el escritorio: navegadores, editores, apps nativas, etc. Requiere entorno gráfico (Xorg/Wayland).
+
+**¿Es seguro?**
+Gemini incluye detección de acciones sensibles y solicita confirmación del usuario antes de ejecutarlas. El agente también tiene un límite configurable de iteraciones (`COMPUTER_USE_MAX_ITERATIONS`) para evitar bucles infinitos.
+
+**¿Qué pasa si el agente no completa la tarea en el límite de iteraciones?**
+Devuelve el último razonamiento disponible con un mensaje indicando que se alcanzó el límite. Aumenta `max_iterations` o simplifica la tarea.
+
+**¿Puedo combinar computer use con otros backends (Claude, Gemini nativo)?**
+La herramienta `computer_use_task` siempre usa `google-genai` directamente con `GOOGLE_API_KEY`, independientemente del backend principal de Jarvis. Puedes usar `--backend anthropic` para el chat mientras computer use usa Gemini internamente.
 
 ---
 

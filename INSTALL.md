@@ -32,6 +32,23 @@ source .venv/bin/activate
 
 ## 3. Instalar dependencias base
 
+### Opción A — Instalador interactivo (recomendado)
+
+```bash
+cd jarvis
+bash install.sh
+```
+
+El instalador muestra un **splash de Palmiche-AI** en la terminal, verifica los requisitos del sistema, instala el núcleo y te presenta un menú para elegir los módulos opcionales:
+
+```
+  [1]  Todo              Instalación completa (todos los módulos)
+  [2]  Solo núcleo       Core + Anthropic Claude (mínimo funcional)
+  [3]  Personalizado     Selecciona módulos individualmente
+```
+
+### Opción B — Manual con pip
+
 ```bash
 pip install -e .
 ```
@@ -253,6 +270,58 @@ JARVIS_MCP_SERVERS=npx -y @modelcontextprotocol/server-filesystem /tmp;http://lo
 
 ---
 
+### Computer Use — automatización visual con Gemini ★
+
+Permite a Palmiche-AI controlar visualmente un **navegador Chromium** (via Playwright) o el **escritorio completo** (via pyautogui) para ejecutar tareas descritas en lenguaje natural.
+
+Inspirado en [google-gemini/computer-use-preview](https://github.com/google-gemini/computer-use-preview).
+
+**Requisito:** `GOOGLE_API_KEY` en `jarvis/.env`
+
+```bash
+# Ubuntu / Debian — dependencias del sistema para Playwright
+sudo apt install libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+                 libcups2 libxcomposite1 libxdamage1 libxfixes3 \
+                 libxrandr2 libgbm1 libxkbcommon0 libpango-1.0-0 \
+                 libcairo2 libasound2
+
+# Paquetes Python
+pip install "palmiche-jarvis[computer-use]"
+# equivale a: pip install google-genai playwright pyautogui Pillow mss
+
+# Instalar Chromium para Playwright
+playwright install chromium
+```
+
+`.env`:
+
+```ini
+GOOGLE_API_KEY=AIza...
+COMPUTER_USE_MODEL=gemini-2.5-flash    # modelo Gemini para visión
+COMPUTER_USE_BACKEND=playwright         # "playwright" o "desktop"
+COMPUTER_USE_MAX_ITERATIONS=30         # límite de pasos por tarea
+```
+
+**Uso desde el chat de Jarvis:**
+
+```
+Busca el precio del dólar hoy usando el navegador
+Abre YouTube y pon música de jazz
+Rellena el formulario en example.com con mis datos
+Navega a gmail.com y dime cuántos correos no leídos tengo
+```
+
+**Backends disponibles:**
+
+| Backend | Controla | Requiere |
+|---|---|---|
+| `playwright` (default) | Navegador Chromium headless | `playwright` + `playwright install chromium` |
+| `desktop` | Escritorio completo (cualquier app) | `pyautogui` + `mss` + entorno gráfico |
+
+> **Nota:** El backend `desktop` requiere entorno gráfico (Xorg/Wayland) y control del ratón real. Usar con precaución en entornos de producción.
+
+---
+
 ### Extracción de assets (ícono y audio desde YouTube)
 
 ```bash
@@ -281,14 +350,25 @@ sudo apt install \
     libxcb-keysyms1 libxcb-render-util0 \
     python3-dev portaudio19-dev \
     ffmpeg mpg123 \
-    playerctl scrot brightnessctl
+    playerctl scrot brightnessctl \
+    libnss3 libatk1.0-0 libatk-bridge2.0-0 libgbm1
 
 # macOS
 brew install portaudio ffmpeg
 
-# Paquetes Python
+# Paquetes Python (incluye computer-use)
 pip install "palmiche-jarvis[all]"
-# equivale a: voice + tray + adk + assets + a2a + mcp
+# equivale a: voice + tray + adk + assets + a2a + mcp + computer-use
+
+# Chromium para Computer Use
+playwright install chromium
+```
+
+O simplemente usa el instalador interactivo que lo gestiona todo:
+
+```bash
+cd jarvis && bash install.sh
+# Selecciona [1] Todo
 ```
 
 ---
@@ -391,3 +471,7 @@ python -m jarvis --serve-mcp
 | `ModuleNotFoundError: fastapi` | Extras A2A no instalados | `pip install "palmiche-jarvis[a2a]"` |
 | `ModuleNotFoundError: mcp` | Extras MCP no instalados | `pip install "palmiche-jarvis[mcp]"` |
 | Feedback loop en voz (Jarvis se escucha a sí mismo) | Bug corregido | Actualiza a la última versión |
+| `ModuleNotFoundError: google.genai` | Computer Use no instalado | `pip install "palmiche-jarvis[computer-use]"` |
+| `playwright._impl._errors.Error: Executable doesn't exist` | Chromium no instalado | `playwright install chromium` |
+| `GOOGLE_API_KEY not set` (computer use) | Falta API key de Google | Agrega `GOOGLE_API_KEY=AIza...` a `jarvis/.env` |
+| Computer Use no responde / loop infinito | Tarea demasiado compleja | Reduce `COMPUTER_USE_MAX_ITERATIONS` o simplifica la tarea |
