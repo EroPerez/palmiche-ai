@@ -5,17 +5,20 @@ psutil>=5.9.0
 pyperclip>=1.8.0
 requests>=2.31.0
 
-# Bandeja del sistema y ventana de chat GUI (opcional, activar con --tray):
-# pystray>=0.19.0
+# Bandeja del sistema con HUD animado estilo Iron Man (activar con --tray):
+# PyQt6>=6.4.0
+# PyQt6-Qt6-Multimedia>=6.4.0
 # Pillow>=10.0.0
+# pip install "palmiche-jarvis[tray]"
 
 # ADK backend con Claude (JARVIS_BACKEND=adk):
 # google-adk>=1.0.0
 # litellm>=1.0.0
+# pip install "palmiche-jarvis[adk]"
 
 # ADK backend con Gemini (JARVIS_BACKEND=gemini):
 # google-adk>=1.0.0
-# (no requiere litellm)
+# pip install "palmiche-jarvis[gemini]"
 
 # Backend Ollama (JARVIS_BACKEND=ollama) — no requiere paquetes pip adicionales:
 # Instala la aplicación Ollama desde https://ollama.ai
@@ -25,13 +28,19 @@ requests>=2.31.0
 # Voz y wake word (JARVIS_VOICE_ENABLED=true o modo --tray con palabra de activación):
 # SpeechRecognition>=3.10.0
 # pyaudio>=0.2.13
-# pyttsx3>=2.90        (solo para síntesis de voz, no requerido para wake word)
+# pyttsx3>=2.90        (síntesis de voz offline)
+# gtts>=2.3.0          (síntesis de voz online, mayor calidad — requiere mpg123 en Linux)
+# pip install "palmiche-jarvis[voice]"
 
-# A2A — servidor Agent-to-Agent (opcional, activar con --serve-a2a):
-# pip install 'palmiche-jarvis[a2a]'
+# Assets — ícono y audio de bienvenida (extrae con: python extract_assets.py):
+# yt-dlp>=2024.1.0     (requiere ffmpeg instalado en el sistema)
+# pip install "palmiche-jarvis[assets]"
+
+# A2A — servidor Agent-to-Agent Google (activar con --serve-a2a):
 # fastapi>=0.110.0
 # uvicorn>=0.29.0
+# pip install "palmiche-jarvis[a2a]"
 
-# MCP — servidor y cliente Model Context Protocol (opcional):
-# pip install 'palmiche-jarvis[mcp]'
+# MCP — servidor y cliente Model Context Protocol (activar con --serve-mcp / --connect-mcp):
 # mcp>=1.0.0
+# pip install "palmiche-jarvis[mcp]"

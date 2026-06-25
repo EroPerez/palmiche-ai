@@ -140,7 +140,7 @@ sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
                  libxcb-keysyms1 libxcb-render-util0
 
 pip install "palmiche-jarvis[tray]"
-# equivale a: pip install PyQt6 Pillow
+# equivale a: pip install PyQt6 PyQt6-Qt6-Multimedia Pillow
 
 python -m jarvis --tray
 ```
@@ -158,7 +158,7 @@ brew install portaudio
 
 pip install "palmiche-jarvis[voice]"
 # o manualmente:
-pip install SpeechRecognition pyttsx3 pyaudio
+pip install SpeechRecognition pyaudio pyttsx3 gtts
 
 # En .env:
 # JARVIS_VOICE_ENABLED=true
@@ -365,7 +365,7 @@ sudo apt install python3-dev portaudio19-dev
 brew install portaudio
 
 # Luego instalar paquetes Python
-pip install SpeechRecognition pyttsx3 pyaudio
+pip install SpeechRecognition pyaudio pyttsx3 gtts
 # o con el grupo opcional:
 pip install "palmiche-jarvis[voice]"
 

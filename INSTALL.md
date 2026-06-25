@@ -88,7 +88,7 @@ sudo dnf install xcb-util-cursor xcb-util-icccm xcb-util-image \
 
 # Instalar paquetes Python
 pip install "palmiche-jarvis[tray]"
-# equivale a: pip install PyQt6 Pillow
+# equivale a: pip install PyQt6 PyQt6-Qt6-Multimedia Pillow
 ```
 
 Iniciar en modo bandeja:
