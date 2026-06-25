@@ -15,6 +15,9 @@ env/
 jarvis/.env
 .env
 
+# Logs
+*.log
+
 # Editor / OS
 .DS_Store
 .idea/
