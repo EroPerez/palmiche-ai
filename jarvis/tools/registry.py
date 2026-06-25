@@ -283,7 +283,8 @@ TOOL_DEFINITIONS = [
         "description": (
             "Ejecuta un comando de shell arbitrario. "
             "Usar solo cuando no haya herramienta dedicada. Timeout: 30 segundos. "
-            "Explica al usuario qué hará el comando y confirma antes de llamar con confirmed=true."
+            "Explica al usuario qué hará el comando y confirma antes de llamar con confirmed=true. "
+            "Si el comando usa sudo y JARVIS_SUDO_PASSWORD está configurada, la contraseña se pasa automáticamente."
         ),
         "input_schema": {
             "type": "object",

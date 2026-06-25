@@ -79,3 +79,12 @@ A2A_AGENTS: list[str] = [
 MCP_SERVERS: list[str] = [
     s.strip() for s in os.getenv("JARVIS_MCP_SERVERS", "").split(";") if s.strip()
 ]
+
+# ---------------------------------------------------------------------------
+# Sudo password (optional)
+# ---------------------------------------------------------------------------
+
+# When set, commands that require sudo can use this password automatically
+# instead of prompting interactively (which would hang in a headless context).
+# The agent will ask the user for confirmation before using it.
+JARVIS_SUDO_PASSWORD: str = os.getenv("JARVIS_SUDO_PASSWORD", "")
