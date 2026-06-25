@@ -9,10 +9,12 @@
 ## Características
 
 - Conversación natural en español o inglés con memoria de sesión persistente
-- **58 herramientas integradas** para controlar el sistema, archivos, red, medios, clima, notas, temporizadores, cálculo y más
+- **59 herramientas integradas** para controlar el sistema, archivos, red, medios, clima, notas, temporizadores, cálculo y más
+- **Computer Use** — control visual de navegador y escritorio completo usando Gemini (inspirado en [google-gemini/computer-use-preview](https://github.com/google-gemini/computer-use-preview))
 - Cuatro backends intercambiables: Anthropic SDK, Google ADK + LiteLLM, Google ADK + Gemini, y Ollama (local)
 - Entrada por voz opcional con reconocimiento de habla
 - Interfaz en terminal con Rich (colores, markdown, paneles)
+- **Instalador interactivo** con splash animado de Palmiche-AI, menú de módulos y barras de progreso
 
 ## Requisitos
 
@@ -36,12 +38,14 @@ source jarvis/.venv/bin/activate      # Linux/macOS
 pip install -e .                       # instala dependencias del pyproject.toml
 ```
 
-O usando el script de instalación incluido:
+O usando el **instalador interactivo** incluido (recomendado):
 
 ```bash
 cd jarvis
 bash install.sh
 ```
+
+El instalador muestra un splash animado de Palmiche-AI y te pregunta qué módulos deseas instalar (todo, solo núcleo, o selección personalizada).
 
 ### 3. Configurar variables de entorno
 
@@ -165,6 +169,34 @@ pip install SpeechRecognition pyaudio pyttsx3 gtts
 python -m jarvis --tray       # la voz solo funciona en modo tray
 ```
 
+#### Computer Use — control visual de navegador y escritorio
+
+Palmiche-AI puede controlar un navegador Chromium o el escritorio completo usando la API de Gemini computer use, tomando capturas de pantalla y ejecutando acciones (click, tipo, scroll, navegación…).
+
+```bash
+pip install "palmiche-jarvis[computer-use]"
+# equivale a: pip install google-genai playwright pyautogui Pillow mss
+
+# Instalar Chromium para Playwright (solo backend playwright)
+playwright install chromium
+```
+
+Requiere `GOOGLE_API_KEY` en `.env`. Uso desde el chat:
+
+```
+Busca el precio del dólar hoy en el navegador
+Abre YouTube y pon música de jazz
+Rellena el formulario de contacto en example.com con mis datos
+```
+
+Variables de configuración:
+
+```ini
+COMPUTER_USE_MODEL=gemini-2.5-flash     # modelo Gemini para computer use
+COMPUTER_USE_BACKEND=playwright          # "playwright" (browser) o "desktop"
+COMPUTER_USE_MAX_ITERATIONS=30          # límite de iteraciones del agente visual
+```
+
 #### Instalación completa (todos los componentes)
 
 ```bash
@@ -175,7 +207,7 @@ sudo apt install \
     python3-dev portaudio19-dev ffmpeg mpg123
 
 pip install "palmiche-jarvis[all]"
-# equivale a: pip install "palmiche-jarvis[voice,tray,adk,assets]"
+# equivale a: pip install "palmiche-jarvis[voice,tray,adk,assets,a2a,mcp,computer-use]"
 ```
 
 ## Configuración
@@ -213,6 +245,9 @@ nano jarvis/.env
 | `JARVIS_LOG_FILE` | `~/.jarvis_tools.log` | Archivo de log de ejecución de herramientas |
 | `JARVIS_LOG_ENABLED` | `true` | Activar/desactivar logging de herramientas |
 | `JARVIS_SUDO_PASSWORD` | — | Contraseña sudo para comandos que requieren privilegios (opcional) |
+| `COMPUTER_USE_MODEL` | `gemini-2.5-flash` | Modelo Gemini para computer use (requiere `GOOGLE_API_KEY`) |
+| `COMPUTER_USE_BACKEND` | `playwright` | Backend de computer use: `playwright` (browser) o `desktop` |
+| `COMPUTER_USE_MAX_ITERATIONS` | `30` | Límite de iteraciones del agente visual por tarea |
 
 ## Guía de uso
 
@@ -400,7 +435,7 @@ pip install "palmiche-jarvis[voice]"
 python -m jarvis --tray
 ```
 
-## Herramientas disponibles (58)
+## Herramientas disponibles (59)
 
 > Guía completa con preguntas frecuentes por herramienta: **[TOOLS.md](TOOLS.md)**
 
@@ -545,6 +580,14 @@ Calendario local en JSON (`~/.jarvis_events.json`, configurable con `JARVIS_EVEN
 | `git_status` | Rama, estado del árbol y últimos commits de un repo git |
 | `find_process_on_port` | Qué proceso escucha en un puerto TCP |
 
+### Computer Use ★
+
+Automatización visual de navegador o escritorio completo con inteligencia visual de Gemini. Requiere `GOOGLE_API_KEY` y `pip install "palmiche-jarvis[computer-use]"`.
+
+| Herramienta | Descripción |
+|---|---|
+| `computer_use_task` | Controla visualmente un navegador Chromium (Playwright) o el escritorio completo (pyautogui) para completar tareas descritas en lenguaje natural. Toma capturas de pantalla y ejecuta acciones: click, doble-click, tipo, scroll, arrastrar, navegación, teclas, combinaciones de teclas |
+
 ## Backends
 
 ### Anthropic SDK (default)
@@ -658,6 +701,8 @@ Variables `.env` del modo bandeja:
 | Voz (reconocimiento) | `sudo apt install python3-dev portaudio19-dev` + `pip install "palmiche-jarvis[voice]"` | `brew install portaudio` + pip |
 | Voz (respuesta audio) | `sudo apt install mpg123` | `brew install ffmpeg` |
 | Assets (ícono/audio) | `sudo apt install ffmpeg` + `pip install "palmiche-jarvis[assets]"` | `brew install ffmpeg` + pip |
+| Computer Use (Playwright) | `pip install "palmiche-jarvis[computer-use]"` + `playwright install chromium` | igual |
+| Computer Use (desktop) | `pip install pyautogui mss` | igual |
 
 ### Acciones de energía sin contraseña (Linux)
 
