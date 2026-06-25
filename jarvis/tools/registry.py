@@ -22,6 +22,7 @@ from .notes import create_note, list_notes, read_note, search_notes, delete_note
 from .timer import set_timer, set_alarm, list_timers, cancel_timer
 from .calculator import calculate, convert_units
 from .text_tools import text_stats, text_transform
+from .computer_use import computer_use_task
 
 TOOL_DEFINITIONS = [
     {
@@ -880,6 +881,42 @@ TOOL_DEFINITIONS = [
             "required": ["url"],
         },
     },
+    # -------------------------------------------------------------------------
+    # Computer Use — visual browser/desktop automation via Gemini
+    # -------------------------------------------------------------------------
+    {
+        "name": "computer_use_task",
+        "description": (
+            "Controla visualmente un navegador web o el escritorio completo para completar "
+            "una tarea usando la inteligencia visual de Gemini (computer use). "
+            "Usa esta herramienta cuando el usuario pida realizar acciones web complejas, "
+            "llenar formularios, navegar páginas, hacer capturas de pantalla guiadas, o "
+            "automatizar cualquier tarea visual. Requiere GOOGLE_API_KEY."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "Descripción en lenguaje natural de la tarea a realizar (ej: 'Busca el clima en La Habana y dime la temperatura')",
+                },
+                "backend": {
+                    "type": "string",
+                    "enum": ["playwright", "desktop"],
+                    "description": "'playwright' para controlar un navegador Chromium (default), 'desktop' para controlar el escritorio completo",
+                },
+                "initial_url": {
+                    "type": "string",
+                    "description": "URL inicial para el backend playwright (default: https://www.google.com)",
+                },
+                "max_iterations": {
+                    "type": "integer",
+                    "description": "Límite de iteraciones del agente (default: 30)",
+                },
+            },
+            "required": ["task"],
+        },
+    },
 ]
 
 
@@ -1021,6 +1058,13 @@ def execute_tool(name: str, inputs: dict) -> str:
         # Web content
         "fetch_webpage": lambda i: fetch_webpage(i["url"], i.get("max_chars", 3000)),
         "get_rss_feed": lambda i: get_rss_feed(i["url"], i.get("max_items", 10)),
+        # Computer use
+        "computer_use_task": lambda i: computer_use_task(
+            i["task"],
+            i.get("backend", "playwright"),
+            i.get("initial_url", "https://www.google.com"),
+            i.get("max_iterations", 30),
+        ),
     }
 
     if name not in handlers:

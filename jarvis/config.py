@@ -97,3 +97,17 @@ JARVIS_LOG_ENABLED: bool = os.getenv("JARVIS_LOG_ENABLED", "true").lower() == "t
 # instead of prompting interactively (which would hang in a headless context).
 # The agent will ask the user for confirmation before using it.
 JARVIS_SUDO_PASSWORD: str = os.getenv("JARVIS_SUDO_PASSWORD", "")
+
+# ---------------------------------------------------------------------------
+# Computer Use — Gemini-powered visual browser/desktop automation
+# ---------------------------------------------------------------------------
+
+# Gemini model for computer use tasks. Requires google-genai and GOOGLE_API_KEY.
+# Recommended: gemini-2.5-flash (supports computer use natively)
+COMPUTER_USE_MODEL: str = os.getenv("COMPUTER_USE_MODEL", "gemini-2.5-flash")
+
+# Default backend: "playwright" (browser) or "desktop" (full desktop via pyautogui)
+COMPUTER_USE_BACKEND: str = os.getenv("COMPUTER_USE_BACKEND", "playwright")
+
+# Safety cap on agent loop iterations per task
+COMPUTER_USE_MAX_ITERATIONS: int = _get_positive_int("COMPUTER_USE_MAX_ITERATIONS", 30)
