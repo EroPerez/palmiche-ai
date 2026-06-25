@@ -91,6 +91,48 @@ def _suppress_alsa_errors() -> None:
         pass  # libasound not available (macOS, etc.)
 
 
+def _audio_device_available() -> bool:
+    """Return True if at least one input audio device is available.
+
+    PortAudio aborts the process with a C assertion failure when no valid
+    input device exists.  This pre-check avoids that crash by probing via
+    the lower-level sounddevice/ctypes interface first.
+    """
+    # Strategy 1: use sounddevice (thin ctypes wrapper around PortAudio)
+    try:
+        import sounddevice as sd
+        devs = sd.query_devices()
+        for d in (devs if isinstance(devs, list) else [devs]):
+            if d.get("max_input_channels", 0) > 0:
+                return True
+        return False
+    except Exception:
+        pass
+
+    # Strategy 2: check /proc/asound (Linux only — fast, no C code)
+    try:
+        cards = os.path.exists("/proc/asound/cards")
+        if not cards:
+            return False
+        with open("/proc/asound/cards") as f:
+            return bool(f.read().strip())
+    except Exception:
+        pass
+
+    # Strategy 3: try spawning arecord --list-devices
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["arecord", "-l"], capture_output=True, text=True, timeout=5,
+        )
+        return "card" in result.stdout.lower()
+    except Exception:
+        pass
+
+    # Can't determine — assume available and let PyAudio try
+    return True
+
+
 def _open_microphone_quietly(mic):
     """Enter the Microphone context while redirecting fd 2 to suppress JACK messages."""
     devnull = os.open(os.devnull, os.O_WRONLY)
@@ -103,6 +145,38 @@ def _open_microphone_quietly(mic):
         os.dup2(saved, 2)
         os.close(saved)
     return source
+
+
+def _play_audio_file_sync(path: str) -> None:
+    """Play an audio file synchronously via the first available system player."""
+    import subprocess
+
+    ext = os.path.splitext(path)[1].lower()
+    candidates = [
+        ["mpg123", "-q", path],
+        ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
+        ["cvlc", "--play-and-exit", "--quiet", path],
+    ]
+    if ext in (".wav", ".ogg"):
+        candidates += [["paplay", path], ["aplay", path]]
+    for cmd in candidates:
+        try:
+            if subprocess.run(cmd, capture_output=True).returncode == 0:
+                return
+        except FileNotFoundError:
+            continue
+
+
+def _play_audio_file_async(path: str, on_done=None) -> None:
+    """Play an audio file in a daemon thread."""
+    def _run():
+        try:
+            _play_audio_file_sync(path)
+        finally:
+            if on_done:
+                on_done()
+
+    threading.Thread(target=_run, daemon=True, name="jarvis-audio-play").start()
 
 
 def _speak_async(text: str, lang: str = "es", on_done=None) -> None:
@@ -204,6 +278,7 @@ class WakeWordListener:
         on_command: Optional[Callable[[str], None]] = None,
         language: str = "es-ES",
         response_text: str = "Kewelta Compay",
+        welcome_audio: str = "",
     ):
         """Configure the wake word, callbacks, recognition language and audio response."""
         self.wake_word = wake_word.lower()
@@ -211,9 +286,9 @@ class WakeWordListener:
         self.on_command = on_command   # called with transcribed voice command text
         self.language = language
         self.response_text = response_text
+        self.welcome_audio = welcome_audio  # path to audio file (preferred over TTS)
         self._running = False
         self._paused = False           # pause main loop during listen_once()
-        self._greeted = False          # greeting is spoken only once
         self._thread: Optional[threading.Thread] = None
 
     # ----------------------------------------------------------------- public
@@ -230,6 +305,12 @@ class WakeWordListener:
             return False
 
         _suppress_alsa_errors()
+
+        if not _audio_device_available():
+            logger.warning(
+                "Wake word desactivado — no se encontró dispositivo de audio de entrada"
+            )
+            return False
 
         self._running = True
         self._thread = threading.Thread(
@@ -286,8 +367,9 @@ class WakeWordListener:
                     logger.debug("Escuchado: %s", text)
                     if self.wake_word in text:
                         logger.info("¡Wake word detectada! '%s'", self.wake_word)
-                        if self.response_text and not self._greeted:
-                            self._greeted = True
+                        if self.welcome_audio and os.path.isfile(self.welcome_audio):
+                            _play_audio_file_async(self.welcome_audio)
+                        elif self.response_text:
                             _speak_async(self.response_text)
                         if self.on_wake:
                             self.on_wake()
