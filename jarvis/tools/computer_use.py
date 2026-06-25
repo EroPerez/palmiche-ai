@@ -754,9 +754,18 @@ def computer_use_task(
         finally:
             pass
     else:
-        computer = _PlaywrightComputer(initial_url=initial_url, headless=headless)
-        agent = _PalmicheComputerAgent(computer, task, resolved_model)
-        try:
-            return agent.run(max_iterations)
-        finally:
-            computer.close()
+        # Playwright's sync API raises an error when called inside an already-running
+        # asyncio event loop (tray mode / ADK backend / any async context).
+        # Running in a dedicated thread gives a clean environment with no event loop,
+        # so playwright can create its own without conflict.
+        import concurrent.futures
+
+        def _run_playwright() -> str:
+            computer = _PlaywrightComputer(initial_url=initial_url, headless=headless)
+            try:
+                return _PalmicheComputerAgent(computer, task, resolved_model).run(max_iterations)
+            finally:
+                computer.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(_run_playwright).result()
