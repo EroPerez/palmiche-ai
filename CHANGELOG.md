@@ -4,6 +4,57 @@ Todos los cambios notables del proyecto se documentan en este archivo.
 
 ---
 
+## [Unreleased] — 2026-06-25
+
+### Computer Use — automatización visual con Gemini
+
+Inspirado en [google-gemini/computer-use-preview](https://github.com/google-gemini/computer-use-preview), Palmiche-AI ahora puede controlar visualmente un navegador o el escritorio completo.
+
+- **`jarvis/tools/computer_use.py`** (nuevo): módulo completo de computer use
+  - `PlaywrightComputer`: backend de navegador Chromium headless con 30+ métodos (click, doble-click, triple-click, type, scroll, drag-and-drop, navigate, go_back/forward, press_key, hotkey, key_down/up, wait, screenshot)
+  - `DesktopComputer`: backend de escritorio completo vía pyautogui + mss
+  - `PalmicheComputerAgent`: loop agéntico con Gemini computer use API, gestión de historial de screenshots (mantiene solo los 3 más recientes para optimizar el contexto), confirmación de seguridad para acciones sensibles
+  - `computer_use_task()`: función pública registrada como herramienta #59
+- **`jarvis/tools/registry.py`**: registro de `computer_use_task` con schema completo incluyendo parámetros `task`, `backend`, `initial_url`, `max_iterations`
+- **`jarvis/config.py`**: 3 nuevas variables de entorno: `COMPUTER_USE_MODEL` (default: `gemini-2.5-flash`), `COMPUTER_USE_BACKEND` (default: `playwright`), `COMPUTER_USE_MAX_ITERATIONS` (default: 30)
+- **`jarvis/.env.example`**: documentadas las nuevas variables de computer use
+- **`pyproject.toml`**: nuevo grupo opcional `[computer-use]` con `google-genai>=1.0.0`, `playwright>=1.40.0`, `pyautogui>=0.9.54`, `Pillow>=10.0.0`, `mss>=9.0.1`; `[all]` actualizado para incluirlo
+
+### Rediseño completo del instalador
+
+- **`jarvis/install.sh`** reescrito completamente:
+  - Splash animado de **Palmiche-AI** con logo ASCII en verde brillante
+  - Spinner de carga animado para operaciones pip
+  - Barras de progreso por módulo (`▓▒`)
+  - Menú interactivo con 3 opciones: Todo / Solo núcleo / Personalizado
+  - Selección personalizada de 9 módulos: voz, GUI/bandeja, ADK+Claude, ADK+Gemini, Ollama, A2A, MCP, Computer Use, assets
+  - Verificación de Python 3.10+ antes de instalar
+  - Resumen final con comandos de uso rápido
+
+### Documentación actualizada
+
+- **`README.md`**: conteo 58→59 herramientas, nueva sección Computer Use en componentes opcionales, tabla de configuración con variables de computer use, tabla de herramientas con categoría Computer Use, dependencias del sistema actualizadas
+- **`INSTALL.md`**: sección dedicada a Computer Use con instalación paso a paso, tabla de backends, troubleshooting específico, instalador interactivo como opción recomendada
+- **`TOOLS.md`**: categoría 17 — Computer Use con referencia completa de `computer_use_task`, tabla de acciones, FAQ detallado, índice actualizado
+- **`CHANGELOG.md`**: entrada de esta versión
+
+### Cambios en archivos
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `jarvis/tools/computer_use.py` | Nuevo | Módulo Computer Use completo |
+| `jarvis/tools/registry.py` | Modificado | Registro de `computer_use_task` |
+| `jarvis/config.py` | Modificado | Variables `COMPUTER_USE_*` |
+| `jarvis/.env.example` | Modificado | Documentación de variables computer use |
+| `jarvis/install.sh` | Modificado | Reescritura con splash + menú interactivo |
+| `pyproject.toml` | Modificado | Grupo `[computer-use]` y `[all]` actualizado |
+| `README.md` | Modificado | Sección Computer Use, conteo 59 herramientas |
+| `INSTALL.md` | Modificado | Sección Computer Use + instalador interactivo |
+| `TOOLS.md` | Modificado | Categoría 17 Computer Use, conteo 59 |
+| `CHANGELOG.md` | Modificado | Esta entrada |
+
+---
+
 ## [Unreleased] — 2026-06-24 / 2026-06-25
 
 ### Migración de GUI: tkinter/pystray a PyQt6
