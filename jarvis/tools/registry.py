@@ -122,6 +122,10 @@ TOOL_DEFINITIONS = [
                     "type": "boolean",
                     "description": "Forzar cierre inmediato (SIGKILL). Default: false (SIGTERM)",
                 },
+                "confirmed": {
+                    "type": "boolean",
+                    "description": "El usuario confirmó explícitamente cerrar esta aplicación. Pasar true tras obtener confirmación.",
+                },
             },
             "required": ["name"],
         },
@@ -324,6 +328,10 @@ TOOL_DEFINITIONS = [
                     "enum": ["write", "append"],
                     "description": "'write' para sobreescribir (default) o 'append' para añadir al final",
                 },
+                "confirmed": {
+                    "type": "boolean",
+                    "description": "El usuario confirmó explícitamente la escritura/sobreescritura. Pasar true tras obtener confirmación.",
+                },
             },
             "required": ["path", "content"],
         },
@@ -334,7 +342,11 @@ TOOL_DEFINITIONS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "Ruta del archivo o directorio a eliminar"}
+                "path": {"type": "string", "description": "Ruta del archivo o directorio a eliminar"},
+                "confirmed": {
+                    "type": "boolean",
+                    "description": "El usuario confirmó explícitamente la eliminación. Pasar true tras obtener confirmación.",
+                },
             },
             "required": ["path"],
         },
@@ -347,6 +359,10 @@ TOOL_DEFINITIONS = [
             "properties": {
                 "source": {"type": "string", "description": "Ruta de origen"},
                 "destination": {"type": "string", "description": "Ruta de destino"},
+                "confirmed": {
+                    "type": "boolean",
+                    "description": "El usuario confirmó explícitamente la operación. Pasar true tras obtener confirmación.",
+                },
             },
             "required": ["source", "destination"],
         },
@@ -439,6 +455,10 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "enum": ["anthropic", "adk", "gemini", "ollama"],
                     "description": "Backend a usar al arrancar. Default: anthropic",
+                },
+                "confirmed": {
+                    "type": "boolean",
+                    "description": "El usuario confirmó explícitamente el cambio de configuración de arranque. Pasar true tras obtener confirmación.",
                 },
             },
             "required": ["enable"],
@@ -566,7 +586,10 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "http_request",
-        "description": "Hace una petición HTTP y devuelve status, headers clave y un preview del cuerpo. Útil para probar APIs.",
+        "description": (
+            "Hace una petición HTTP y devuelve status, headers clave y un preview del cuerpo. Útil para probar APIs. "
+            "GET/HEAD no requieren confirmación. POST/PUT/PATCH/DELETE mutan estado externo: informa al usuario y llama con confirmed=true."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -577,6 +600,10 @@ TOOL_DEFINITIONS = [
                     "description": "Método HTTP (default GET)",
                 },
                 "body": {"type": "string", "description": "Cuerpo de la petición (para POST/PUT/PATCH)"},
+                "confirmed": {
+                    "type": "boolean",
+                    "description": "El usuario confirmó la petición mutante (POST/PUT/PATCH/DELETE). No requerido para GET/HEAD.",
+                },
             },
             "required": ["url"],
         },
@@ -883,7 +910,23 @@ TOOL_DEFINITIONS = [
 ]
 
 
-DESTRUCTIVE_TOOLS = {"power_action", "run_shell_command", "setup_autostart"}
+DESTRUCTIVE_TOOLS = {
+    # System power — irreversible state changes; may invoke sudo
+    "power_action",
+    # Arbitrary shell execution; explicit use_sudo parameter
+    "run_shell_command",
+    # Modifies user/session startup config
+    "setup_autostart",
+    # File mutations — data loss risk
+    "write_file",
+    "delete_file",
+    "move_file",
+    # Process termination (SIGTERM / SIGKILL with force=True)
+    "close_application",
+    # Non-GET HTTP requests mutate external state (POST/PUT/PATCH/DELETE)
+    # Note: confirmation is checked per-method in execute_tool, not via this set
+    "http_request",
+}
 
 
 import json
@@ -932,7 +975,11 @@ def _log_tool_call(name: str, inputs: dict, result: str, error: bool = False) ->
 
 def execute_tool(name: str, inputs: dict) -> str:
     """Dispatch *name* to the appropriate tool handler, enforcing confirmation for destructive tools."""
-    if name in DESTRUCTIVE_TOOLS and not inputs.get("confirmed", False):
+    needs_confirm = name in DESTRUCTIVE_TOOLS
+    if name == "http_request":
+        # Only mutating methods require confirmation; GET/HEAD are safe reads
+        needs_confirm = inputs.get("method", "GET").upper() not in ("GET", "HEAD")
+    if needs_confirm and not inputs.get("confirmed", False):
         return (
             f"Confirmación requerida para '{name}'. "
             "Informa al usuario qué acción se va a realizar y pide confirmación explícita. "

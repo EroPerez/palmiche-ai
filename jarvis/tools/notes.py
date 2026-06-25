@@ -148,3 +148,7 @@ def delete_note(title: str) -> str:
     remaining = [n for n in notes if n["id"] != note["id"]]
     _save(remaining)
     return f"Nota '{note['title']}' [{note['id']}] eliminada."
+
+
+if not NOTES_FILE.exists():
+    _save([])

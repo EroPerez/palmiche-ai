@@ -114,16 +114,16 @@ def control_brightness(action: str, value: int = None) -> str:
             return f"Brillo actual: {int(cur / mx * 100)}%"
         if action == "set" and value is not None:
             v = max(5, min(100, value))
-            subprocess.run(["brightnessctl", "set", f"{v}%"])
-            return f"Brillo → {v}%"
+            ok, err = _run_power_cmd(["brightnessctl", "set", f"{v}%"])
+            return f"Brillo → {v}%" if ok else f"No se pudo cambiar el brillo: {err}"
         if action == "up":
             inc = value or 10
-            subprocess.run(["brightnessctl", "set", f"+{inc}%"])
-            return f"Brillo subido {inc}%"
+            ok, err = _run_power_cmd(["brightnessctl", "set", f"+{inc}%"])
+            return f"Brillo subido {inc}%" if ok else f"No se pudo cambiar el brillo: {err}"
         if action == "down":
             dec = value or 10
-            subprocess.run(["brightnessctl", "set", f"{dec}%-"])
-            return f"Brillo bajado {dec}%"
+            ok, err = _run_power_cmd(["brightnessctl", "set", f"{dec}%-"])
+            return f"Brillo bajado {dec}%" if ok else f"No se pudo cambiar el brillo: {err}"
     except FileNotFoundError:
         return "brightnessctl no encontrado. Instala: sudo apt install brightnessctl"
     return f"Acción '{action}' ejecutada"

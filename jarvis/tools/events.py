@@ -147,3 +147,7 @@ def delete_event(event_id: str) -> str:
         return f"No se encontró ningún evento con id '{target}'."
     _save(remaining)
     return f"Evento '{target}' eliminado."
+
+
+if not EVENTS_FILE.exists():
+    _save([])
