@@ -52,3 +52,30 @@ JARVIS_WELCOME_AUDIO: str = os.getenv(
     "JARVIS_WELCOME_AUDIO",
     _DEFAULT_WELCOME_AUDIO if Path(_DEFAULT_WELCOME_AUDIO).is_file() else "",
 )
+
+# ---------------------------------------------------------------------------
+# A2A (Agent-to-Agent) configuration
+# ---------------------------------------------------------------------------
+
+# Host and port for the built-in A2A HTTP server (--serve-a2a mode).
+A2A_HOST: str = os.getenv("JARVIS_A2A_HOST", "0.0.0.0")
+A2A_PORT: int = _get_positive_int("JARVIS_A2A_PORT", 8080)
+
+# Comma-separated list of remote A2A agent URLs to connect to as client tools.
+# Example: JARVIS_A2A_AGENTS=http://agent1:8080,http://agent2:9090
+A2A_AGENTS: list[str] = [
+    u.strip() for u in os.getenv("JARVIS_A2A_AGENTS", "").split(",") if u.strip()
+]
+
+# ---------------------------------------------------------------------------
+# MCP (Model Context Protocol) configuration
+# ---------------------------------------------------------------------------
+
+# Semicolon-separated MCP server specs to connect to as client tools.
+# Each spec is either:
+#   - A command string for stdio:  "npx -y @modelcontextprotocol/server-filesystem /tmp"
+#   - An HTTP URL for SSE:         "http://localhost:3000"
+# Example: JARVIS_MCP_SERVERS=npx -y @mcp/server-fs /tmp;http://localhost:3001
+MCP_SERVERS: list[str] = [
+    s.strip() for s in os.getenv("JARVIS_MCP_SERVERS", "").split(";") if s.strip()
+]

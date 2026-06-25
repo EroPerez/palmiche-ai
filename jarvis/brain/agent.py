@@ -8,11 +8,27 @@ from ..memory.history import ConversationHistory
 class JarvisAgent:
     """Jarvis agent powered by the Anthropic SDK with a manual tool-use loop."""
 
-    def __init__(self, name: str = JARVIS_NAME):
-        """Initialize the Anthropic client and load conversation history."""
+    def __init__(self, name: str = JARVIS_NAME, registry=None):
+        """Initialize the Anthropic client and load conversation history.
+
+        Args:
+            name: Display name for the assistant.
+            registry: Optional DynamicToolRegistry. When provided, its tools and executor
+                      are used instead of the static TOOL_DEFINITIONS / execute_tool.
+                      This enables MCP and A2A client tools at runtime.
+        """
         self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         self.history = ConversationHistory()
         self.system_prompt = SYSTEM_PROMPT.format(name=name)
+        self._registry = registry
+
+    def _tool_definitions(self) -> list:
+        return self._registry.definitions if self._registry is not None else TOOL_DEFINITIONS
+
+    def _execute_tool(self, name: str, inputs: dict) -> str:
+        if self._registry is not None:
+            return self._registry.execute(name, inputs)
+        return str(execute_tool(name, inputs))
 
     def chat(self, user_message: str) -> str:
         """Send a user message and run the agentic loop until end_turn or 10 iterations."""
@@ -25,7 +41,7 @@ class JarvisAgent:
                     model=JARVIS_MODEL,
                     max_tokens=4096,
                     system=self.system_prompt,
-                    tools=TOOL_DEFINITIONS,
+                    tools=self._tool_definitions(),
                     messages=messages,
                 )
             except Exception as exc:
@@ -39,7 +55,7 @@ class JarvisAgent:
                 tool_results = []
                 for block in response.content:
                     if block.type == "tool_use":
-                        result = execute_tool(block.name, block.input)
+                        result = self._execute_tool(block.name, block.input)
                         tool_results.append(
                             {
                                 "type": "tool_result",

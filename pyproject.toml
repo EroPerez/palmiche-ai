@@ -41,8 +41,15 @@ gemini = [
 assets = [
     "yt-dlp>=2024.1.0",
 ]
+a2a = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+]
+mcp = [
+    "mcp>=1.0.0",
+]
 all = [
-    "palmiche-jarvis[voice,tray,adk,assets]",
+    "palmiche-jarvis[voice,tray,adk,assets,a2a,mcp]",
 ]
 
 [project.scripts]

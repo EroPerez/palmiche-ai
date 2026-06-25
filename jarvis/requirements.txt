@@ -26,3 +26,12 @@ requests>=2.31.0
 # SpeechRecognition>=3.10.0
 # pyaudio>=0.2.13
 # pyttsx3>=2.90        (solo para síntesis de voz, no requerido para wake word)
+
+# A2A — servidor Agent-to-Agent (opcional, activar con --serve-a2a):
+# pip install 'palmiche-jarvis[a2a]'
+# fastapi>=0.110.0
+# uvicorn>=0.29.0
+
+# MCP — servidor y cliente Model Context Protocol (opcional):
+# pip install 'palmiche-jarvis[mcp]'
+# mcp>=1.0.0
