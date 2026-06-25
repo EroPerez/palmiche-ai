@@ -1108,9 +1108,9 @@ def execute_tool(name: str, inputs: dict) -> str:
         # Computer use
         "computer_use_task": lambda i: computer_use_task(
             i["task"],
-            i.get("backend", "playwright"),
+            i.get("backend", ""),
             i.get("initial_url", "https://www.google.com"),
-            i.get("max_iterations", 30),
+            i.get("max_iterations", 0),
         ),
     }
 
