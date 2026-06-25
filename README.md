@@ -202,8 +202,17 @@ nano jarvis/.env
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
 | `JARVIS_EVENTS_FILE` | `~/.jarvis_events.json` | Archivo del calendario local de eventos |
 | `JARVIS_NOTES_FILE` | `~/.jarvis_notes.json` | Archivo de notas personales |
+| `JARVIS_WAKE_WORD` | `palmiche` | Palabra de activación por voz en modo `--tray` |
+| `JARVIS_HISTORY_FILE` | `~/.jarvis_history.json` | Archivo de historial de conversación |
 | `JARVIS_TRAY_ICON` | — | Ruta a imagen PNG/ICO para el ícono de bandeja (vacío = ícono de caballo integrado) |
 | `JARVIS_WELCOME_AUDIO` | — | Ruta a MP3/WAV reproducido al arrancar la bandeja (genera con `python extract_assets.py`) |
+| `JARVIS_A2A_HOST` | `0.0.0.0` | Host del servidor A2A (modo `--serve-a2a`) |
+| `JARVIS_A2A_PORT` | `8080` | Puerto del servidor A2A |
+| `JARVIS_A2A_AGENTS` | — | URLs de agentes A2A remotos (separados por coma) |
+| `JARVIS_MCP_SERVERS` | — | Specs de servidores MCP (separados por `;`). Comando stdio o URL SSE |
+| `JARVIS_LOG_FILE` | `~/.jarvis_tools.log` | Archivo de log de ejecución de herramientas |
+| `JARVIS_LOG_ENABLED` | `true` | Activar/desactivar logging de herramientas |
+| `JARVIS_SUDO_PASSWORD` | — | Contraseña sudo para comandos que requieren privilegios (opcional) |
 
 ## Guía de uso
 
@@ -230,6 +239,15 @@ python -m jarvis --tray
 
 # Combinar opciones
 python -m jarvis --backend gemini --name "Jarvis" --tray
+
+# Servidor A2A (expone Jarvis como agente HTTP)
+python -m jarvis --serve-a2a --a2a-port 8080
+
+# Servidor MCP stdio (para Claude Desktop, Cursor, Zed, etc.)
+python -m jarvis --serve-mcp
+
+# Conectar a agentes A2A y servidores MCP remotos
+python -m jarvis --connect-a2a http://otro-agente:8080 --connect-mcp "npx -y @modelcontextprotocol/server-filesystem /tmp"
 ```
 
 ### Opciones de línea de comandos
@@ -243,8 +261,15 @@ python -m jarvis --backend gemini --name "Jarvis" --tray
 | `--no-splash` | — | No mostrar la pantalla de bienvenida animada |
 | `--tray` | — | Iniciar en modo bandeja del sistema |
 | `--voice` | — | Activar reconocimiento de voz |
+| `--wake-word` | texto | Palabra de activación por voz en modo `--tray` (default: `palmiche`) |
 | `--query` / `-q` | texto | Ejecutar una consulta única y salir |
 | `--clear` | — | Borrar el historial y salir |
+| `--serve-a2a` | — | Iniciar como servidor A2A (protocolo Agent-to-Agent) |
+| `--a2a-host` | host | Host del servidor A2A (default: `0.0.0.0`) |
+| `--a2a-port` | puerto | Puerto del servidor A2A (default: `8080`) |
+| `--connect-a2a` | URL | Conectar a un agente A2A remoto como herramienta (repetible) |
+| `--serve-mcp` | — | Iniciar como servidor MCP stdio (Claude Desktop, Cursor, etc.) |
+| `--connect-mcp` | spec | Conectar a un servidor MCP externo (comando stdio o URL SSE, repetible) |
 
 ### Comandos dentro del chat
 
@@ -252,6 +277,7 @@ python -m jarvis --backend gemini --name "Jarvis" --tray
 |---|---|
 | `salir` / `exit` / `quit` | Termina la sesión |
 | `limpiar` / `clear` | Borra el historial de conversación |
+| `voz` / `/voz` / `voice` / `/voice` | Alterna el modo de entrada por voz ON/OFF |
 
 ### Ejemplos de uso por categoría
 
