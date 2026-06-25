@@ -81,6 +81,15 @@ MCP_SERVERS: list[str] = [
 ]
 
 # ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+JARVIS_LOG_FILE: Path = Path(
+    os.getenv("JARVIS_LOG_FILE", "~/.jarvis_tools.log")
+).expanduser()
+JARVIS_LOG_ENABLED: bool = os.getenv("JARVIS_LOG_ENABLED", "true").lower() == "true"
+
+# ---------------------------------------------------------------------------
 # Sudo password (optional)
 # ---------------------------------------------------------------------------
 

@@ -886,6 +886,50 @@ TOOL_DEFINITIONS = [
 DESTRUCTIVE_TOOLS = {"power_action", "run_shell_command", "setup_autostart"}
 
 
+import json
+import logging
+from datetime import datetime
+from ..config import JARVIS_LOG_FILE, JARVIS_LOG_ENABLED
+
+_tool_logger: logging.Logger | None = None
+
+
+def _get_tool_logger() -> logging.Logger | None:
+    """Return (and lazily configure) the tool-execution logger."""
+    global _tool_logger
+    if not JARVIS_LOG_ENABLED:
+        return None
+    if _tool_logger is not None:
+        return _tool_logger
+    _tool_logger = logging.getLogger("jarvis.tools")
+    _tool_logger.setLevel(logging.DEBUG)
+    _tool_logger.propagate = False
+    try:
+        handler = logging.FileHandler(str(JARVIS_LOG_FILE), encoding="utf-8")
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        _tool_logger.addHandler(handler)
+    except OSError:
+        _tool_logger = None
+    return _tool_logger
+
+
+def _log_tool_call(name: str, inputs: dict, result: str, error: bool = False) -> None:
+    """Write a structured log entry for a tool execution."""
+    logger = _get_tool_logger()
+    if logger is None:
+        return
+    safe_inputs = {k: v for k, v in inputs.items() if k != "confirmed"}
+    entry = (
+        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+        f"{'ERROR' if error else 'OK'} | {name}\n"
+        f"  inputs: {json.dumps(safe_inputs, ensure_ascii=False, default=str)}\n"
+        f"  result: {result[:1000]}"
+    )
+    if len(result) > 1000:
+        entry += "\n  ... (truncado en log)"
+    logger.info(entry + "\n")
+
+
 def execute_tool(name: str, inputs: dict) -> str:
     """Dispatch *name* to the appropriate tool handler, enforcing confirmation for destructive tools."""
     if name in DESTRUCTIVE_TOOLS and not inputs.get("confirmed", False):
@@ -980,9 +1024,15 @@ def execute_tool(name: str, inputs: dict) -> str:
     }
 
     if name not in handlers:
-        return f"Error: herramienta '{name}' no encontrada"
+        msg = f"Error: herramienta '{name}' no encontrada"
+        _log_tool_call(name, inputs, msg, error=True)
+        return msg
 
     try:
-        return handlers[name](inputs)
+        result = handlers[name](inputs)
+        _log_tool_call(name, inputs, result)
+        return result
     except Exception as e:
-        return f"Error ejecutando {name}: {e}"
+        msg = f"Error ejecutando {name}: {e}"
+        _log_tool_call(name, inputs, msg, error=True)
+        return msg
