@@ -773,9 +773,9 @@ def _blob_from_bytes(data: bytes):
 
 def computer_use_task(
     task: str,
-    backend: str = "playwright",
+    backend: str = "",
     initial_url: str = "https://www.google.com",
-    max_iterations: int = 30,
+    max_iterations: int = 0,
     model: str = "",
     headless: bool = True,
 ) -> str:
@@ -787,10 +787,11 @@ def computer_use_task(
     Args:
         task: Natural language description of what to do (e.g. "Search for
               the weather in Havana and tell me the temperature").
-        backend: "playwright" for browser control (default) or "desktop"
-                 for full desktop control.
+        backend: "playwright" for browser control or "desktop" for full
+                 desktop control. Defaults to COMPUTER_USE_BACKEND env var.
         initial_url: Starting URL when using the playwright backend.
-        max_iterations: Safety cap on the number of agent loop iterations.
+        max_iterations: Safety cap on agent loop iterations. Defaults to
+                        COMPUTER_USE_MAX_ITERATIONS env var.
         model: Gemini model to use. Defaults to COMPUTER_USE_MODEL env var
                or "gemini-2.5-flash".
         headless: Run browser in headless mode (no visible window). Default
@@ -799,9 +800,11 @@ def computer_use_task(
     Returns:
         A text summary of what was accomplished.
     """
-    from ..config import COMPUTER_USE_MODEL, GOOGLE_API_KEY
+    from ..config import COMPUTER_USE_BACKEND, COMPUTER_USE_MAX_ITERATIONS, COMPUTER_USE_MODEL, GOOGLE_API_KEY
 
     resolved_model = model or COMPUTER_USE_MODEL or "gemini-2.5-flash"
+    resolved_backend = backend or COMPUTER_USE_BACKEND or "playwright"
+    resolved_max_iterations = max_iterations or COMPUTER_USE_MAX_ITERATIONS or 30
 
     if not GOOGLE_API_KEY:
         return (
@@ -809,13 +812,13 @@ def computer_use_task(
             "Agrégala a jarvis/.env para usar computer use."
         )
 
-    backend = backend.strip().lower()
+    resolved_backend = resolved_backend.strip().lower()
 
-    if backend == "desktop":
+    if resolved_backend == "desktop":
         computer: _DesktopComputer | _PlaywrightComputer = _DesktopComputer()
         agent = _PalmicheComputerAgent(computer, task, resolved_model)
         try:
-            return agent.run(max_iterations)
+            return agent.run(resolved_max_iterations)
         finally:
             pass
     else:
@@ -828,7 +831,7 @@ def computer_use_task(
         def _run_playwright() -> str:
             computer = _PlaywrightComputer(initial_url=initial_url, headless=headless)
             try:
-                return _PalmicheComputerAgent(computer, task, resolved_model).run(max_iterations)
+                return _PalmicheComputerAgent(computer, task, resolved_model).run(resolved_max_iterations)
             finally:
                 computer.close()
 
