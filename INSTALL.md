@@ -196,6 +196,63 @@ JARVIS_OLLAMA_MODEL=llama3.2
 
 ---
 
+### Protocolo A2A (Agent-to-Agent)
+
+Permite que Jarvis actúe como servidor HTTP para otros agentes, o se conecte a agentes remotos como herramientas.
+
+```bash
+pip install "palmiche-jarvis[a2a]"
+# equivale a: pip install fastapi uvicorn
+```
+
+Uso:
+
+```bash
+# Servidor A2A
+python -m jarvis --serve-a2a --a2a-port 8080
+
+# Conectar a agente A2A remoto como herramienta
+python -m jarvis --connect-a2a http://otro-agente:8080
+```
+
+`.env`:
+
+```ini
+JARVIS_A2A_HOST=0.0.0.0
+JARVIS_A2A_PORT=8080
+JARVIS_A2A_AGENTS=http://agent1:8080,http://agent2:9090
+```
+
+---
+
+### Protocolo MCP (Model Context Protocol)
+
+Permite exponer las herramientas de Jarvis a IDEs como Claude Desktop, Cursor o Zed, o consumir servidores MCP externos.
+
+```bash
+pip install "palmiche-jarvis[mcp]"
+# equivale a: pip install mcp
+```
+
+Uso:
+
+```bash
+# Servidor MCP (stdio, para Claude Desktop / Cursor)
+python -m jarvis --serve-mcp
+
+# Conectar a servidor MCP externo
+python -m jarvis --connect-mcp "npx -y @modelcontextprotocol/server-filesystem /tmp"
+python -m jarvis --connect-mcp "http://localhost:3000"
+```
+
+`.env`:
+
+```ini
+JARVIS_MCP_SERVERS=npx -y @modelcontextprotocol/server-filesystem /tmp;http://localhost:3001
+```
+
+---
+
 ### Extracción de assets (ícono y audio desde YouTube)
 
 ```bash
@@ -231,7 +288,7 @@ brew install portaudio ffmpeg
 
 # Paquetes Python
 pip install "palmiche-jarvis[all]"
-# equivale a: voice + tray + adk + assets
+# equivale a: voice + tray + adk + assets + a2a + mcp
 ```
 
 ---
@@ -265,6 +322,33 @@ Para instalar con un usuario distinto: `JARVIS_USER=otro sudo jarvis/scripts/ins
 
 ---
 
+## Configuración adicional
+
+### Logging de herramientas
+
+Jarvis registra todas las llamadas a herramientas en un archivo de log para facilitar el diagnóstico. Habilitado por defecto.
+
+```ini
+# En .env:
+JARVIS_LOG_FILE=~/.jarvis_tools.log   # ruta del archivo (default)
+JARVIS_LOG_ENABLED=true                # desactivar con false
+```
+
+Cada entrada incluye timestamp, inputs y resultado (OK o ERROR).
+
+### Contraseña sudo automática
+
+Para entornos sin terminal interactiva (como el modo bandeja), los comandos que requieren sudo pueden bloquearse esperando entrada. Configura la contraseña para que se envíe automáticamente (el agente siempre pide confirmación antes de usarla).
+
+```ini
+# En .env:
+JARVIS_SUDO_PASSWORD=tu-contraseña
+```
+
+Si un comando falla con "Permission denied", Jarvis detecta el error y ofrece reintentar con sudo.
+
+---
+
 ## Inicio rápido tras la instalación
 
 ```bash
@@ -282,6 +366,12 @@ python -m jarvis --tray --backend gemini --name "Viernes"
 
 # Consulta única y salir
 python -m jarvis -q "¿cuánta RAM tengo?"
+
+# Servidor A2A
+python -m jarvis --serve-a2a
+
+# Servidor MCP (para Claude Desktop, Cursor, Zed)
+python -m jarvis --serve-mcp
 ```
 
 ---
@@ -296,3 +386,8 @@ python -m jarvis -q "¿cuánta RAM tengo?"
 | `ANTHROPIC_API_KEY not set` | Falta la API key | Edita `jarvis/.env` y agrega la key |
 | `ollama: command not found` | Ollama no instalado | Sigue los pasos del backend Ollama |
 | Mic no disponible al abrir la bandeja | `pyaudio`/`SpeechRecognition` no instalados | `pip install "palmiche-jarvis[voice]"` |
+| PortAudio crash fatal al abrir mic | No hay dispositivo de audio de entrada | Conecta un micrófono o desactiva `JARVIS_VOICE_ENABLED` |
+| Comando sudo se bloquea esperando contraseña | Modo headless sin terminal | Configura `JARVIS_SUDO_PASSWORD` en `.env` |
+| `ModuleNotFoundError: fastapi` | Extras A2A no instalados | `pip install "palmiche-jarvis[a2a]"` |
+| `ModuleNotFoundError: mcp` | Extras MCP no instalados | `pip install "palmiche-jarvis[mcp]"` |
+| Feedback loop en voz (Jarvis se escucha a sí mismo) | Bug corregido | Actualiza a la última versión |

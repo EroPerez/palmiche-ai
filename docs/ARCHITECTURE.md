@@ -103,16 +103,26 @@ palmiche-ai/
 │   │
 │   ├── interface/
 │   │   ├── cli.py           # Interfaz CLI con Rich
-│   │   ├── tray.py          # GUI de bandeja del sistema con PyQt6
+│   │   ├── tray.py          # GUI de bandeja del sistema con PyQt6 (paleta Palmiche)
+│   │   ├── hud_animation.py # Animación HUD estilo Iron Man (QPainter, 3 anillos, radar)
+│   │   ├── animation.py     # WaveformAnimation (QWidget) para feedback visual
 │   │   ├── voice.py         # Reconocimiento de voz y TTS
-│   │   ├── splash.py        # Pantalla de bienvenida animada
-│   │   └── ...
+│   │   ├── wake_word.py     # WakeWordListener — detección de palabra clave en segundo plano
+│   │   └── splash.py        # Pantalla de bienvenida animada
 │   │
 │   └── memory/
 │       └── history.py       # Historial de conversación persistente (JSON)
 │
+│   └── assets/
+│       ├── space-bg.jpg     # Fondo espacial para HUD
+│       └── TheGoodMonolith.woff  # Fuente monoespaciada robótica
+│
 ├── docs/
 │   └── ARCHITECTURE.md      # Este documento
+├── extract_assets.py        # Extractor de ícono y audio desde YouTube
+├── CHANGELOG.md             # Historial de cambios
+├── TOOLS.md                 # Guía completa de las 58 herramientas
+├── INSTALL.md               # Guía de instalación paso a paso
 ├── pyproject.toml
 └── README.md
 ```
@@ -328,6 +338,9 @@ agent = JarvisAgent(name="Jarvis", registry=registry)
 | `JARVIS_A2A_PORT` | `8080` | Puerto del servidor A2A |
 | `JARVIS_A2A_AGENTS` | `` | URLs de agentes A2A (separados por coma) |
 | `JARVIS_MCP_SERVERS` | `` | Specs de servidores MCP (separados por `;`) |
+| `JARVIS_LOG_FILE` | `~/.jarvis_tools.log` | Archivo de log de herramientas |
+| `JARVIS_LOG_ENABLED` | `true` | Activar/desactivar logging de herramientas |
+| `JARVIS_SUDO_PASSWORD` | `` | Contraseña sudo automática (opcional) |
 
 ---
 
@@ -387,3 +400,5 @@ Usuario: "Agent2 opina que..."
 - Las herramientas destructivas (`power_action`, `run_shell_command`, `setup_autostart`) requieren `confirmed=true` en sus inputs para ejecutarse.
 - El servidor MCP opera solo en stdio (proceso local), sin exposición de red.
 - Los agentes A2A remotos conectados como clientes ejecutan código en su propio entorno; el resultado solo se devuelve como texto al agente local.
+- **Logging**: todas las llamadas a herramientas se registran en `~/.jarvis_tools.log` con timestamp, inputs y resultado. Desactivable con `JARVIS_LOG_ENABLED=false`.
+- **Sudo automático**: cuando `JARVIS_SUDO_PASSWORD` está configurada, el agente la usa via `sudo -S` tras pedir confirmación al usuario. Si un comando falla con "Permission denied", el sistema detecta el error y ofrece reintentar con privilegios.
