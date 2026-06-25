@@ -374,11 +374,13 @@ class _ChatWindow(QMainWindow):
 
         # ── Wake-word listener ────────────────────────────────────────────────
         from .wake_word import WakeWordListener
+        from ..config import JARVIS_WELCOME_AUDIO
         self._wake_listener = WakeWordListener(
             wake_word=self.wake_word,
             on_wake=self._on_wake,
             on_command=self._on_voice_command,
             response_text=self.welcome_message,
+            welcome_audio=JARVIS_WELCOME_AUDIO,
         )
         if not self._wake_listener.start():
             # SpeechRecognition/pyaudio not installed — disable mic button

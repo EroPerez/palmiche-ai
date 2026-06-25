@@ -105,6 +105,38 @@ def _open_microphone_quietly(mic):
     return source
 
 
+def _play_audio_file_sync(path: str) -> None:
+    """Play an audio file synchronously via the first available system player."""
+    import subprocess
+
+    ext = os.path.splitext(path)[1].lower()
+    candidates = [
+        ["mpg123", "-q", path],
+        ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
+        ["cvlc", "--play-and-exit", "--quiet", path],
+    ]
+    if ext in (".wav", ".ogg"):
+        candidates += [["paplay", path], ["aplay", path]]
+    for cmd in candidates:
+        try:
+            if subprocess.run(cmd, capture_output=True).returncode == 0:
+                return
+        except FileNotFoundError:
+            continue
+
+
+def _play_audio_file_async(path: str, on_done=None) -> None:
+    """Play an audio file in a daemon thread."""
+    def _run():
+        try:
+            _play_audio_file_sync(path)
+        finally:
+            if on_done:
+                on_done()
+
+    threading.Thread(target=_run, daemon=True, name="jarvis-audio-play").start()
+
+
 def _speak_async(text: str, lang: str = "es", on_done=None) -> None:
     """Speak *text* in a daemon thread using the best available TTS engine.
 
@@ -204,6 +236,7 @@ class WakeWordListener:
         on_command: Optional[Callable[[str], None]] = None,
         language: str = "es-ES",
         response_text: str = "Kewelta Compay",
+        welcome_audio: str = "",
     ):
         """Configure the wake word, callbacks, recognition language and audio response."""
         self.wake_word = wake_word.lower()
@@ -211,9 +244,9 @@ class WakeWordListener:
         self.on_command = on_command   # called with transcribed voice command text
         self.language = language
         self.response_text = response_text
+        self.welcome_audio = welcome_audio  # path to audio file (preferred over TTS)
         self._running = False
         self._paused = False           # pause main loop during listen_once()
-        self._greeted = False          # greeting is spoken only once
         self._thread: Optional[threading.Thread] = None
 
     # ----------------------------------------------------------------- public
@@ -286,8 +319,9 @@ class WakeWordListener:
                     logger.debug("Escuchado: %s", text)
                     if self.wake_word in text:
                         logger.info("¡Wake word detectada! '%s'", self.wake_word)
-                        if self.response_text and not self._greeted:
-                            self._greeted = True
+                        if self.welcome_audio and os.path.isfile(self.welcome_audio):
+                            _play_audio_file_async(self.welcome_audio)
+                        elif self.response_text:
                             _speak_async(self.response_text)
                         if self.on_wake:
                             self.on_wake()
