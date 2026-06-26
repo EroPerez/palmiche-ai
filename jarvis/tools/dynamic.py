@@ -29,6 +29,19 @@ class DynamicToolRegistry:
         """All tool definitions (static + dynamic)."""
         return self._definitions
 
+    def dynamic_tools(self) -> list[tuple[dict, object]]:
+        """Return (definition, handler) pairs for the dynamically registered tools only.
+
+        Excludes the static built-in tools (which brains load via their own
+        path, e.g. ADK python wrappers). Used to inject A2A/MCP/custom tools into
+        backends that don't execute through ``execute``.
+        """
+        return [
+            (d, self._handlers[d["name"]])
+            for d in self._definitions
+            if d["name"] in self._handlers
+        ]
+
     def execute(self, name: str, inputs: dict) -> str:
         """Dispatch a tool call to the appropriate handler."""
         if name in self._handlers:
