@@ -107,6 +107,7 @@ _run_with_spinner() {
 # ─── Detección del sistema operativo ─────────────────────────────────────────
 _OS=""
 _PKG_MANAGER=""
+_SUDO_APPROVED=""
 
 _detect_os() {
     case "$(uname -s)" in
@@ -137,9 +138,42 @@ _detect_os() {
     esac
 }
 
+_ask_sudo() {
+    if [ "$_SUDO_APPROVED" = "yes" ]; then return 0; fi
+    if [ "$_SUDO_APPROVED" = "no" ]; then return 1; fi
+
+    echo ""
+    _info "Algunos módulos requieren instalar paquetes del sistema con ${_YL}sudo${_NC}."
+    printf "  ${_WH}¿Permitir instalación con sudo? [S/n]:${_NC} "
+    local answer
+    read -er answer
+    case "${answer,,}" in
+        n|no)
+            _SUDO_APPROVED="no"
+            _warn "Se omitirá la instalación de paquetes del sistema."
+            _warn "Los paquetes necesarios se mostrarán para instalación manual."
+            return 1
+            ;;
+        *)
+            _SUDO_APPROVED="yes"
+            return 0
+            ;;
+    esac
+}
+
 _sys_install() {
     local packages=("$@")
     if [ ${#packages[@]} -eq 0 ]; then return 0; fi
+
+    if [ "$_PKG_MANAGER" = "brew" ]; then
+        brew install "${packages[@]}" >/dev/null 2>&1
+        return $?
+    fi
+
+    if ! _ask_sudo; then
+        _warn "Instala manualmente: ${_CY}${packages[*]}${_NC}"
+        return 1
+    fi
 
     case "$_PKG_MANAGER" in
         apt)
@@ -150,9 +184,6 @@ _sys_install() {
             ;;
         pacman)
             sudo pacman -S --noconfirm --needed "${packages[@]}" >/dev/null 2>&1
-            ;;
-        brew)
-            brew install "${packages[@]}" >/dev/null 2>&1
             ;;
         *)
             _warn "Gestor de paquetes no detectado — instala manualmente: ${packages[*]}"
