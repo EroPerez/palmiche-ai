@@ -104,11 +104,190 @@ _run_with_spinner() {
     return $exit_code
 }
 
+# ─── Detección del sistema operativo ─────────────────────────────────────────
+_OS=""
+_PKG_MANAGER=""
+_SUDO_APPROVED=""
+
+_detect_os() {
+    case "$(uname -s)" in
+        Linux*)
+            _OS="linux"
+            if command -v apt-get &>/dev/null; then
+                _PKG_MANAGER="apt"
+            elif command -v dnf &>/dev/null; then
+                _PKG_MANAGER="dnf"
+            elif command -v pacman &>/dev/null; then
+                _PKG_MANAGER="pacman"
+            else
+                _PKG_MANAGER="unknown"
+            fi
+            ;;
+        Darwin*)
+            _OS="macos"
+            if command -v brew &>/dev/null; then
+                _PKG_MANAGER="brew"
+            else
+                _PKG_MANAGER="unknown"
+            fi
+            ;;
+        *)
+            _OS="unknown"
+            _PKG_MANAGER="unknown"
+            ;;
+    esac
+}
+
+_ask_sudo() {
+    if [ "$_SUDO_APPROVED" = "yes" ]; then return 0; fi
+    if [ "$_SUDO_APPROVED" = "no" ]; then return 1; fi
+
+    echo ""
+    _info "Algunos módulos requieren instalar paquetes del sistema con ${_YL}sudo${_NC}."
+    printf "  ${_WH}¿Permitir instalación con sudo? [S/n]:${_NC} "
+    local answer
+    read -er answer
+    case "${answer,,}" in
+        n|no)
+            _SUDO_APPROVED="no"
+            _warn "Se omitirá la instalación de paquetes del sistema."
+            _warn "Los paquetes necesarios se mostrarán para instalación manual."
+            return 1
+            ;;
+        *)
+            _SUDO_APPROVED="yes"
+            return 0
+            ;;
+    esac
+}
+
+_sys_install() {
+    local packages=("$@")
+    if [ ${#packages[@]} -eq 0 ]; then return 0; fi
+
+    if [ "$_PKG_MANAGER" = "brew" ]; then
+        brew install "${packages[@]}" >/dev/null 2>&1
+        return $?
+    fi
+
+    if ! _ask_sudo; then
+        _warn "Instala manualmente: ${_CY}${packages[*]}${_NC}"
+        return 1
+    fi
+
+    case "$_PKG_MANAGER" in
+        apt)
+            sudo apt-get install -y -qq "${packages[@]}" >/dev/null 2>&1
+            ;;
+        dnf)
+            sudo dnf install -y -q "${packages[@]}" >/dev/null 2>&1
+            ;;
+        pacman)
+            sudo pacman -S --noconfirm --needed "${packages[@]}" >/dev/null 2>&1
+            ;;
+        *)
+            _warn "Gestor de paquetes no detectado — instala manualmente: ${packages[*]}"
+            return 1
+            ;;
+    esac
+}
+
+_install_sys_deps() {
+    local group="$1"
+    case "$group" in
+        voice)
+            case "$_OS" in
+                linux)
+                    case "$_PKG_MANAGER" in
+                        apt)    _run_with_spinner "Deps sistema (voz)" _sys_install python3-dev portaudio19-dev mpg123 ;;
+                        dnf)    _run_with_spinner "Deps sistema (voz)" _sys_install python3-devel portaudio-devel mpg123 ;;
+                        pacman) _run_with_spinner "Deps sistema (voz)" _sys_install portaudio mpg123 ;;
+                        *)      _warn "Instala manualmente: portaudio, mpg123" ;;
+                    esac
+                    ;;
+                macos)
+                    _run_with_spinner "Deps sistema (voz)" _sys_install portaudio
+                    ;;
+            esac
+            ;;
+        tray)
+            case "$_OS" in
+                linux)
+                    case "$_PKG_MANAGER" in
+                        apt)    _run_with_spinner "Deps sistema (bandeja)" _sys_install \
+                                    libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+                                    libxcb-keysyms1 libxcb-render-util0 ;;
+                        dnf)    _run_with_spinner "Deps sistema (bandeja)" _sys_install \
+                                    xcb-util-cursor xcb-util-icccm xcb-util-image \
+                                    xcb-util-keysyms xcb-util-renderutil ;;
+                        pacman) _run_with_spinner "Deps sistema (bandeja)" _sys_install \
+                                    xcb-util-cursor xcb-util-image xcb-util-keysyms \
+                                    xcb-util-renderutil ;;
+                    esac
+                    ;;
+            esac
+            ;;
+        computer-use)
+            case "$_OS" in
+                linux)
+                    case "$_PKG_MANAGER" in
+                        apt)    _run_with_spinner "Deps sistema (computer-use)" _sys_install \
+                                    libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+                                    libcups2 libxcomposite1 libxdamage1 libxfixes3 \
+                                    libxrandr2 libgbm1 libxkbcommon0 libpango-1.0-0 \
+                                    libcairo2 libasound2 ;;
+                        dnf)    _run_with_spinner "Deps sistema (computer-use)" _sys_install \
+                                    nss atk at-spi2-atk cups-libs libXcomposite \
+                                    libXdamage libXfixes libXrandr mesa-libgbm \
+                                    libxkbcommon pango cairo alsa-lib ;;
+                        pacman) _run_with_spinner "Deps sistema (computer-use)" _sys_install \
+                                    nss atk at-spi2-atk libcups libxcomposite \
+                                    libxdamage libxfixes libxrandr mesa libxkbcommon \
+                                    pango cairo alsa-lib ;;
+                    esac
+                    ;;
+            esac
+            ;;
+        assets)
+            case "$_OS" in
+                linux)
+                    case "$_PKG_MANAGER" in
+                        apt)    _run_with_spinner "Deps sistema (assets)" _sys_install ffmpeg ;;
+                        dnf)    _run_with_spinner "Deps sistema (assets)" _sys_install ffmpeg-free ;;
+                        pacman) _run_with_spinner "Deps sistema (assets)" _sys_install ffmpeg ;;
+                    esac
+                    ;;
+                macos)
+                    _run_with_spinner "Deps sistema (assets)" _sys_install ffmpeg
+                    ;;
+            esac
+            ;;
+        tools)
+            case "$_OS" in
+                linux)
+                    case "$_PKG_MANAGER" in
+                        apt)    _run_with_spinner "Deps sistema (herramientas)" _sys_install \
+                                    playerctl scrot brightnessctl libnotify-bin ;;
+                        dnf)    _run_with_spinner "Deps sistema (herramientas)" _sys_install \
+                                    playerctl scrot brightnessctl libnotify ;;
+                        pacman) _run_with_spinner "Deps sistema (herramientas)" _sys_install \
+                                    playerctl scrot brightnessctl libnotify ;;
+                    esac
+                    ;;
+            esac
+            ;;
+    esac
+    return 0
+}
+
 # ─── Verificaciones de sistema ────────────────────────────────────────────────
 _check_system() {
     echo ""
     _info "Verificando requisitos del sistema..."
     echo ""
+
+    _detect_os
+    _ok "Sistema: $_OS ($_PKG_MANAGER)"
 
     # Python 3.10+
     if ! command -v python3 &>/dev/null; then
@@ -165,12 +344,14 @@ _install_group() {
             _pip_install "Núcleo (anthropic, rich, psutil…)" -r requirements.txt
             ;;
         voice)
+            _install_sys_deps voice || true
             _pip_install "Reconocimiento de voz (SpeechRecognition)" SpeechRecognition pyttsx3 gtts
             if ! _pip_install "Audio (pyaudio)" pyaudio; then
-                _warn "Requiere: sudo apt install portaudio19-dev python3-pyaudio"
+                _warn "pyaudio falló — verifica que las dependencias del sistema estén instaladas"
             fi
             ;;
         tray)
+            _install_sys_deps tray || true
             _pip_install "GUI / Bandeja (PyQt6)" PyQt6 "PyQt6-Qt6-Multimedia" Pillow
             ;;
         adk)
@@ -191,6 +372,7 @@ _install_group() {
             _pip_install "Soporte MCP (Model Context Protocol)" mcp
             ;;
         computer-use)
+            _install_sys_deps computer-use || true
             _pip_install "Computer Use (google-genai)" google-genai
             _pip_install "Computer Use (playwright)" playwright
             _pip_install "Computer Use (pyautogui + mss)" pyautogui Pillow mss
@@ -198,11 +380,15 @@ _install_group() {
             if python3 -m playwright install chromium >/dev/null 2>&1; then
                 _ok "Chromium instalado"
             else
-                _warn "playwright install chromium falló — puede requerir: sudo apt install libnss3 libatk1.0-0"
+                _warn "playwright install chromium falló — verifica las dependencias del sistema"
             fi
             ;;
         assets)
+            _install_sys_deps assets || true
             _pip_install "Extractor de assets (yt-dlp)" yt-dlp
+            ;;
+        tools)
+            _install_sys_deps tools || true
             ;;
     esac
 }
@@ -292,6 +478,7 @@ _print_module_menu() {
     echo "  ${_BG}[7]${_NC}  Soporte MCP              ${_DIM}mcp (Model Context Protocol)${_NC}"
     echo "  ${_BG}[8]${_NC}  Computer Use ★           ${_DIM}google-genai, playwright, pyautogui${_NC}"
     echo "  ${_BG}[9]${_NC}  Extractor de assets      ${_DIM}yt-dlp (icono y audio de bienvenida)${_NC}"
+    echo "  ${_BG}[10]${_NC} Herramientas del sistema  ${_DIM}playerctl, scrot, brightnessctl, libnotify${_NC}"
     echo ""
     _hr
     echo ""
@@ -344,6 +531,7 @@ main() {
         1)
             _print_center "Instalando todos los módulos…" "$_CY"
             echo ""
+            _install_sys_deps tools || true
             local all_groups=(voice tray adk gemini a2a mcp "computer-use" assets)
             _progress_sequence "${all_groups[@]}"
             ;;
@@ -367,6 +555,7 @@ main() {
                     7) selected_groups+=(mcp) ;;
                     8) selected_groups+=("computer-use") ;;
                     9) selected_groups+=(assets) ;;
+                    10) selected_groups+=(tools) ;;
                     *) _warn "Opción '$sel' ignorada" ;;
                 esac
             done
