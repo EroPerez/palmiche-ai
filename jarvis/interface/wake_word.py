@@ -367,10 +367,18 @@ class WakeWordListener:
                     logger.debug("Escuchado: %s", text)
                     if self.wake_word in text:
                         logger.info("¡Wake word detectada! '%s'", self.wake_word)
-                        if self.welcome_audio and os.path.isfile(self.welcome_audio):
-                            _play_audio_file_async(self.welcome_audio)
-                        elif self.response_text:
-                            _speak_async(self.response_text)
+                        try:
+                            from .audio_engine import get_engine
+                            engine = get_engine(lang=self.language[:2])
+                            if self.welcome_audio and os.path.isfile(self.welcome_audio):
+                                engine.play_file(self.welcome_audio)
+                            elif self.response_text:
+                                engine.speak(self.response_text)
+                        except Exception:
+                            if self.welcome_audio and os.path.isfile(self.welcome_audio):
+                                _play_audio_file_async(self.welcome_audio)
+                            elif self.response_text:
+                                _speak_async(self.response_text)
                         if self.on_wake:
                             self.on_wake()
                         if self.on_command:

@@ -24,10 +24,16 @@ def listen() -> Optional[str]:
         return None
 
 
-def speak(text: str):
-    """Convert text to speech. Silently skipped if dependencies missing."""
-    from .wake_word import _speak_sync
+def speak(text: str, block: bool = True):
+    """Convert text to speech via AudioEngine. Falls back to direct TTS."""
     try:
-        _speak_sync(text)
+        from .audio_engine import get_engine
+
+        engine = get_engine()
+        engine.speak(text, block=block)
     except Exception:
-        pass
+        from .wake_word import _speak_sync
+        try:
+            _speak_sync(text)
+        except Exception:
+            pass
