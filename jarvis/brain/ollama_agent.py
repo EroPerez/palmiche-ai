@@ -22,8 +22,8 @@ import requests
 
 from ..config import JARVIS_NAME, JARVIS_OLLAMA_HOST, JARVIS_OLLAMA_MODEL
 from ..memory.history import ConversationHistory
-from ..tools.registry import TOOL_DEFINITIONS, execute_tool
-from .prompts import SYSTEM_PROMPT
+from ..tools.registry import get_tool_definitions, execute_tool
+from .prompts import get_system_prompt
 
 # ---------------------------------------------------------------------------
 # Convert Anthropic-style schemas → Ollama/OpenAI function format
@@ -44,9 +44,6 @@ def _to_ollama_tools(definitions: list) -> list:
     ]
 
 
-_TOOLS = _to_ollama_tools(TOOL_DEFINITIONS)
-
-
 # ---------------------------------------------------------------------------
 # Agent
 # ---------------------------------------------------------------------------
@@ -54,13 +51,27 @@ _TOOLS = _to_ollama_tools(TOOL_DEFINITIONS)
 class JarvisOllamaAgent:
     """Jarvis agent running against a local Ollama instance."""
 
-    def __init__(self, name: str = JARVIS_NAME):
-        """Initialize agent, connect to Ollama, and verify the configured model is available."""
+    def __init__(self, name: str = JARVIS_NAME, registry=None):
+        """Initialize agent, connect to Ollama, and verify the configured model is available.
+
+        Args:
+            registry: Optional DynamicToolRegistry. When provided, its tools and
+                      executor are used instead of the static definitions, so
+                      A2A/MCP/custom tools are available to this backend too.
+        """
         self.history = ConversationHistory()
         self._host = JARVIS_OLLAMA_HOST.rstrip("/")
         self._model = JARVIS_OLLAMA_MODEL
-        self._system = SYSTEM_PROMPT.format(name=name)
+        self._system = get_system_prompt(name)
+        self._registry = registry
+        definitions = registry.definitions if registry is not None else get_tool_definitions()
+        self._tools = _to_ollama_tools(definitions)
         self._verify_connection()
+
+    def _execute_tool(self, name: str, inputs: dict) -> str:
+        if self._registry is not None:
+            return self._registry.execute(name, inputs)
+        return execute_tool(name, inputs)
 
     # ----------------------------------------------------------------- setup
 
@@ -110,7 +121,7 @@ class JarvisOllamaAgent:
                     json={
                         "model":   self._model,
                         "messages": messages,
-                        "tools":   _TOOLS,
+                        "tools":   self._tools,
                         "stream":  False,
                     },
                     timeout=120,
@@ -148,7 +159,7 @@ class JarvisOllamaAgent:
                 if not isinstance(raw_args, dict):
                     raw_args = {}
 
-                result = execute_tool(tool_name, raw_args)
+                result = self._execute_tool(tool_name, raw_args)
                 messages.append({"role": "tool", "content": result})
 
         err = "Se alcanzó el límite de iteraciones de herramientas."

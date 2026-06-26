@@ -19,8 +19,8 @@ from ..config import (
     JARVIS_MODEL,
     JARVIS_NAME,
 )
-from .adk_tools import ADK_TOOLS
-from .prompts import SYSTEM_PROMPT
+from .adk_tools import get_adk_tools
+from .prompts import get_system_prompt
 from ..memory.history import ConversationHistory
 
 
@@ -31,8 +31,14 @@ class JarvisADKAgent:
     use_gemini=True   → native Gemini API (GOOGLE_API_KEY required)
     """
 
-    def __init__(self, use_gemini: bool = False, name: str = JARVIS_NAME):
-        """Set up the ADK Runner with the appropriate model backend and a fresh session."""
+    def __init__(self, use_gemini: bool = False, name: str = JARVIS_NAME, registry=None):
+        """Set up the ADK Runner with the appropriate model backend and a fresh session.
+
+        Args:
+            registry: Optional DynamicToolRegistry. Its dynamically registered
+                      tools (A2A/MCP/custom) are synthesized into ADK callables
+                      so this backend can use them alongside the built-in tools.
+        """
         try:
             from google.adk.agents import Agent
             from google.adk.runners import Runner
@@ -72,11 +78,14 @@ class JarvisADKAgent:
                 ) from exc
             model = LiteLlm(model=f"anthropic/{JARVIS_MODEL}")
 
+        from .adk_dynamic import adk_tools_from_registry
+        tools = list(get_adk_tools()) + adk_tools_from_registry(registry)
+
         agent = Agent(
             name="jarvis",
             model=model,
-            instruction=SYSTEM_PROMPT.format(name=name),
-            tools=ADK_TOOLS,
+            instruction=get_system_prompt(name),
+            tools=tools,
         )
 
         self._session_service = InMemorySessionService()

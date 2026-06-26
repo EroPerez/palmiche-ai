@@ -947,6 +947,21 @@ TOOL_DEFINITIONS = [
 ]
 
 
+def get_tool_definitions(lang: str | None = None) -> list:
+    """Return the tool/skill definitions localized to *lang* ('en' or 'es').
+
+    The canonical ``TOOL_DEFINITIONS`` are Spanish; ``lang='en'`` overlays the
+    English text from ``translations``. When *lang* is None, the configured
+    ``JARVIS_TOOL_LANG`` is used. Anthropic and Ollama brains call this so their
+    skills can be presented in English for more reliable tool-calling.
+    """
+    from .translations import localize_definitions
+    if lang is None:
+        from ..config import JARVIS_TOOL_LANG
+        lang = JARVIS_TOOL_LANG
+    return localize_definitions(TOOL_DEFINITIONS, lang)
+
+
 DESTRUCTIVE_TOOLS = {
     # System power — irreversible state changes; may invoke sudo
     "power_action",

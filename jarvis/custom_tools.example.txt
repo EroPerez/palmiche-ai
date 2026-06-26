@@ -1,0 +1,36 @@
+# Herramientas personalizadas de Jarvis (texto plano) — EJEMPLO
+#
+# Copia este archivo a la ruta configurada en JARVIS_CUSTOM_TOOLS_FILE
+# (por defecto: ~/.jarvis_custom_tools.txt) y edítalo a tu gusto.
+# Cada bloque [tool: ...] define una herramienta que el agente verá en su
+# lista de tools, igual que las integradas. El comando se ejecuta en tu shell.
+#
+# Formato:
+#   [tool: nombre]            -> nombre válido: letras, números y _
+#   description: ...          -> obligatorio
+#   param nombre: ...         -> parámetro opcional (string)
+#   param *nombre: ...        -> el * lo hace obligatorio
+#   confirm: true|false       -> si true, pide confirmación antes de ejecutar
+#   command: ...              -> obligatorio; usa {nombre} para insertar params
+#
+# Los valores de los parámetros se "escapan" automáticamente, así que es
+# seguro pasarles texto con espacios o caracteres especiales.
+
+[tool: clima_casa]
+description: Muestra el clima actual en mi ciudad (La Habana)
+command: curl -s "wttr.in/Havana?format=3"
+
+[tool: ip_publica]
+description: Devuelve mi dirección IP pública actual
+command: curl -s https://api.ipify.org
+
+[tool: decir]
+description: Pronuncia un texto en voz alta (requiere espeak instalado)
+param *texto: El texto que se debe decir en voz alta
+confirm: true
+command: espeak {texto}
+
+[tool: nota_rapida]
+description: Añade una línea con marca de tiempo a mi archivo de notas rápidas
+param *texto: Contenido de la nota
+command: bash -c 'echo "$(date +%F\ %T) {texto}" >> ~/quick_notes.txt && echo guardado'

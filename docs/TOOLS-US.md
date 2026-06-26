@@ -23,6 +23,7 @@ Complete reference for the **59 available tools**, with conversational usage exa
 15. [Developer](#15-developer)
 16. [System — power and autostart](#16-system--power-and-autostart)
 17. [Computer Use ★](#17-computer-use-)
+18. [External tools (MCP and A2A agents)](#18-external-tools-mcp-and-a2a-agents)
 
 ---
 
@@ -1286,9 +1287,106 @@ The `computer_use_task` tool always uses `google-genai` directly with `GOOGLE_AP
 
 ---
 
+## 18. External tools (MCP and A2A agents)
+
+The 59 built-in tools are just the starting point. Jarvis can connect to **external MCP servers** and inject their tools dynamically, as well as delegate tasks to **remote A2A agents**. The model sees all these tools exactly like the built-in ones.
+
+> Full guide with step-by-step examples: **[MCP-AGENTS-US.md](MCP-AGENTS-US.md)**
+
+---
+
+### External MCP tools (`mcp_*`)
+
+When you connect an MCP server, all its tools are registered with the `mcp_` prefix.
+
+**Enable:**
+
+```bash
+# stdio transport (local process — most common)
+python -m jarvis --connect-mcp "npx -y @modelcontextprotocol/server-filesystem ~/projects"
+
+# SSE/HTTP transport (server already running)
+python -m jarvis --connect-mcp "http://localhost:3000"
+
+# In .env (persistent, separated by ;)
+JARVIS_MCP_SERVERS=npx -y @modelcontextprotocol/server-filesystem ~/projects;http://my-server:3000
+```
+
+**Example tools registered after connecting the MCP Filesystem server:**
+
+| Tool in Jarvis | Description |
+|---|---|
+| `mcp_read_file` | Read file contents (via MCP) |
+| `mcp_write_file` | Write content to a file (via MCP) |
+| `mcp_list_directory` | List directory contents (via MCP) |
+| `mcp_search_files` | Search files by pattern (via MCP) |
+| `mcp_create_directory` | Create a directory (via MCP) |
+| `mcp_get_file_info` | Return file metadata (via MCP) |
+
+**Example usage in chat:**
+
+```
+You: Read the file ~/projects/main.py and explain what it does
+Jarvis: [uses mcp_read_file] The file contains a class...
+```
+
+**FAQ:**
+
+**Do I need the `mcp` package?**
+Yes. Install with `pip install 'palmiche-jarvis[mcp]'`.
+
+**Which MCP servers can I use?**
+Any server compatible with the MCP protocol: official `@modelcontextprotocol` servers (filesystem, GitHub, SQLite, Brave Search, etc.), community servers, or custom ones.
+
+**How many servers can I connect simultaneously?**
+No technical limit. Each server can contribute multiple tools.
+
+**Do MCP tools persist between sessions?**
+No; they are discovered on each Jarvis startup by connecting to the server.
+
+---
+
+### Remote A2A agents (`delegate_to_*`)
+
+When you connect an A2A agent, it is registered as a tool with the `delegate_to_` prefix followed by the agent name.
+
+**Enable:**
+
+```bash
+# Via flag (repeatable)
+python -m jarvis --connect-a2a http://specialized-agent:8080
+
+# In .env (persistent, comma-separated)
+JARVIS_A2A_AGENTS=http://agent1:8080,http://agent2:9090
+```
+
+**Registered tool:**
+
+| Tool in Jarvis | Parameter | Description |
+|---|---|---|
+| `delegate_to_<name>` | `message: str` | Delegates the task to the remote agent and returns its response |
+
+**Example:**
+
+```
+You: Analyze this code and tell me if there are any bugs
+Jarvis: [uses delegate_to_analyst("Analyze this code...")] 
+        The analyst found 2 potential issues...
+```
+
+**FAQ:**
+
+**Which agents are A2A-compatible?**
+Any agent that implements Google's A2A protocol (JSON-RPC 2.0 over HTTP). Another Jarvis instance with `--serve-a2a` is also compatible.
+
+**Can I combine MCP and A2A in the same session?**
+Yes; the model has access to all tools and decides which ones to use based on the context of each request.
+
+---
+
 ## Adding new tools
 
-To contribute a new tool:
+To contribute a new built-in tool:
 
 1. Create a module in `jarvis/tools/module_name.py` with the functions
 2. Register the tool in `jarvis/tools/registry.py`:

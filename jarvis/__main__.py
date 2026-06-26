@@ -130,8 +130,15 @@ Ejemplos:
 
 
 def _build_dynamic_registry(a2a_urls: list[str], mcp_specs: list[str]):
-    """Build a DynamicToolRegistry if any remote tools are configured, else return None."""
-    if not a2a_urls and not mcp_specs:
+    """Build a DynamicToolRegistry if any extra tools are configured, else return None.
+
+    Extra tools come from A2A agents, MCP servers, and the user's plain-text
+    custom tools file (JARVIS_CUSTOM_TOOLS_FILE).
+    """
+    from .config import JARVIS_CUSTOM_TOOLS_FILE
+
+    has_custom_file = JARVIS_CUSTOM_TOOLS_FILE.is_file()
+    if not a2a_urls and not mcp_specs and not has_custom_file:
         return None
 
     from .tools.dynamic import DynamicToolRegistry
@@ -152,6 +159,16 @@ def _build_dynamic_registry(a2a_urls: list[str], mcp_specs: list[str]):
             print(f"  [MCP] Servidor conectado: {spec} → {len(names)} herramienta(s)")
             loaded_count += len(names)
 
+    if has_custom_file:
+        from .tools.custom import load_custom_tools
+        names = load_custom_tools(registry)
+        if names:
+            print(
+                f"  [tools] Herramientas personalizadas cargadas desde "
+                f"{JARVIS_CUSTOM_TOOLS_FILE}: {', '.join(names)}"
+            )
+            loaded_count += len(names)
+
     if loaded_count:
         print(f"  Herramientas dinámicas cargadas: {loaded_count} adicional(es)")
 
@@ -165,24 +182,25 @@ def _build_agent(backend: str, name: str, registry=None):
     ANTHROPIC_API_KEY is not, making it easy to run without Anthropic credentials.
 
     Args:
-        registry: Optional DynamicToolRegistry with remote tools (A2A/MCP clients).
-                  Only supported by the 'anthropic' backend currently.
+        registry: Optional DynamicToolRegistry with extra tools (A2A/MCP/custom).
+                  Supported by all backends — each brain injects the dynamic tools
+                  into its own tool surface.
     """
     backend = backend.strip().lower()
 
     if backend == "ollama":
         from .brain.ollama_agent import JarvisOllamaAgent
-        return JarvisOllamaAgent(name=name)
+        return JarvisOllamaAgent(name=name, registry=registry)
 
     if backend == "gemini":
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=True, name=name)
+        return JarvisADKAgent(use_gemini=True, name=name, registry=registry)
 
     if backend == "adk":
         from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY
         use_gemini = bool(GOOGLE_API_KEY) and not bool(ANTHROPIC_API_KEY)
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=use_gemini, name=name)
+        return JarvisADKAgent(use_gemini=use_gemini, name=name, registry=registry)
 
     if backend == "anthropic":
         from .brain.agent import JarvisAgent

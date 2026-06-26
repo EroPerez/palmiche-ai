@@ -40,12 +40,12 @@ def run_mcp_server(registry=None) -> None:
         )
         sys.exit(1)
 
-    from ..tools.registry import TOOL_DEFINITIONS, execute_tool
+    from ..tools.registry import get_tool_definitions, execute_tool
 
     app = Server("palmiche-jarvis")
 
     def _get_definitions() -> list[dict]:
-        return registry.definitions if registry is not None else TOOL_DEFINITIONS
+        return registry.definitions if registry is not None else get_tool_definitions()
 
     def _execute(name: str, inputs: dict) -> str:
         if registry is not None:
