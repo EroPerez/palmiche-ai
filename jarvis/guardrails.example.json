@@ -1,0 +1,50 @@
+{
+  "rules": [
+    {
+      "id": "input-prompt-injection",
+      "name": "Prompt injection detection",
+      "description": "Override the default to add custom patterns or disable entirely.",
+      "phase": "input",
+      "action": "block",
+      "enabled": true,
+      "priority": 20,
+      "patterns": [
+        "(?i)ignore\\s+(all\\s+)?(previous|prior|above)\\s+(instructions?|prompts?|rules?)",
+        "(?i)you\\s+are\\s+now\\s+(DAN|jailbr[eo]aken|unrestricted|unfiltered)",
+        "(?i)disregard\\s+(all\\s+)?(your\\s+)?(instructions?|guidelines?|rules?|programming)",
+        "(?i)override\\s+(your\\s+)?(safety|system|core)\\s*(prompt|instructions?|rules?)",
+        "(?i)pretend\\s+(you\\s+)?(are|have)\\s+no\\s+(restrictions?|rules?|limits?|guidelines?)",
+        "(?i)enter\\s+(developer|god|admin|sudo|root)\\s*mode"
+      ],
+      "message": "The message appears to contain a prompt injection attempt."
+    },
+    {
+      "id": "custom-blocked-topics",
+      "name": "Topic blocker",
+      "description": "Example: block requests about specific sensitive topics.",
+      "phase": "input",
+      "action": "block",
+      "enabled": false,
+      "priority": 30,
+      "keywords": ["topic-to-block"],
+      "message": "This topic is not allowed."
+    },
+    {
+      "id": "custom-tool-allowlist",
+      "name": "Tool allowlist",
+      "description": "Example: only allow specific tools. Enable and edit the allowed_tools list.",
+      "phase": "tool_call",
+      "action": "block",
+      "enabled": false,
+      "priority": 5,
+      "allowed_tools": [
+        "get_system_info",
+        "get_battery_info",
+        "get_weather",
+        "calculate",
+        "text_stats"
+      ],
+      "message": "This tool is not in the allowed list."
+    }
+  ]
+}

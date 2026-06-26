@@ -121,6 +121,15 @@ JARVIS_LOG_ENABLED: bool = os.getenv("JARVIS_LOG_ENABLED", "true").lower() == "t
 JARVIS_SUDO_PASSWORD: str = os.getenv("JARVIS_SUDO_PASSWORD", "")
 
 # ---------------------------------------------------------------------------
+# Guardrails
+# ---------------------------------------------------------------------------
+
+JARVIS_GUARDRAILS_FILE: Path = Path(
+    os.getenv("JARVIS_GUARDRAILS_FILE", "~/.jarvis_guardrails.json")
+).expanduser()
+JARVIS_GUARDRAILS_ENABLED: bool = os.getenv("JARVIS_GUARDRAILS_ENABLED", "true").lower() == "true"
+
+# ---------------------------------------------------------------------------
 # Computer Use — Gemini-powered visual browser/desktop automation
 # ---------------------------------------------------------------------------
 

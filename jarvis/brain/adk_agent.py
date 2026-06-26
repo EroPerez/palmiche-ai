@@ -16,6 +16,7 @@ from ..config import (
     ANTHROPIC_API_KEY,
     GOOGLE_API_KEY,
     JARVIS_GEMINI_MODEL,
+    JARVIS_GUARDRAILS_ENABLED,
     JARVIS_MODEL,
     JARVIS_NAME,
 )
@@ -53,6 +54,10 @@ class JarvisADKAgent:
         self.history = ConversationHistory()
         self._session_id = str(uuid.uuid4())
         self._use_gemini = use_gemini
+        self._guardrails = None
+        if JARVIS_GUARDRAILS_ENABLED:
+            from ..guardrails import GuardrailsEngine
+            self._guardrails = GuardrailsEngine.from_config()
 
         if use_gemini:
             if not GOOGLE_API_KEY:
@@ -109,7 +114,21 @@ class JarvisADKAgent:
 
     def chat(self, user_message: str) -> str:
         """Send a message and return the agent's response (blocks until complete)."""
-        return asyncio.run(self._chat_async(user_message))
+        if self._guardrails:
+            input_verdict = self._guardrails.check_input(user_message)
+            if input_verdict.blocked:
+                return input_verdict.message
+
+        result = asyncio.run(self._chat_async(user_message))
+
+        if self._guardrails:
+            output_verdict = self._guardrails.check_output(result)
+            if output_verdict.blocked:
+                return output_verdict.message
+            if output_verdict.transformed_text is not None:
+                result = output_verdict.transformed_text
+
+        return result
 
     async def _chat_async(self, user_message: str) -> str:
         """Async implementation: stream ADK events and collect the final text response."""
