@@ -267,11 +267,14 @@ _install_sys_deps() {
                 linux)
                     case "$_PKG_MANAGER" in
                         apt)    _run_with_spinner "Deps sistema (herramientas): " _sys_install \
-                                    playerctl scrot brightnessctl libnotify-bin ;;
+                                    playerctl scrot brightnessctl libnotify-bin \
+                                    xclip xsel wl-clipboard ;;
                         dnf)    _run_with_spinner "Deps sistema (herramientas): " _sys_install \
-                                    playerctl scrot brightnessctl libnotify ;;
+                                    playerctl scrot brightnessctl libnotify \
+                                    xclip xsel wl-clipboard ;;
                         pacman) _run_with_spinner "Deps sistema (herramientas): " _sys_install \
-                                    playerctl scrot brightnessctl libnotify ;;
+                                    playerctl scrot brightnessctl libnotify \
+                                    xclip xsel wl-clipboard ;;
                     esac
                     ;;
             esac
