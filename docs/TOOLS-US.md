@@ -843,7 +843,7 @@ It's shown when creating it with `set_timer` or `set_alarm`, and also appears in
 
 Safely evaluates math expressions using Python's `ast` module (no direct `eval`). Cannot execute arbitrary code.
 
-**Operators:** `+` `-` `*` `/` `**` (power) `%` `//` (integer division)
+**Operators:** `\+` `\-` `*` `/` `**` (power) `%` `//` (integer division)
 **Functions:** `sqrt` `cbrt` `sin` `cos` `tan` `asin` `acos` `atan` `atan2` `log` `log2` `log10` `exp` `abs` `round` `floor` `ceil` `factorial` `gcd` `hypot` `degrees` `radians` `min` `max`
 **Constants:** `pi` `e` `tau` `inf`
 **Aliases:** `×` → `*` · `÷` → `/` · `^` → `**`

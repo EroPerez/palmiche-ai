@@ -843,7 +843,7 @@ Se muestra al crearlo con `set_timer` o `set_alarm`, y también aparece en `list
 
 Evalúa expresiones matemáticas de forma segura usando el módulo `ast` de Python (sin `eval` directo). No puede ejecutar código arbitrario.
 
-**Operadores:** `+` `-` `*` `/` `**` (potencia) `%` `//` (división entera)
+**Operadores:** `\+` `\-` `*` `/` `**` (potencia) `%` `//` (división entera)
 **Funciones:** `sqrt` `cbrt` `sin` `cos` `tan` `asin` `acos` `atan` `atan2` `log` `log2` `log10` `exp` `abs` `round` `floor` `ceil` `factorial` `gcd` `hypot` `degrees` `radians` `min` `max`
 **Constantes:** `pi` `e` `tau` `inf`
 **Alias:** `×` → `*` · `÷` → `/` · `^` → `**`
