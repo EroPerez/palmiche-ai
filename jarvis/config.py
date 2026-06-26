@@ -50,6 +50,13 @@ def _get_lang(name: str, default: str) -> str:
     return value if value in ("en", "es") else default
 
 JARVIS_TOOL_LANG: str = _get_lang("JARVIS_TOOL_LANG", "en")
+
+# Plain-text file where the user can define their own tools/skills (no Python).
+# Each tool maps a name + description + parameters to a shell command template.
+# See jarvis/tools/custom.py for the format. Missing file → no custom tools.
+JARVIS_CUSTOM_TOOLS_FILE: Path = Path(
+    os.getenv("JARVIS_CUSTOM_TOOLS_FILE", "~/.jarvis_custom_tools.txt")
+).expanduser()
 JARVIS_WAKE_WORD: str = os.getenv("JARVIS_WAKE_WORD", "palmiche")
 JARVIS_OLLAMA_HOST: str = os.getenv("JARVIS_OLLAMA_HOST", "http://localhost:11434")
 JARVIS_OLLAMA_MODEL: str = os.getenv("JARVIS_OLLAMA_MODEL", "llama3.2")

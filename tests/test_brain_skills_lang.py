@@ -97,6 +97,39 @@ def test_system_prompt_both_languages():
     assert es != en
 
 
+def test_system_prompt_covers_all_tool_categories():
+    """Both prompts must mention every tool category (guards against drift)."""
+    es = get_system_prompt("Palmiche", "es")
+    en = get_system_prompt("Palmiche", "en")
+
+    # Keyword that must appear in each prompt for every capability group.
+    required = [
+        ("Sistema", "System"),
+        ("Aplicaciones", "Applications"),
+        ("Archivos", "Files"),
+        ("RSS", "RSS"),                       # fetch_webpage / get_rss_feed
+        ("Portapapeles", "Clipboard"),
+        ("Notificaciones", "Notifications"),
+        ("Shell", "Shell"),
+        ("Red", "Network"),
+        ("Medios", "Media"),
+        ("Capturas", "Screenshots"),
+        ("Calendario", "Calendar"),
+        ("Clima", "Weather"),                 # get_weather / get_forecast
+        ("Notas", "Notes"),                   # *_note tools
+        ("Temporizadores", "Timers"),         # timers / alarms
+        ("Calculadora", "Calculator"),        # calculate / convert_units
+        ("Texto", "Text"),                    # text_stats / text_transform
+        ("Desarrollo", "Development"),
+        ("Computer Use", "Computer Use"),     # computer_use_task
+        ("personalizadas", "Custom tools"),   # plain-text custom tools
+    ]
+    missing_es = [es_kw for es_kw, _ in required if es_kw not in es]
+    missing_en = [en_kw for _, en_kw in required if en_kw not in en]
+    assert not missing_es, f"Spanish prompt missing categories: {missing_es}"
+    assert not missing_en, f"English prompt missing categories: {missing_en}"
+
+
 def test_ollama_brain_tool_conversion():
     """The Ollama brain converts the localized skills into OpenAI function format."""
     from jarvis.brain.ollama_agent import _to_ollama_tools

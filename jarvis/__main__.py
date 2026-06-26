@@ -130,8 +130,15 @@ Ejemplos:
 
 
 def _build_dynamic_registry(a2a_urls: list[str], mcp_specs: list[str]):
-    """Build a DynamicToolRegistry if any remote tools are configured, else return None."""
-    if not a2a_urls and not mcp_specs:
+    """Build a DynamicToolRegistry if any extra tools are configured, else return None.
+
+    Extra tools come from A2A agents, MCP servers, and the user's plain-text
+    custom tools file (JARVIS_CUSTOM_TOOLS_FILE).
+    """
+    from .config import JARVIS_CUSTOM_TOOLS_FILE
+
+    has_custom_file = JARVIS_CUSTOM_TOOLS_FILE.is_file()
+    if not a2a_urls and not mcp_specs and not has_custom_file:
         return None
 
     from .tools.dynamic import DynamicToolRegistry
@@ -150,6 +157,16 @@ def _build_dynamic_registry(a2a_urls: list[str], mcp_specs: list[str]):
         names = load_mcp_server(registry, spec)
         if names:
             print(f"  [MCP] Servidor conectado: {spec} → {len(names)} herramienta(s)")
+            loaded_count += len(names)
+
+    if has_custom_file:
+        from .tools.custom import load_custom_tools
+        names = load_custom_tools(registry)
+        if names:
+            print(
+                f"  [tools] Herramientas personalizadas cargadas desde "
+                f"{JARVIS_CUSTOM_TOOLS_FILE}: {', '.join(names)}"
+            )
             loaded_count += len(names)
 
     if loaded_count:
