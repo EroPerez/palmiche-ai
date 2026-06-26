@@ -441,7 +441,7 @@ python -m jarvis --tray
 
 Jarvis can consume tools from **external MCP servers** and delegate tasks to **remote A2A agents**, extending its capabilities without limits.
 
-> Full step-by-step guide with concrete examples: **[MCP-AGENTS-US.md](MCP-AGENTS-US.md)**
+> Full step-by-step guide with concrete examples: **[MCP-AGENTS-US.md](docs/MCP-AGENTS-US.md)**
 
 ```bash
 # Connect to an external MCP server (filesystem, GitHub, DB, etc.)
@@ -469,7 +469,7 @@ JARVIS_A2A_AGENTS=http://agent1:8080,http://agent2:9090
 
 ## Available tools (59)
 
-> Complete guide with FAQ per tool: **[TOOLS.md](TOOLS.md)**
+> Complete guide with FAQ per tool: **[TOOLS.md](docs/TOOLS.md)**
 
 ### System
 

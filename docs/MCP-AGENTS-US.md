@@ -580,6 +580,6 @@ If two MCP servers expose a tool with the same name (e.g. `read_file`), both wil
 
 ## See also
 
-- [ARCHITECTURE-US.md](docs/ARCHITECTURE-US.md) — Full architecture, data flow and protocols
-- [README-US.md](README-US.md) — General installation and usage guide
+- [ARCHITECTURE-US.md](ARCHITECTURE-US.md) — Full architecture, data flow and protocols
+- [README-US.md](../README-US.md) — General installation and usage guide
 - [TOOLS-US.md](TOOLS-US.md) — Reference for the 59 built-in tools

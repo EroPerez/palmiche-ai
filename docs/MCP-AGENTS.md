@@ -580,6 +580,6 @@ Si dos servidores MCP exponen una herramienta con el mismo nombre (p. ej. `read_
 
 ## Ver también
 
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — Arquitectura completa, flujo de datos y protocolos
-- [README.md](README.md) — Guía general de instalación y uso
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Arquitectura completa, flujo de datos y protocolos
+- [README.md](../README.md) — Guía general de instalación y uso
 - [TOOLS.md](TOOLS.md) — Referencia de las 59 herramientas integradas
