@@ -22,8 +22,8 @@ import requests
 
 from ..config import JARVIS_NAME, JARVIS_OLLAMA_HOST, JARVIS_OLLAMA_MODEL
 from ..memory.history import ConversationHistory
-from ..tools.registry import TOOL_DEFINITIONS, execute_tool
-from .prompts import SYSTEM_PROMPT
+from ..tools.registry import get_tool_definitions, execute_tool
+from .prompts import get_system_prompt
 
 # ---------------------------------------------------------------------------
 # Convert Anthropic-style schemas → Ollama/OpenAI function format
@@ -44,9 +44,6 @@ def _to_ollama_tools(definitions: list) -> list:
     ]
 
 
-_TOOLS = _to_ollama_tools(TOOL_DEFINITIONS)
-
-
 # ---------------------------------------------------------------------------
 # Agent
 # ---------------------------------------------------------------------------
@@ -59,7 +56,8 @@ class JarvisOllamaAgent:
         self.history = ConversationHistory()
         self._host = JARVIS_OLLAMA_HOST.rstrip("/")
         self._model = JARVIS_OLLAMA_MODEL
-        self._system = SYSTEM_PROMPT.format(name=name)
+        self._system = get_system_prompt(name)
+        self._tools = _to_ollama_tools(get_tool_definitions())
         self._verify_connection()
 
     # ----------------------------------------------------------------- setup
@@ -110,7 +108,7 @@ class JarvisOllamaAgent:
                     json={
                         "model":   self._model,
                         "messages": messages,
-                        "tools":   _TOOLS,
+                        "tools":   self._tools,
                         "stream":  False,
                     },
                     timeout=120,

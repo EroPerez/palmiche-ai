@@ -19,8 +19,8 @@ from ..config import (
     JARVIS_MODEL,
     JARVIS_NAME,
 )
-from .adk_tools import ADK_TOOLS
-from .prompts import SYSTEM_PROMPT
+from .adk_tools import get_adk_tools
+from .prompts import get_system_prompt
 from ..memory.history import ConversationHistory
 
 
@@ -75,8 +75,8 @@ class JarvisADKAgent:
         agent = Agent(
             name="jarvis",
             model=model,
-            instruction=SYSTEM_PROMPT.format(name=name),
-            tools=ADK_TOOLS,
+            instruction=get_system_prompt(name),
+            tools=get_adk_tools(),
         )
 
         self._session_service = InMemorySessionService()

@@ -38,6 +38,25 @@ def _get_positive_int(name: str, default: int) -> int:
 
 MAX_HISTORY: int = _get_positive_int("JARVIS_MAX_HISTORY", 50)
 JARVIS_BACKEND: str = os.getenv("JARVIS_BACKEND", "anthropic")
+
+# Language used for the tool/skill schemas and the internal system prompt that
+# every brain (anthropic, adk, gemini, ollama) sends to its model. "en" tends to
+# improve tool-calling reliability; "es" keeps the original Spanish. This only
+# affects what the model sees internally — the assistant still replies to the
+# user in the user's own language.
+def _get_lang(name: str, default: str) -> str:
+    """Read a language env var, accepting only 'en'/'es' and falling back to *default*."""
+    value = os.getenv(name, default).strip().lower()
+    return value if value in ("en", "es") else default
+
+JARVIS_TOOL_LANG: str = _get_lang("JARVIS_TOOL_LANG", "en")
+
+# Plain-text file where the user can define their own tools/skills (no Python).
+# Each tool maps a name + description + parameters to a shell command template.
+# See jarvis/tools/custom.py for the format. Missing file → no custom tools.
+JARVIS_CUSTOM_TOOLS_FILE: Path = Path(
+    os.getenv("JARVIS_CUSTOM_TOOLS_FILE", "~/.jarvis_custom_tools.txt")
+).expanduser()
 JARVIS_WAKE_WORD: str = os.getenv("JARVIS_WAKE_WORD", "palmiche")
 JARVIS_OLLAMA_HOST: str = os.getenv("JARVIS_OLLAMA_HOST", "http://localhost:11434")
 JARVIS_OLLAMA_MODEL: str = os.getenv("JARVIS_OLLAMA_MODEL", "llama3.2")
