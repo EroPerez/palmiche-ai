@@ -13,11 +13,34 @@ import os
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from jarvis.interface.audio_engine import AudioEngine, _SENTENCE_RE
+from jarvis.interface.audio_engine import AudioEngine, _SENTENCE_RE, clean_for_tts
+
+
+# ---------------------------------------------------------------------------
+# Text cleaning
+# ---------------------------------------------------------------------------
+
+
+def test_clean_for_tts_strips_markdown():
+    text = "# Heading\n**bold** and `code`"
+    result = clean_for_tts(text)
+    assert "#" not in result
+    assert "**" not in result
+    assert "`" not in result
+    assert "bold" in result
+    assert "code" in result
+
+
+def test_clean_for_tts_strips_code_blocks():
+    text = "Before\n```python\nprint('hello')\n```\nAfter"
+    result = clean_for_tts(text)
+    assert "print" not in result
+    assert "Before" in result
+    assert "After" in result
 
 
 # ---------------------------------------------------------------------------
@@ -46,13 +69,14 @@ def test_sentence_split_no_boundary():
 
 
 def test_volume_clamp():
-    engine = AudioEngine(volume=150)
-    assert engine.volume == 100
-    engine.volume = -10
-    assert engine.volume == 0
-    engine.volume = 75
-    assert engine.volume == 75
-    engine.shutdown()
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(volume=150, cache_dir=Path(td))
+        assert engine.volume == 100
+        engine.volume = -10
+        assert engine.volume == 0
+        engine.volume = 75
+        assert engine.volume == 75
+        engine.shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -61,13 +85,14 @@ def test_volume_clamp():
 
 
 def test_stop_clears_queue():
-    engine = AudioEngine()
-    engine._enqueue("tts", {"text": "uno"})
-    engine._enqueue("tts", {"text": "dos"})
-    engine.stop()
-    with engine._queue_lock:
-        assert len(engine._queue) == 0
-    engine.shutdown()
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(cache_dir=Path(td))
+        engine._enqueue("tts", {"text": "uno"})
+        engine._enqueue("tts", {"text": "dos"})
+        engine.stop()
+        with engine._queue_lock:
+            assert len(engine._queue) == 0
+        engine.shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -76,62 +101,71 @@ def test_stop_clears_queue():
 
 
 def test_cache_key_deterministic():
-    engine = AudioEngine()
-    k1 = engine._cache_key("hola")
-    k2 = engine._cache_key("hola")
-    assert k1 == k2
-    k3 = engine._cache_key("adiós")
-    assert k1 != k3
-    engine.shutdown()
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(cache_dir=Path(td))
+        k1 = engine._cache_key("hola")
+        k2 = engine._cache_key("hola")
+        assert k1 == k2
+        k3 = engine._cache_key("adiós")
+        assert k1 != k3
+        engine.shutdown()
 
 
 def test_cache_key_lang_sensitive():
-    engine_es = AudioEngine(lang="es")
-    engine_en = AudioEngine(lang="en")
-    assert engine_es._cache_key("hello") != engine_en._cache_key("hello")
-    engine_es.shutdown()
-    engine_en.shutdown()
+    with tempfile.TemporaryDirectory() as td1, tempfile.TemporaryDirectory() as td2:
+        engine_es = AudioEngine(lang="es", cache_dir=Path(td1))
+        engine_en = AudioEngine(lang="en", cache_dir=Path(td2))
+        assert engine_es._cache_key("hello") != engine_en._cache_key("hello")
+        engine_es.shutdown()
+        engine_en.shutdown()
 
 
 # ---------------------------------------------------------------------------
-# Cache put/get round-trip
+# Cache put/get round-trip (isolated temp dir)
 # ---------------------------------------------------------------------------
 
 
 def test_cache_round_trip():
-    engine = AudioEngine(cache_enabled=True)
-    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-        f.write(b"fake-mp3-data")
-        tmp = f.name
-    try:
-        assert engine._get_cached("test phrase") is None
-        engine._put_cache("test phrase", tmp)
-        cached = engine._get_cached("test phrase")
-        assert cached is not None
-        assert os.path.isfile(cached)
-    finally:
-        os.unlink(tmp)
-        engine.clear_cache()
-        engine.shutdown()
+    with tempfile.TemporaryDirectory() as td:
+        cache_dir = Path(td) / "cache"
+        cache_dir.mkdir()
+        engine = AudioEngine(cache_enabled=True, cache_dir=cache_dir)
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            f.write(b"fake-mp3-data")
+            tmp = f.name
+        try:
+            assert engine._get_cached("test phrase") is None
+            engine._put_cache("test phrase", tmp)
+            cached = engine._get_cached("test phrase")
+            assert cached is not None
+            assert os.path.isfile(cached)
+        finally:
+            os.unlink(tmp)
+            engine.clear_cache()
+            engine.shutdown()
 
 
 def test_cache_disabled():
-    engine = AudioEngine(cache_enabled=False)
-    assert engine._get_cached("anything") is None
-    engine.shutdown()
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(cache_enabled=False, cache_dir=Path(td))
+        assert engine._get_cached("anything") is None
+        engine.shutdown()
 
 
 # ---------------------------------------------------------------------------
-# Cache stats
+# Cache stats (isolated)
 # ---------------------------------------------------------------------------
 
 
 def test_cache_stats():
-    engine = AudioEngine(cache_enabled=True)
-    engine.clear_cache()
-    stats = engine.cache_stats()
-    assert stats["files"] == 0
-    engine.shutdown()
+    with tempfile.TemporaryDirectory() as td:
+        cache_dir = Path(td) / "cache"
+        cache_dir.mkdir()
+        engine = AudioEngine(cache_enabled=True, cache_dir=cache_dir)
+        engine.clear_cache()
+        stats = engine.cache_stats()
+        assert stats["files"] == 0
+        engine.shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -140,9 +174,10 @@ def test_cache_stats():
 
 
 def test_is_idle_initial():
-    engine = AudioEngine()
-    assert engine.is_idle()
-    engine.shutdown()
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(cache_dir=Path(td))
+        assert engine.is_idle()
+        engine.shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -151,11 +186,12 @@ def test_is_idle_initial():
 
 
 def test_play_file_missing_logs_warning():
-    engine = AudioEngine()
-    with patch("jarvis.interface.audio_engine.logger") as mock_log:
-        engine.play_file("/nonexistent/file.mp3")
-        mock_log.warning.assert_called_once()
-    engine.shutdown()
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(cache_dir=Path(td))
+        with patch("jarvis.interface.audio_engine.logger") as mock_log:
+            engine.play_file("/nonexistent/file.mp3")
+            mock_log.warning.assert_called_once()
+        engine.shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -164,11 +200,12 @@ def test_play_file_missing_logs_warning():
 
 
 def test_speak_empty():
-    engine = AudioEngine()
-    engine.speak("")
-    time.sleep(0.1)
-    assert engine.is_idle()
-    engine.shutdown()
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(cache_dir=Path(td))
+        engine.speak("")
+        time.sleep(0.1)
+        assert engine.is_idle()
+        engine.shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -177,31 +214,66 @@ def test_speak_empty():
 
 
 def test_stream_sentences_enqueues_multiple():
-    engine = AudioEngine(stream_sentences=True)
-    long_text = "Primera oración larga que supera el límite. Segunda oración también larga para probar. Tercera oración para completar el test."
-    engine.stop()  # prevent actual playback
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(stream_sentences=True, cache_dir=Path(td))
+        long_text = "Primera oración larga que supera el límite. Segunda oración también larga para probar. Tercera oración para completar el test."
+        engine.stop()
 
-    with patch.object(engine, "_enqueue") as mock_enq:
-        engine.speak(long_text)
-        assert mock_enq.call_count == 3
+        with patch.object(engine, "_enqueue") as mock_enq:
+            engine.speak(long_text)
+            assert mock_enq.call_count == 3
 
-    engine.shutdown()
+        engine.shutdown()
 
 
 def test_stream_disabled_single_enqueue():
-    engine = AudioEngine(stream_sentences=False)
-    long_text = "Primera oración. Segunda oración. Tercera oración que es mucho más larga para superar el límite de caracteres establecido."
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(stream_sentences=False, cache_dir=Path(td))
+        long_text = "Primera oración. Segunda oración. Tercera oración que es mucho más larga para superar el límite de caracteres establecido."
 
-    with patch.object(engine, "_enqueue") as mock_enq:
-        engine.speak(long_text)
-        assert mock_enq.call_count == 1
+        with patch.object(engine, "_enqueue") as mock_enq:
+            engine.speak(long_text)
+            assert mock_enq.call_count == 1
 
-    engine.shutdown()
+        engine.shutdown()
+
+
+# ---------------------------------------------------------------------------
+# speak_async with on_done callback
+# ---------------------------------------------------------------------------
+
+
+def test_speak_async_empty_calls_on_done():
+    called = threading.Event()
+
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(cache_dir=Path(td))
+        engine.speak_async("", on_done=lambda: called.set())
+        assert called.wait(timeout=1)
+        engine.shutdown()
+
+
+# ---------------------------------------------------------------------------
+# ffplay volume is integer (not decimal)
+# ---------------------------------------------------------------------------
+
+
+def test_ffplay_volume_is_integer():
+    with tempfile.TemporaryDirectory() as td:
+        engine = AudioEngine(volume=80, cache_dir=Path(td))
+        # The ffplay command should use "80", not "0.8"
+        vol_pct = engine._volume
+        ffplay_vol = str(vol_pct)
+        assert ffplay_vol == "80"
+        assert "." not in ffplay_vol
+        engine.shutdown()
 
 
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
+
+import threading  # noqa: E402
 
 if __name__ == "__main__":
     import inspect

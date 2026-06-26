@@ -1,76 +1,23 @@
 """Background wake-word listener.
 
 Continuously listens via the microphone and calls a callback when the
-configured wake word is heard.
+configured wake word is heard. Audio playback is delegated to AudioEngine.
 
 Requires: pip install SpeechRecognition pyaudio
 """
 import ctypes
 import logging
 import os
-import re
 import threading
 from typing import Callable, Optional
-
-# ---------------------------------------------------------------------------
-# Text preprocessing — strip markdown and emojis before TTS
-# ---------------------------------------------------------------------------
-_EMOJI_RE = re.compile(
-    "["
-    "\U0001F600-\U0001F64F"
-    "\U0001F300-\U0001F5FF"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F700-\U0001FAFF"
-    "\U00002702-\U000027B0"
-    "\U0001F1E0-\U0001F1FF"
-    "\U00002500-\U00002BEF"
-    "\U00002300-\U000023FF"
-    "]+",
-    flags=re.UNICODE,
-)
-
-
-def _clean_for_tts(text: str) -> str:
-    """Remove markdown syntax and emojis so TTS reads only natural prose."""
-    # Code blocks (must come before inline code)
-    text = re.sub(r"```[\s\S]*?```", "", text)
-    # Inline code
-    text = re.sub(r"`([^`]+)`", r"\1", text)
-    # Markdown links → keep label
-    text = re.sub(r"!\[[^\]]*\]\([^\)]+\)", "", text)
-    text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
-    # Bold / italic
-    text = re.sub(r"\*{1,3}([^*\n]+)\*{1,3}", r"\1", text)
-    text = re.sub(r"_{1,3}([^_\n]+)_{1,3}", r"\1", text)
-    # Headings
-    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
-    # Blockquotes and list markers
-    text = re.sub(r"^>\s*", "", text, flags=re.MULTILINE)
-    text = re.sub(r"^[\s]*[-*+]\s+", "", text, flags=re.MULTILINE)
-    text = re.sub(r"^[\s]*\d+\.\s+", "", text, flags=re.MULTILINE)
-    # Horizontal rules
-    text = re.sub(r"^[-*_]{3,}\s*$", "", text, flags=re.MULTILINE)
-    # Emojis
-    text = _EMOJI_RE.sub("", text)
-    # Collapse excess whitespace
-    text = re.sub(r"[ \t]{2,}", " ", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # ALSA error suppression — module-level reference prevents garbage collection.
-# Without this, the callback is freed after snd_lib_error_set_handler returns
-# and ALSA crashes Python with "TypeError: cannot build parameter of type 'self'".
 # ---------------------------------------------------------------------------
 _ALSA_HANDLER_TYPE = ctypes.CFUNCTYPE(
-    None,                # return type
-    ctypes.c_char_p,     # file
-    ctypes.c_int,        # line
-    ctypes.c_char_p,     # function
-    ctypes.c_int,        # err
-    ctypes.c_char_p,     # fmt  (variadic args after this are ignored)
+    None, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p,
 )
 
 
@@ -78,7 +25,7 @@ def _alsa_noop(filename, line, function, err, fmt):
     pass
 
 
-_ALSA_NOOP_HANDLER = _ALSA_HANDLER_TYPE(_alsa_noop)  # kept alive forever
+_ALSA_NOOP_HANDLER = _ALSA_HANDLER_TYPE(_alsa_noop)
 
 
 def _suppress_alsa_errors() -> None:
@@ -88,17 +35,11 @@ def _suppress_alsa_errors() -> None:
             _ALSA_NOOP_HANDLER
         )
     except OSError:
-        pass  # libasound not available (macOS, etc.)
+        pass
 
 
 def _audio_device_available() -> bool:
-    """Return True if at least one input audio device is available.
-
-    PortAudio aborts the process with a C assertion failure when no valid
-    input device exists.  This pre-check avoids that crash by probing via
-    the lower-level sounddevice/ctypes interface first.
-    """
-    # Strategy 1: use sounddevice (thin ctypes wrapper around PortAudio)
+    """Return True if at least one input audio device is available."""
     try:
         import sounddevice as sd
         devs = sd.query_devices()
@@ -109,7 +50,6 @@ def _audio_device_available() -> bool:
     except Exception:
         pass
 
-    # Strategy 2: check /proc/asound (Linux only — fast, no C code)
     try:
         cards = os.path.exists("/proc/asound/cards")
         if not cards:
@@ -119,7 +59,6 @@ def _audio_device_available() -> bool:
     except Exception:
         pass
 
-    # Strategy 3: try spawning arecord --list-devices
     try:
         import subprocess
         result = subprocess.run(
@@ -129,7 +68,6 @@ def _audio_device_available() -> bool:
     except Exception:
         pass
 
-    # Can't determine — assume available and let PyAudio try
     return True
 
 
@@ -145,119 +83,6 @@ def _open_microphone_quietly(mic):
         os.dup2(saved, 2)
         os.close(saved)
     return source
-
-
-def _play_audio_file_sync(path: str) -> None:
-    """Play an audio file synchronously via the first available system player."""
-    import subprocess
-
-    ext = os.path.splitext(path)[1].lower()
-    candidates = [
-        ["mpg123", "-q", path],
-        ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
-        ["cvlc", "--play-and-exit", "--quiet", path],
-    ]
-    if ext in (".wav", ".ogg"):
-        candidates += [["paplay", path], ["aplay", path]]
-    for cmd in candidates:
-        try:
-            if subprocess.run(cmd, capture_output=True).returncode == 0:
-                return
-        except FileNotFoundError:
-            continue
-
-
-def _play_audio_file_async(path: str, on_done=None) -> None:
-    """Play an audio file in a daemon thread."""
-    def _run():
-        try:
-            _play_audio_file_sync(path)
-        finally:
-            if on_done:
-                on_done()
-
-    threading.Thread(target=_run, daemon=True, name="jarvis-audio-play").start()
-
-
-def _speak_async(text: str, lang: str = "es", on_done=None) -> None:
-    """Speak *text* in a daemon thread using the best available TTS engine.
-
-    Quality tiers (tried in order):
-    1. gTTS — Google neural voice (internet required); played via mpg123/ffplay.
-    2. pyttsx3 — with Spanish voice selection and optimised rate/pitch.
-    3. espeak-ng — subprocess fallback with Spanish voice and quality flags.
-    4. macOS 'say' — native macOS TTS.
-    """
-    def _run():
-        try:
-            _speak_sync(text, lang)
-        finally:
-            if on_done:
-                on_done()
-
-    threading.Thread(target=_run, daemon=True, name="jarvis-tts").start()
-
-
-def _speak_sync(text: str, lang: str = "es") -> None:
-    """Speak *text* synchronously using the best available TTS engine."""
-    text = _clean_for_tts(text)
-    if not text:
-        return
-    # ── Tier 1: gTTS (best quality) ──────────────────────────────────────
-    try:
-        import os
-        import subprocess
-        import tempfile
-        from gtts import gTTS
-        tts = gTTS(text=text, lang=lang, slow=False)
-        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
-            tts.save(tmp.name)
-            mp3 = tmp.name
-        for player in (["mpg123", "-q", mp3], ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", mp3]):
-            try:
-                subprocess.run(player, check=True, capture_output=True)
-                break
-            except (FileNotFoundError, subprocess.CalledProcessError):
-                continue
-        os.unlink(mp3)
-        return
-    except Exception:
-        pass
-
-    # ── Tier 2: pyttsx3 with Spanish voice + quality settings ────────────
-    try:
-        import pyttsx3
-        engine = pyttsx3.init()
-        voices = engine.getProperty("voices") or []
-        for v in voices:
-            vid = (v.id or "").lower()
-            vname = (v.name or "").lower()
-            if "es" in vid or "spanish" in vname or "español" in vname:
-                engine.setProperty("voice", v.id)
-                break
-        engine.setProperty("rate", 135)
-        engine.setProperty("volume", 1.0)
-        engine.say(text)
-        engine.runAndWait()
-        engine.stop()
-        return
-    except Exception:
-        pass
-
-    # ── Tier 3: espeak-ng / system TTS ───────────────────────────────────
-    import platform
-    import subprocess
-    system = platform.system()
-    try:
-        if system == "Linux":
-            subprocess.run(
-                ["espeak-ng", "-v", "es", "-s", "130", "-p", "40", "-a", "200", text],
-                check=False, capture_output=True,
-            )
-        elif system == "Darwin":
-            subprocess.run(["say", "-v", "Monica", text], check=False)
-    except FileNotFoundError:
-        pass
 
 
 class WakeWordListener:
@@ -280,15 +105,14 @@ class WakeWordListener:
         response_text: str = "Kewelta Compay",
         welcome_audio: str = "",
     ):
-        """Configure the wake word, callbacks, recognition language and audio response."""
         self.wake_word = wake_word.lower()
         self.on_wake = on_wake
-        self.on_command = on_command   # called with transcribed voice command text
+        self.on_command = on_command
         self.language = language
         self.response_text = response_text
-        self.welcome_audio = welcome_audio  # path to audio file (preferred over TTS)
+        self.welcome_audio = welcome_audio
         self._running = False
-        self._paused = False           # pause main loop during listen_once()
+        self._paused = False
         self._thread: Optional[threading.Thread] = None
 
     # ----------------------------------------------------------------- public
@@ -341,7 +165,6 @@ class WakeWordListener:
             logger.warning("No se pudo abrir el micrófono: %s", exc)
             return
 
-        # Initial noise calibration — suppress JACK stderr on first open
         try:
             source = _open_microphone_quietly(mic)
             try:
@@ -367,22 +190,16 @@ class WakeWordListener:
                     logger.debug("Escuchado: %s", text)
                     if self.wake_word in text:
                         logger.info("¡Wake word detectada! '%s'", self.wake_word)
-                        try:
-                            from .audio_engine import get_engine
-                            engine = get_engine(lang=self.language[:2])
-                            if self.welcome_audio and os.path.isfile(self.welcome_audio):
-                                engine.play_file(self.welcome_audio)
-                            elif self.response_text:
-                                engine.speak(self.response_text)
-                        except Exception:
-                            if self.welcome_audio and os.path.isfile(self.welcome_audio):
-                                _play_audio_file_async(self.welcome_audio)
-                            elif self.response_text:
-                                _speak_async(self.response_text)
+                        from .audio_engine import get_engine
+                        engine = get_engine(lang=self.language[:2])
+                        if self.welcome_audio and os.path.isfile(self.welcome_audio):
+                            engine.play_file(self.welcome_audio)
+                        elif self.response_text:
+                            engine.speak(self.response_text)
                         if self.on_wake:
                             self.on_wake()
                         if self.on_command:
-                            _sleep(1.5)  # wait for TTS to finish before listening
+                            _sleep(1.5)
                             self._paused = True
                             try:
                                 self._listen_for_command(recognizer, mic)
@@ -390,7 +207,7 @@ class WakeWordListener:
                                 self._paused = False
 
                 except sr.UnknownValueError:
-                    pass  # no speech detected
+                    pass
                 except sr.RequestError as exc:
                     logger.warning("Error de reconocimiento de voz: %s", exc)
                     _sleep(10)
@@ -402,7 +219,6 @@ class WakeWordListener:
             except Exception as exc:
                 logger.debug("Wake word loop: %s", exc)
                 _sleep(1)
-
 
     def _listen_for_command(self, recognizer, mic) -> None:
         """Listen for one follow-up voice command and fire on_command with the transcript."""
@@ -425,11 +241,7 @@ class WakeWordListener:
             logger.debug("Error escuchando comando: %s", exc)
 
     def listen_once(self, callback: "Callable[[Optional[str]], None]") -> None:
-        """Listen for one phrase and call callback(text_or_None) from a daemon thread.
-
-        Pauses the background wake-word loop while listening so the microphone
-        is not contended.
-        """
+        """Listen for one phrase and call callback(text_or_None) from a daemon thread."""
         import speech_recognition as sr
 
         def _run():
@@ -460,6 +272,5 @@ class WakeWordListener:
 
 
 def _sleep(seconds: float):
-    """Sleep for *seconds* — isolated so the import stays out of the hot loop."""
     import time
     time.sleep(seconds)

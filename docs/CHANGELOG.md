@@ -4,7 +4,43 @@ Todos los cambios notables del proyecto se documentan en este archivo.
 
 ---
 
-## [Unreleased] — 2026-06-25
+## [Unreleased] — 2026-06-26
+
+### Motor de audio centralizado (AudioEngine)
+
+Nuevo módulo `jarvis/interface/audio_engine.py` que reemplaza las funciones de audio dispersas en `wake_word.py` y `tray.py` con un motor centralizado y unificado.
+
+- **Cola de reproducción**: previene superposición de audio con un worker thread dedicado
+- **Cache de TTS**: almacena MP3 generados por gTTS con hash SHA-256, evitando re-sintetizar frases repetidas (máx. 200 archivos, LRU)
+- **Streaming por oraciones**: divide textos largos (>120 chars) en oraciones y reproduce la primera mientras las demás se sintetizan
+- **Interrupción**: `stop()` termina la reproducción actual y limpia la cola
+- **Control de volumen**: configurable (0-100), normalizado por reproductor (mpg123 `-f`, ffplay `-volume`, espeak-ng `-a`)
+- **Callbacks async**: `speak_async()` y `play_file_async()` con callback `on_done`
+- **Sistema TTS interruptible**: los backends espeak-ng/say usan Popen rastreado en vez de `subprocess.run()`
+- **Patrón singleton**: `get_engine()` / `shutdown_engine()` con defaults desde `jarvis.config`
+
+#### Migración
+
+- **Eliminado**: `_speak_sync()`, `_speak_async()`, `_play_audio_file_sync()`, `_play_audio_file_async()` de `wake_word.py`
+- **Eliminado**: `_play_audio_file()`, `_play_activation_audio()` de `tray.py`
+- **Movido**: `_clean_for_tts()` a `audio_engine.py` como `clean_for_tts()`
+- **Migrado**: `wake_word.py`, `voice.py`, `tray.py` ahora usan `AudioEngine` exclusivamente
+
+#### Nuevas variables de entorno
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `JARVIS_AUDIO_VOLUME` | `100` | Volumen global de audio (0-100) |
+| `JARVIS_TTS_CACHE` | `true` | Cache de audio TTS generado |
+| `JARVIS_TTS_STREAM` | `true` | Streaming TTS por oraciones |
+
+#### Tests
+
+- 18 tests unitarios en `tests/test_audio_engine.py` con cache aislada por test
+
+---
+
+## [Anterior] — 2026-06-25
 
 ### Computer Use — automatización visual con Gemini
 

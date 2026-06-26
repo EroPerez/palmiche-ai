@@ -1,4 +1,4 @@
-"""Optional voice I/O. Requires: pip install SpeechRecognition pyttsx3 pyaudio"""
+"""Optional voice I/O. Requires: pip install SpeechRecognition pyaudio"""
 from typing import Optional
 
 
@@ -25,15 +25,11 @@ def listen() -> Optional[str]:
 
 
 def speak(text: str, block: bool = True):
-    """Convert text to speech via AudioEngine. Falls back to direct TTS."""
+    """Convert text to speech via AudioEngine."""
     try:
         from .audio_engine import get_engine
 
         engine = get_engine()
         engine.speak(text, block=block)
     except Exception:
-        from .wake_word import _speak_sync
-        try:
-            _speak_sync(text)
-        except Exception:
-            pass
+        pass

@@ -120,7 +120,8 @@ palmiche-ai/
 │   │   ├── tray.py              # GUI de bandeja del sistema con PyQt6 (paleta Palmiche)
 │   │   ├── hud_animation.py     # Animación HUD estilo Iron Man (QPainter, 3 anillos, radar)
 │   │   ├── animation.py         # WaveformAnimation (QWidget) para feedback visual
-│   │   ├── voice.py             # Reconocimiento de voz (SpeechRecognition) y TTS (pyttsx3/gTTS)
+│   │   ├── audio_engine.py      # Motor de audio centralizado (cola, cache TTS, streaming, volumen)
+│   │   ├── voice.py             # Reconocimiento de voz (SpeechRecognition) — TTS via AudioEngine
 │   │   ├── wake_word.py         # WakeWordListener — detección de palabra clave en segundo plano
 │   │   └── splash.py            # Pantalla de bienvenida animada (Rich, verde Palmiche)
 │   │
@@ -419,6 +420,9 @@ Todas las variables se leen desde `jarvis/.env` (o del entorno del proceso).
 | `JARVIS_GOODBYE_MESSAGE` | `{name} desconectado...` | Frase de despedida (`{name}` = nombre) |
 | `JARVIS_WAKE_WORD` | `palmiche` | Palabra de activación por voz (modo tray) |
 | `JARVIS_VOICE_ENABLED` | `false` | Activar reconocimiento de voz |
+| `JARVIS_AUDIO_VOLUME` | `100` | Volumen global de audio (0-100) |
+| `JARVIS_TTS_CACHE` | `true` | Cache de audio TTS generado (evita re-sintetizar) |
+| `JARVIS_TTS_STREAM` | `true` | Streaming TTS por oraciones (menor latencia) |
 | `JARVIS_TRAY_ICON` | — | Ruta a imagen PNG/ICO para ícono de bandeja |
 | `JARVIS_WELCOME_AUDIO` | — | Ruta a MP3/WAV reproducido al arrancar bandeja |
 

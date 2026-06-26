@@ -1,33 +1,68 @@
 """Centralized audio engine for Jarvis.
 
 Provides a queue-based audio playback system with TTS caching, volume control,
-sentence-level streaming, and interrupt support. Replaces direct subprocess
-calls scattered across wake_word.py and voice.py with a unified interface.
+sentence-level streaming, and interrupt support. All audio output (TTS and file
+playback) should go through this module.
 
-Requires: pip install SpeechRecognition pyaudio gtts pyttsx3
+Requires: pip install gtts pyttsx3 (optional, for TTS tiers 1 and 2)
 """
 
 import hashlib
 import logging
 import os
+import platform
 import re
 import subprocess
 import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 _TTS_CACHE_DIR = Path(tempfile.gettempdir()) / "jarvis_tts_cache"
 
-# Sentence boundary regex — splits on period, exclamation, question mark, or
-# semicolon followed by whitespace (keeps short clauses together).
 _SENTENCE_RE = re.compile(r"(?<=[.!?;])\s+")
 
-# Maximum cached TTS files before eviction (LRU by mtime).
 _MAX_CACHE_FILES = 200
+
+# ---------------------------------------------------------------------------
+# Text preprocessing — strip markdown and emojis before TTS
+# ---------------------------------------------------------------------------
+
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"
+    "\U0001F300-\U0001F5FF"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F700-\U0001FAFF"
+    "\U00002702-\U000027B0"
+    "\U0001F1E0-\U0001F1FF"
+    "\U00002500-\U00002BEF"
+    "\U00002300-\U000023FF"
+    "]+",
+    flags=re.UNICODE,
+)
+
+
+def clean_for_tts(text: str) -> str:
+    """Remove markdown syntax and emojis so TTS reads only natural prose."""
+    text = re.sub(r"```[\s\S]*?```", "", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    text = re.sub(r"!\[[^\]]*\]\([^\)]+\)", "", text)
+    text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
+    text = re.sub(r"\*{1,3}([^*\n]+)\*{1,3}", r"\1", text)
+    text = re.sub(r"_{1,3}([^_\n]+)_{1,3}", r"\1", text)
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^>\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^[\s]*[-*+]\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^[\s]*\d+\.\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^[-*_]{3,}\s*$", "", text, flags=re.MULTILINE)
+    text = _EMOJI_RE.sub("", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 class AudioEngine:
@@ -48,19 +83,22 @@ class AudioEngine:
         volume: int = 100,
         cache_enabled: bool = True,
         stream_sentences: bool = True,
+        cache_dir: Optional[Path] = None,
     ):
         self.lang = lang
         self._volume = max(0, min(100, volume))
         self._cache_enabled = cache_enabled
         self._stream_sentences = stream_sentences
+        self._cache_dir = cache_dir or _TTS_CACHE_DIR
 
         self._queue: list[tuple[str, dict]] = []
         self._queue_lock = threading.Lock()
         self._queue_event = threading.Event()
         self._current_process: Optional[subprocess.Popen] = None
         self._process_lock = threading.Lock()
+        self._playing = threading.Event()
         self._stopped = threading.Event()
-        self._shutdown = threading.Event()
+        self._shutdown_event = threading.Event()
 
         self._worker = threading.Thread(
             target=self._playback_worker, daemon=True, name="jarvis-audio-engine"
@@ -68,7 +106,7 @@ class AudioEngine:
         self._worker.start()
 
         if cache_enabled:
-            _TTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------ public
 
@@ -81,15 +119,8 @@ class AudioEngine:
         self._volume = max(0, min(100, value))
 
     def speak(self, text: str, block: bool = False) -> None:
-        """Enqueue text for TTS playback.
-
-        If *stream_sentences* is enabled, long text is split at sentence
-        boundaries so the first sentence starts playing while the rest are
-        still being synthesised.
-        """
-        from .wake_word import _clean_for_tts
-
-        text = _clean_for_tts(text)
+        """Enqueue text for TTS playback."""
+        text = clean_for_tts(text)
         if not text:
             return
 
@@ -105,6 +136,15 @@ class AudioEngine:
         if block:
             self.wait()
 
+    def speak_async(self, text: str, on_done=None) -> None:
+        """Enqueue text for TTS playback with an optional completion callback."""
+        text = clean_for_tts(text)
+        if not text:
+            if on_done:
+                on_done()
+            return
+        self._enqueue("tts", {"text": text, "on_done": on_done})
+
     def play_file(self, path: str, block: bool = False) -> None:
         """Enqueue an audio file for playback."""
         if not os.path.isfile(path):
@@ -113,6 +153,15 @@ class AudioEngine:
         self._enqueue("file", {"path": path})
         if block:
             self.wait()
+
+    def play_file_async(self, path: str, on_done=None) -> None:
+        """Enqueue an audio file for playback with an optional completion callback."""
+        if not os.path.isfile(path):
+            logger.warning("Audio file not found: %s", path)
+            if on_done:
+                on_done()
+            return
+        self._enqueue("file", {"path": path, "on_done": on_done})
 
     def stop(self) -> None:
         """Interrupt current playback and clear the queue."""
@@ -133,7 +182,7 @@ class AudioEngine:
     def shutdown(self) -> None:
         """Stop playback and terminate the worker thread."""
         self.stop()
-        self._shutdown.set()
+        self._shutdown_event.set()
         self._queue_event.set()
 
     def is_idle(self) -> bool:
@@ -146,8 +195,8 @@ class AudioEngine:
     def clear_cache(self) -> int:
         """Remove all cached TTS files. Returns number of files deleted."""
         count = 0
-        if _TTS_CACHE_DIR.exists():
-            for f in _TTS_CACHE_DIR.iterdir():
+        if self._cache_dir.exists():
+            for f in self._cache_dir.iterdir():
                 try:
                     f.unlink()
                     count += 1
@@ -157,9 +206,9 @@ class AudioEngine:
 
     def cache_stats(self) -> dict:
         """Return cache statistics: file count and total size in bytes."""
-        if not _TTS_CACHE_DIR.exists():
+        if not self._cache_dir.exists():
             return {"files": 0, "size_bytes": 0}
-        files = list(_TTS_CACHE_DIR.iterdir())
+        files = list(self._cache_dir.iterdir())
         total = sum(f.stat().st_size for f in files if f.is_file())
         return {"files": len(files), "size_bytes": total}
 
@@ -177,12 +226,12 @@ class AudioEngine:
     # ---------------------------------------------------------- playback worker
 
     def _playback_worker(self) -> None:
-        while not self._shutdown.is_set():
+        while not self._shutdown_event.is_set():
             self._queue_event.wait(timeout=0.5)
             self._queue_event.clear()
             self._stopped.clear()
 
-            while not self._shutdown.is_set():
+            while not self._shutdown_event.is_set():
                 item = self._dequeue()
                 if item is None:
                     break
@@ -190,6 +239,8 @@ class AudioEngine:
                     break
 
                 kind, data = item
+                on_done = data.pop("on_done", None)
+                self._playing.set()
                 try:
                     if kind == "tts":
                         self._play_tts(data["text"])
@@ -197,6 +248,13 @@ class AudioEngine:
                         self._play_file_internal(data["path"])
                 except Exception as exc:
                     logger.debug("Audio playback error: %s", exc)
+                finally:
+                    self._playing.clear()
+                    if on_done:
+                        try:
+                            on_done()
+                        except Exception:
+                            pass
 
     # ------------------------------------------------------------- TTS helpers
 
@@ -208,17 +266,18 @@ class AudioEngine:
         if not self._cache_enabled:
             return None
         key = self._cache_key(text)
-        path = _TTS_CACHE_DIR / f"{key}.mp3"
+        path = self._cache_dir / f"{key}.mp3"
         if path.is_file():
             path.touch()
             return str(path)
         return None
 
     def _put_cache(self, text: str, mp3_path: str) -> str:
+        """Copy mp3_path into the cache dir. Returns the cached file path."""
         if not self._cache_enabled:
             return mp3_path
         key = self._cache_key(text)
-        dest = _TTS_CACHE_DIR / f"{key}.mp3"
+        dest = self._cache_dir / f"{key}.mp3"
         try:
             if not dest.exists():
                 import shutil
@@ -231,7 +290,7 @@ class AudioEngine:
     def _evict_cache(self) -> None:
         try:
             files = sorted(
-                _TTS_CACHE_DIR.iterdir(), key=lambda f: f.stat().st_mtime
+                self._cache_dir.iterdir(), key=lambda f: f.stat().st_mtime
             )
             while len(files) > _MAX_CACHE_FILES:
                 files.pop(0).unlink(missing_ok=True)
@@ -247,11 +306,11 @@ class AudioEngine:
         # Tier 1: gTTS
         mp3 = self._tts_gtts(text)
         if mp3:
-            self._put_cache(text, mp3)
-            self._play_file_internal(mp3)
+            cached_path = self._put_cache(text, mp3)
+            play_path = cached_path if self._cache_enabled and os.path.isfile(cached_path) else mp3
+            self._play_file_internal(play_path)
             try:
-                if not self._cache_enabled:
-                    os.unlink(mp3)
+                os.unlink(mp3)
             except OSError:
                 pass
             return
@@ -297,19 +356,29 @@ class AudioEngine:
             return False
 
     def _tts_system(self, text: str) -> None:
-        import platform
-
         system = platform.system()
         try:
             if system == "Linux":
                 amp = str(max(1, int(200 * self._volume / 100)))
-                subprocess.run(
-                    ["espeak-ng", "-v", "es", "-s", "130", "-p", "40", "-a", amp, text],
-                    check=False,
-                    capture_output=True,
+                proc = subprocess.Popen(
+                    ["espeak-ng", "-v", self.lang, "-s", "130", "-p", "40", "-a", amp, text],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
+                with self._process_lock:
+                    self._current_process = proc
+                proc.wait()
+                with self._process_lock:
+                    self._current_process = None
             elif system == "Darwin":
-                subprocess.run(["say", "-v", "Monica", text], check=False)
+                proc = subprocess.Popen(
+                    ["say", "-v", "Monica", text],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                with self._process_lock:
+                    self._current_process = proc
+                proc.wait()
+                with self._process_lock:
+                    self._current_process = None
         except FileNotFoundError:
             pass
 
@@ -325,10 +394,9 @@ class AudioEngine:
         else:
             candidates.append(["mpg123", "-q", path])
 
-        vol_ffplay = str(vol_pct / 100.0)
         candidates.append([
             "ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet",
-            "-volume", vol_ffplay, path,
+            "-volume", str(vol_pct), path,
         ])
         candidates.append(["cvlc", "--play-and-exit", "--quiet", path])
 
@@ -363,7 +431,9 @@ class AudioEngine:
 
     def _is_playing(self) -> bool:
         with self._process_lock:
-            return self._current_process is not None and self._current_process.poll() is None
+            if self._current_process is not None and self._current_process.poll() is None:
+                return True
+        return self._playing.is_set()
 
 
 # ---------------------------------------------------------------------------
@@ -376,19 +446,30 @@ _engine_lock = threading.Lock()
 
 def get_engine(
     lang: str = "es",
-    volume: int = 100,
-    cache_enabled: bool = True,
-    stream_sentences: bool = True,
+    volume: Optional[int] = None,
+    cache_enabled: Optional[bool] = None,
+    stream_sentences: Optional[bool] = None,
 ) -> AudioEngine:
-    """Return (or create) the global AudioEngine singleton."""
+    """Return (or create) the global AudioEngine singleton.
+
+    Defaults are sourced from jarvis.config when not explicitly provided.
+    """
     global _engine
     with _engine_lock:
         if _engine is None:
+            try:
+                from ..config import JARVIS_AUDIO_VOLUME, JARVIS_TTS_CACHE, JARVIS_TTS_STREAM
+                cfg_vol = JARVIS_AUDIO_VOLUME
+                cfg_cache = JARVIS_TTS_CACHE
+                cfg_stream = JARVIS_TTS_STREAM
+            except Exception:
+                cfg_vol, cfg_cache, cfg_stream = 100, True, True
+
             _engine = AudioEngine(
                 lang=lang,
-                volume=volume,
-                cache_enabled=cache_enabled,
-                stream_sentences=stream_sentences,
+                volume=volume if volume is not None else cfg_vol,
+                cache_enabled=cache_enabled if cache_enabled is not None else cfg_cache,
+                stream_sentences=stream_sentences if stream_sentences is not None else cfg_stream,
             )
         return _engine
 
