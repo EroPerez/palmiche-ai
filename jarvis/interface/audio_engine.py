@@ -443,9 +443,10 @@ class AudioEngine:
 _engine: Optional[AudioEngine] = None
 _engine_lock = threading.Lock()
 
+from ..config import JARVIS_TOOL_LANG
 
 def get_engine(
-    lang: str = "es",
+    lang: str = JARVIS_TOOL_LANG,
     volume: Optional[int] = None,
     cache_enabled: Optional[bool] = None,
     stream_sentences: Optional[bool] = None,

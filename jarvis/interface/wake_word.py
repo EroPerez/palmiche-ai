@@ -84,6 +84,13 @@ def _open_microphone_quietly(mic):
         os.close(saved)
     return source
 
+from ..config import JARVIS_TOOL_LANG
+
+def _get_lang(name: str, default: str = "es-ES") -> str:
+    """Read a language env var, accepting only 'en'/'es' and falling back to *default*."""
+    if name == "en":
+        return "en-US"   
+    return default
 
 class WakeWordListener:
     """Daemon thread that listens for a wake word and fires a callback.
@@ -101,7 +108,7 @@ class WakeWordListener:
         wake_word: str = "palmiche",
         on_wake: Optional[Callable] = None,
         on_command: Optional[Callable[[str], None]] = None,
-        language: str = "es-ES",
+        language: str = JARVIS_TOOL_LANG,
         response_text: str = "Kewelta Compay",
         welcome_audio: str = "",
     ):
@@ -185,13 +192,13 @@ class WakeWordListener:
 
                 try:
                     text = recognizer.recognize_google(
-                        audio, language=self.language
+                        audio, language=_get_lang(self.language)
                     ).lower()
                     logger.debug("Escuchado: %s", text)
                     if self.wake_word in text:
                         logger.info("¡Wake word detectada! '%s'", self.wake_word)
                         from .audio_engine import get_engine
-                        engine = get_engine(lang=self.language[:2])
+                        engine = get_engine(lang=self.language)
                         if self.welcome_audio and os.path.isfile(self.welcome_audio):
                             engine.play_file(self.welcome_audio)
                         elif self.response_text:
@@ -227,7 +234,7 @@ class WakeWordListener:
             with mic as source:
                 audio = recognizer.listen(source, timeout=8, phrase_time_limit=10)
             try:
-                text = recognizer.recognize_google(audio, language=self.language)
+                text = recognizer.recognize_google(audio, language=_get_lang(self.language))
                 logger.info("Comando de voz: %s", text)
                 if self.on_command:
                     self.on_command(text)
@@ -255,7 +262,7 @@ class WakeWordListener:
                 with mic as source:
                     audio = recognizer.listen(source, timeout=8, phrase_time_limit=10)
                 try:
-                    text = recognizer.recognize_google(audio, language=self.language)
+                    text = recognizer.recognize_google(audio, language=_get_lang(self.language))
                     callback(text)
                 except sr.UnknownValueError:
                     callback(None)
