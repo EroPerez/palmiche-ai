@@ -4,14 +4,14 @@ Used by A2A client and MCP client integrations to inject remote tools into the a
 """
 from __future__ import annotations
 
-from .registry import TOOL_DEFINITIONS, execute_tool as _static_execute
+from .registry import get_tool_definitions, execute_tool as _static_execute
 
 
 class DynamicToolRegistry:
     """Tool registry that combines static tools with dynamically registered remote tools."""
 
     def __init__(self) -> None:
-        self._definitions: list[dict] = list(TOOL_DEFINITIONS)
+        self._definitions: list[dict] = list(get_tool_definitions())
         self._handlers: dict[str, object] = {}
 
     def register(self, definition: dict, handler) -> None:

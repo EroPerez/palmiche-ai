@@ -1,7 +1,7 @@
 import anthropic
 from ..config import ANTHROPIC_API_KEY, JARVIS_MODEL, JARVIS_NAME
-from .prompts import SYSTEM_PROMPT
-from ..tools.registry import TOOL_DEFINITIONS, execute_tool
+from .prompts import get_system_prompt
+from ..tools.registry import get_tool_definitions, execute_tool
 from ..memory.history import ConversationHistory
 
 
@@ -19,11 +19,11 @@ class JarvisAgent:
         """
         self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         self.history = ConversationHistory()
-        self.system_prompt = SYSTEM_PROMPT.format(name=name)
+        self.system_prompt = get_system_prompt(name)
         self._registry = registry
 
     def _tool_definitions(self) -> list:
-        return self._registry.definitions if self._registry is not None else TOOL_DEFINITIONS
+        return self._registry.definitions if self._registry is not None else get_tool_definitions()
 
     def _execute_tool(self, name: str, inputs: dict) -> str:
         if self._registry is not None:
