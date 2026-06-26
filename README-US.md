@@ -11,6 +11,8 @@
 - Natural conversation in Spanish or English with persistent session memory
 - **59 built-in tools** to control the system, files, network, media, weather, notes, timers, calculations, and more
 - **Computer Use** — full browser and desktop visual control using Gemini (inspired by [google-gemini/computer-use-preview](https://github.com/google-gemini/computer-use-preview))
+- **External tools via MCP** — connect any MCP server (stdio or SSE/HTTP) and inject its tools directly into the agent; the model uses them automatically
+- **Remote agents via A2A** — delegate tasks to other AI agents (Google A2A) as if they were local tools; supports collaborative agent networks
 - Four interchangeable backends: Anthropic SDK, Google ADK + LiteLLM, Google ADK + Gemini, and Ollama (local)
 - Optional voice input with speech recognition
 - Terminal interface with Rich (colors, markdown, panels)
@@ -435,9 +437,39 @@ pip install "palmiche-jarvis[voice]"
 python -m jarvis --tray
 ```
 
+## External tools (MCP and A2A agents)
+
+Jarvis can consume tools from **external MCP servers** and delegate tasks to **remote A2A agents**, extending its capabilities without limits.
+
+> Full step-by-step guide with concrete examples: **[MCP-AGENTS-US.md](docs/MCP-AGENTS-US.md)**
+
+```bash
+# Connect to an external MCP server (filesystem, GitHub, DB, etc.)
+python -m jarvis --connect-mcp "npx -y @modelcontextprotocol/server-filesystem ~/projects"
+python -m jarvis --connect-mcp "http://my-mcp-server:3000"
+
+# Connect to remote A2A agents
+python -m jarvis --connect-a2a http://specialized-agent:8080
+
+# Combine everything
+python -m jarvis \
+  --connect-mcp "npx -y @modelcontextprotocol/server-filesystem ~/projects" \
+  --connect-mcp "npx -y @modelcontextprotocol/server-github" \
+  --connect-a2a http://reviewer-agent:8080
+```
+
+MCP tools are injected with the `mcp_` prefix (e.g. `mcp_read_file`); A2A agents with the `delegate_to_` prefix (e.g. `delegate_to_analyst`). Also configurable in `.env`:
+
+```ini
+JARVIS_MCP_SERVERS=npx -y @modelcontextprotocol/server-filesystem ~/projects;http://my-server:3000
+JARVIS_A2A_AGENTS=http://agent1:8080,http://agent2:9090
+```
+
+---
+
 ## Available tools (59)
 
-> Complete guide with FAQ per tool: **[TOOLS.md](TOOLS.md)**
+> Complete guide with FAQ per tool: **[TOOLS.md](docs/TOOLS.md)**
 
 ### System
 

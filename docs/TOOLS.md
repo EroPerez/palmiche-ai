@@ -23,6 +23,7 @@ Referencia completa de las **59 herramientas** disponibles, con ejemplos de uso 
 15. [Developer](#15-developer)
 16. [Sistema — energía y autoarranque](#16-sistema--energía-y-autoarranque)
 17. [Computer Use ★](#17-computer-use-)
+18. [Herramientas externas (MCP y agentes A2A)](#18-herramientas-externas-mcp-y-agentes-a2a)
 
 ---
 
@@ -1286,9 +1287,106 @@ La herramienta `computer_use_task` siempre usa `google-genai` directamente con `
 
 ---
 
+## 18. Herramientas externas (MCP y agentes A2A)
+
+Las 59 herramientas integradas son solo el punto de partida. Jarvis puede conectarse a **servidores MCP externos** e inyectar sus herramientas dinámicamente, además de delegar tareas a **agentes A2A remotos**. El modelo ve todas estas herramientas exactamente igual que las integradas.
+
+> Guía completa con ejemplos paso a paso: **[MCP-AGENTS.md](MCP-AGENTS.md)**
+
+---
+
+### Herramientas MCP externas (`mcp_*`)
+
+Al conectar un servidor MCP, todas sus herramientas se registran con el prefijo `mcp_`.
+
+**Activar:**
+
+```bash
+# Transporte stdio (proceso local — más común)
+python -m jarvis --connect-mcp "npx -y @modelcontextprotocol/server-filesystem ~/proyectos"
+
+# Transporte SSE/HTTP (servidor ya corriendo)
+python -m jarvis --connect-mcp "http://localhost:3000"
+
+# En .env (persistente, separados por ;)
+JARVIS_MCP_SERVERS=npx -y @modelcontextprotocol/server-filesystem ~/proyectos;http://mi-server:3000
+```
+
+**Ejemplo de herramientas registradas tras conectar el MCP Filesystem:**
+
+| Herramienta en Jarvis | Descripción |
+|---|---|
+| `mcp_read_file` | Lee el contenido de un archivo (vía MCP) |
+| `mcp_write_file` | Escribe contenido en un archivo (vía MCP) |
+| `mcp_list_directory` | Lista el contenido de un directorio (vía MCP) |
+| `mcp_search_files` | Busca archivos por patrón (vía MCP) |
+| `mcp_create_directory` | Crea un directorio (vía MCP) |
+| `mcp_get_file_info` | Devuelve metadatos de un archivo (vía MCP) |
+
+**Ejemplo de uso en el chat:**
+
+```
+Tú: Lee el archivo ~/proyectos/main.py y explícame qué hace
+Jarvis: [usa mcp_read_file] El archivo contiene una clase...
+```
+
+**FAQ:**
+
+**¿Necesito el paquete `mcp`?**
+Sí. Instala con `pip install 'palmiche-jarvis[mcp]'`.
+
+**¿Qué servidores MCP puedo usar?**
+Cualquier servidor compatible con el protocolo MCP: los del ecosistema oficial `@modelcontextprotocol` (filesystem, GitHub, SQLite, Brave Search, etc.), servidores comunitarios, o los propios.
+
+**¿Cuántos servidores puedo conectar simultáneamente?**
+Sin límite técnico. Cada servidor puede aportar múltiples herramientas.
+
+**¿Las herramientas MCP persisten entre sesiones?**
+No; se descubren en cada arranque de Jarvis conectándose al servidor.
+
+---
+
+### Agentes A2A remotos (`delegate_to_*`)
+
+Al conectar un agente A2A, se registra como herramienta con el prefijo `delegate_to_` seguido del nombre del agente.
+
+**Activar:**
+
+```bash
+# Por flag (repetible)
+python -m jarvis --connect-a2a http://agente-especializado:8080
+
+# En .env (persistente, separados por coma)
+JARVIS_A2A_AGENTS=http://agente1:8080,http://agente2:9090
+```
+
+**Herramienta registrada:**
+
+| Herramienta en Jarvis | Parámetro | Descripción |
+|---|---|---|
+| `delegate_to_<nombre>` | `message: str` | Delega la tarea al agente remoto y devuelve su respuesta |
+
+**Ejemplo:**
+
+```
+Tú: Analiza este código y dime si hay bugs
+Jarvis: [usa delegate_to_analista("Analiza este código...")] 
+        El analista encontró 2 posibles problemas...
+```
+
+**FAQ:**
+
+**¿Qué agentes son compatibles con A2A?**
+Cualquier agente que implemente el protocolo A2A de Google (JSON-RPC 2.0 sobre HTTP). Otro Jarvis con `--serve-a2a` también es compatible.
+
+**¿Se puede combinar MCP y A2A en la misma sesión?**
+Sí; el modelo tiene acceso a todas las herramientas y decide cuáles usar según el contexto de cada petición.
+
+---
+
 ## Añadir nuevas herramientas
 
-Para contribuir con una nueva herramienta:
+Para contribuir con una nueva herramienta integrada:
 
 1. Crea un módulo en `jarvis/tools/nombre_modulo.py` con las funciones
 2. Registra la herramienta en `jarvis/tools/registry.py`:
