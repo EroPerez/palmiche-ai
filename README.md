@@ -11,6 +11,8 @@
 - Conversación natural en español o inglés con memoria de sesión persistente
 - **59 herramientas integradas** para controlar el sistema, archivos, red, medios, clima, notas, temporizadores, cálculo y más
 - **Computer Use** — control visual de navegador y escritorio completo usando Gemini (inspirado en [google-gemini/computer-use-preview](https://github.com/google-gemini/computer-use-preview))
+- **Herramientas externas vía MCP** — conecta cualquier servidor MCP (stdio o SSE/HTTP) e inyecta sus herramientas directamente en el agente; el modelo las usa automáticamente
+- **Agentes remotos vía A2A** — delega tareas a otros agentes IA (Google A2A) como si fueran herramientas locales; soporta redes de agentes colaborativos
 - Cuatro backends intercambiables: Anthropic SDK, Google ADK + LiteLLM, Google ADK + Gemini, y Ollama (local)
 - Entrada por voz opcional con reconocimiento de habla
 - Interfaz en terminal con Rich (colores, markdown, paneles)
@@ -434,6 +436,36 @@ pip install "palmiche-jarvis[voice]"
 # JARVIS_VOICE_ENABLED=true
 python -m jarvis --tray
 ```
+
+## Herramientas externas (MCP y agentes A2A)
+
+Jarvis puede consumir herramientas de **servidores MCP externos** y delegar tareas a **agentes A2A remotos**, ampliando sus capacidades sin límite.
+
+> Guía completa paso a paso con ejemplos concretos: **[MCP-AGENTS.md](MCP-AGENTS.md)**
+
+```bash
+# Conectar a un servidor MCP externo (filesystem, GitHub, DB, etc.)
+python -m jarvis --connect-mcp "npx -y @modelcontextprotocol/server-filesystem ~/proyectos"
+python -m jarvis --connect-mcp "http://mi-servidor-mcp:3000"
+
+# Conectar a agentes A2A remotos
+python -m jarvis --connect-a2a http://agente-especializado:8080
+
+# Combinar todo
+python -m jarvis \
+  --connect-mcp "npx -y @modelcontextprotocol/server-filesystem ~/proyectos" \
+  --connect-mcp "npx -y @modelcontextprotocol/server-github" \
+  --connect-a2a http://agente-revisor:8080
+```
+
+Las herramientas MCP se inyectan con prefijo `mcp_` (ej. `mcp_read_file`); los agentes A2A con prefijo `delegate_to_` (ej. `delegate_to_analista`). También configurable en `.env`:
+
+```ini
+JARVIS_MCP_SERVERS=npx -y @modelcontextprotocol/server-filesystem ~/proyectos;http://mi-servidor:3000
+JARVIS_A2A_AGENTS=http://agente1:8080,http://agente2:9090
+```
+
+---
 
 ## Herramientas disponibles (59)
 
