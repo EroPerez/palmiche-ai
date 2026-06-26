@@ -182,24 +182,25 @@ def _build_agent(backend: str, name: str, registry=None):
     ANTHROPIC_API_KEY is not, making it easy to run without Anthropic credentials.
 
     Args:
-        registry: Optional DynamicToolRegistry with remote tools (A2A/MCP clients).
-                  Only supported by the 'anthropic' backend currently.
+        registry: Optional DynamicToolRegistry with extra tools (A2A/MCP/custom).
+                  Supported by all backends — each brain injects the dynamic tools
+                  into its own tool surface.
     """
     backend = backend.strip().lower()
 
     if backend == "ollama":
         from .brain.ollama_agent import JarvisOllamaAgent
-        return JarvisOllamaAgent(name=name)
+        return JarvisOllamaAgent(name=name, registry=registry)
 
     if backend == "gemini":
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=True, name=name)
+        return JarvisADKAgent(use_gemini=True, name=name, registry=registry)
 
     if backend == "adk":
         from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY
         use_gemini = bool(GOOGLE_API_KEY) and not bool(ANTHROPIC_API_KEY)
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=use_gemini, name=name)
+        return JarvisADKAgent(use_gemini=use_gemini, name=name, registry=registry)
 
     if backend == "anthropic":
         from .brain.agent import JarvisAgent
