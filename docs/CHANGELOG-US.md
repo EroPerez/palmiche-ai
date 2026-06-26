@@ -4,7 +4,43 @@ All notable changes to the project are documented in this file.
 
 ---
 
-## [Unreleased] — 2026-06-25
+## [Unreleased] — 2026-06-26
+
+### Centralized Audio Engine (AudioEngine)
+
+New module `jarvis/interface/audio_engine.py` replacing scattered audio functions in `wake_word.py` and `tray.py` with a unified, centralized engine.
+
+- **Playback queue**: prevents audio overlap with a dedicated worker thread
+- **TTS cache**: stores gTTS-generated MP3s with SHA-256 hash keys, avoiding re-synthesis of repeated phrases (max 200 files, LRU eviction)
+- **Sentence streaming**: splits long text (>120 chars) at sentence boundaries and plays the first while the rest are synthesized
+- **Interrupt support**: `stop()` terminates current playback and clears the queue
+- **Volume control**: configurable (0-100), normalized per player (mpg123 `-f`, ffplay `-volume`, espeak-ng `-a`)
+- **Async callbacks**: `speak_async()` and `play_file_async()` with `on_done` callback
+- **Interruptible system TTS**: espeak-ng/say backends use tracked Popen instead of `subprocess.run()`
+- **Singleton pattern**: `get_engine()` / `shutdown_engine()` with defaults from `jarvis.config`
+
+#### Migration
+
+- **Removed**: `_speak_sync()`, `_speak_async()`, `_play_audio_file_sync()`, `_play_audio_file_async()` from `wake_word.py`
+- **Removed**: `_play_audio_file()`, `_play_activation_audio()` from `tray.py`
+- **Moved**: `_clean_for_tts()` to `audio_engine.py` as `clean_for_tts()`
+- **Migrated**: `wake_word.py`, `voice.py`, `tray.py` now use `AudioEngine` exclusively
+
+#### New environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `JARVIS_AUDIO_VOLUME` | `100` | Global audio volume (0-100) |
+| `JARVIS_TTS_CACHE` | `true` | Cache generated TTS audio |
+| `JARVIS_TTS_STREAM` | `true` | Stream TTS by sentence |
+
+#### Tests
+
+- 18 unit tests in `tests/test_audio_engine.py` with isolated per-test cache directories
+
+---
+
+## [Previous] — 2026-06-25
 
 ### Computer Use — visual automation with Gemini
 

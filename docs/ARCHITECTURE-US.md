@@ -120,7 +120,8 @@ palmiche-ai/
 │   │   ├── tray.py              # System tray GUI with PyQt6 (Palmiche palette)
 │   │   ├── hud_animation.py     # Iron Man-style HUD animation (QPainter, 3 rings, radar)
 │   │   ├── animation.py         # WaveformAnimation (QWidget) for visual feedback
-│   │   ├── voice.py             # Speech recognition (SpeechRecognition) and TTS (pyttsx3/gTTS)
+│   │   ├── audio_engine.py      # Centralized audio engine (queue, TTS cache, streaming, volume)
+│   │   ├── voice.py             # Speech recognition (SpeechRecognition) — TTS via AudioEngine
 │   │   ├── wake_word.py         # WakeWordListener — background keyword detection
 │   │   └── splash.py            # Animated welcome screen (Rich, Palmiche green)
 │   │
@@ -419,6 +420,9 @@ All variables are read from `jarvis/.env` (or from the process environment).
 | `JARVIS_GOODBYE_MESSAGE` | `{name} disconnected...` | Farewell phrase (`{name}` = name) |
 | `JARVIS_WAKE_WORD` | `palmiche` | Voice activation keyword (tray mode) |
 | `JARVIS_VOICE_ENABLED` | `false` | Enable voice recognition |
+| `JARVIS_AUDIO_VOLUME` | `100` | Global audio volume (0-100) |
+| `JARVIS_TTS_CACHE` | `true` | Cache generated TTS audio (avoids re-synthesis) |
+| `JARVIS_TTS_STREAM` | `true` | Stream TTS by sentence (lower perceived latency) |
 | `JARVIS_TRAY_ICON` | — | Path to PNG/ICO for tray icon |
 | `JARVIS_WELCOME_AUDIO` | — | Path to MP3/WAV played on tray startup |
 

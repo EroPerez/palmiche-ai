@@ -58,6 +58,9 @@ JARVIS_CUSTOM_TOOLS_FILE: Path = Path(
     os.getenv("JARVIS_CUSTOM_TOOLS_FILE", "~/.jarvis_custom_tools.txt")
 ).expanduser()
 JARVIS_WAKE_WORD: str = os.getenv("JARVIS_WAKE_WORD", "palmiche")
+JARVIS_AUDIO_VOLUME: int = _get_positive_int("JARVIS_AUDIO_VOLUME", 100)
+JARVIS_TTS_CACHE: bool = os.getenv("JARVIS_TTS_CACHE", "true").lower() == "true"
+JARVIS_TTS_STREAM: bool = os.getenv("JARVIS_TTS_STREAM", "true").lower() == "true"
 JARVIS_OLLAMA_HOST: str = os.getenv("JARVIS_OLLAMA_HOST", "http://localhost:11434")
 JARVIS_OLLAMA_MODEL: str = os.getenv("JARVIS_OLLAMA_MODEL", "llama3.2")
 # Optional path to a custom tray icon image (PNG/ICO). Empty → use the built-in
