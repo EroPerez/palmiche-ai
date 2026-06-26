@@ -199,14 +199,14 @@ _install_sys_deps() {
             case "$_OS" in
                 linux)
                     case "$_PKG_MANAGER" in
-                        apt)    _run_with_spinner "Deps sistema (voz)" _sys_install python3-dev portaudio19-dev mpg123 ;;
-                        dnf)    _run_with_spinner "Deps sistema (voz)" _sys_install python3-devel portaudio-devel mpg123 ;;
-                        pacman) _run_with_spinner "Deps sistema (voz)" _sys_install portaudio mpg123 ;;
+                        apt)    _run_with_spinner "Deps sistema (voz): " _sys_install python3-dev portaudio19-dev mpg123 ;;
+                        dnf)    _run_with_spinner "Deps sistema (voz): " _sys_install python3-devel portaudio-devel mpg123 ;;
+                        pacman) _run_with_spinner "Deps sistema (voz): " _sys_install portaudio mpg123 ;;
                         *)      _warn "Instala manualmente: portaudio, mpg123" ;;
                     esac
                     ;;
                 macos)
-                    _run_with_spinner "Deps sistema (voz)" _sys_install portaudio
+                    _run_with_spinner "Deps sistema (voz): " _sys_install portaudio
                     ;;
             esac
             ;;
@@ -214,13 +214,13 @@ _install_sys_deps() {
             case "$_OS" in
                 linux)
                     case "$_PKG_MANAGER" in
-                        apt)    _run_with_spinner "Deps sistema (bandeja)" _sys_install \
+                        apt)    _run_with_spinner "Deps sistema (bandeja): " _sys_install \
                                     libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
                                     libxcb-keysyms1 libxcb-render-util0 ;;
-                        dnf)    _run_with_spinner "Deps sistema (bandeja)" _sys_install \
+                        dnf)    _run_with_spinner "Deps sistema (bandeja): " _sys_install \
                                     xcb-util-cursor xcb-util-icccm xcb-util-image \
                                     xcb-util-keysyms xcb-util-renderutil ;;
-                        pacman) _run_with_spinner "Deps sistema (bandeja)" _sys_install \
+                        pacman) _run_with_spinner "Deps sistema (bandeja): " _sys_install \
                                     xcb-util-cursor xcb-util-image xcb-util-keysyms \
                                     xcb-util-renderutil ;;
                     esac
@@ -231,16 +231,16 @@ _install_sys_deps() {
             case "$_OS" in
                 linux)
                     case "$_PKG_MANAGER" in
-                        apt)    _run_with_spinner "Deps sistema (computer-use)" _sys_install \
+                        apt)    _run_with_spinner "Deps sistema (computer-use): " _sys_install \
                                     libnss3 libatk1.0-0 libatk-bridge2.0-0 \
                                     libcups2 libxcomposite1 libxdamage1 libxfixes3 \
                                     libxrandr2 libgbm1 libxkbcommon0 libpango-1.0-0 \
                                     libcairo2 libasound2 ;;
-                        dnf)    _run_with_spinner "Deps sistema (computer-use)" _sys_install \
+                        dnf)    _run_with_spinner "Deps sistema (computer-use): " _sys_install \
                                     nss atk at-spi2-atk cups-libs libXcomposite \
                                     libXdamage libXfixes libXrandr mesa-libgbm \
                                     libxkbcommon pango cairo alsa-lib ;;
-                        pacman) _run_with_spinner "Deps sistema (computer-use)" _sys_install \
+                        pacman) _run_with_spinner "Deps sistema (computer-use): " _sys_install \
                                     nss atk at-spi2-atk libcups libxcomposite \
                                     libxdamage libxfixes libxrandr mesa libxkbcommon \
                                     pango cairo alsa-lib ;;
@@ -252,13 +252,13 @@ _install_sys_deps() {
             case "$_OS" in
                 linux)
                     case "$_PKG_MANAGER" in
-                        apt)    _run_with_spinner "Deps sistema (assets)" _sys_install ffmpeg ;;
-                        dnf)    _run_with_spinner "Deps sistema (assets)" _sys_install ffmpeg-free ;;
-                        pacman) _run_with_spinner "Deps sistema (assets)" _sys_install ffmpeg ;;
+                        apt)    _run_with_spinner "Deps sistema (assets): " _sys_install ffmpeg ;;
+                        dnf)    _run_with_spinner "Deps sistema (assets): " _sys_install ffmpeg-free ;;
+                        pacman) _run_with_spinner "Deps sistema (assets): " _sys_install ffmpeg ;;
                     esac
                     ;;
                 macos)
-                    _run_with_spinner "Deps sistema (assets)" _sys_install ffmpeg
+                    _run_with_spinner "Deps sistema (assets): " _sys_install ffmpeg
                     ;;
             esac
             ;;
@@ -266,11 +266,11 @@ _install_sys_deps() {
             case "$_OS" in
                 linux)
                     case "$_PKG_MANAGER" in
-                        apt)    _run_with_spinner "Deps sistema (herramientas)" _sys_install \
+                        apt)    _run_with_spinner "Deps sistema (herramientas): " _sys_install \
                                     playerctl scrot brightnessctl libnotify-bin ;;
-                        dnf)    _run_with_spinner "Deps sistema (herramientas)" _sys_install \
+                        dnf)    _run_with_spinner "Deps sistema (herramientas): " _sys_install \
                                     playerctl scrot brightnessctl libnotify ;;
-                        pacman) _run_with_spinner "Deps sistema (herramientas)" _sys_install \
+                        pacman) _run_with_spinner "Deps sistema (herramientas): " _sys_install \
                                     playerctl scrot brightnessctl libnotify ;;
                     esac
                     ;;
