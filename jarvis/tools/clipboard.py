@@ -2,6 +2,8 @@ import platform
 import shutil
 import subprocess
 
+from ..config import JARVIS_SUDO_PASSWORD
+
 
 def _ensure_clipboard_backend() -> None:
     """Install xclip on Linux if no clipboard backend is available."""
@@ -10,11 +12,15 @@ def _ensure_clipboard_backend() -> None:
     for cmd in ("xclip", "xsel", "wl-copy"):
         if shutil.which(cmd):
             return
+    if not JARVIS_SUDO_PASSWORD:
+        return
     try:
         subprocess.run(
-            ["sudo", "apt-get", "install", "-y", "-qq", "xclip"],
+            ["sudo", "-S", "apt-get", "install", "-y", "-qq", "xclip"],
+            input=JARVIS_SUDO_PASSWORD + "\n",
             check=True,
             capture_output=True,
+            text=True,
             timeout=60,
         )
     except Exception:
