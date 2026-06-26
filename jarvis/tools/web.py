@@ -133,11 +133,23 @@ def fetch_webpage(url: str, max_chars: int = 3000) -> str:
         return f"Error al obtener la página: {exc}"
 
     ctype = resp.headers.get("Content-Type", "")
-    if "text/html" not in ctype and "text/plain" not in ctype:
+    if (
+        "text/html" not in ctype
+        and "text/plain" not in ctype
+        and "application/xhtml+xml" not in ctype
+    ):
         return f"Tipo de contenido no soportado: {ctype}"
 
+    try:
+        raw_text = resp.text
+    except (UnicodeDecodeError, LookupError) as exc:
+        return f"Error al decodificar la página: {exc}"
+
     parser = _TextExtractor()
-    parser.feed(resp.text)
+    try:
+        parser.feed(raw_text)
+    except Exception as exc:
+        return f"Error al parsear el HTML: {exc}"
     text = parser.get_text()
 
     try:
