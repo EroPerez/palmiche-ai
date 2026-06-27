@@ -40,7 +40,7 @@ try:
     )
     from PyQt6.QtGui import (
         QColor, QTextCharFormat, QFont, QTextCursor,
-        QShortcut, QKeySequence, QIcon, QPixmap, QImage, QAction,
+        QShortcut, QKeySequence, QIcon, QPixmap, QImage,
     )
     _QT6           = True
     _CURSOR_HAND   = Qt.CursorShape.PointingHandCursor
@@ -55,7 +55,7 @@ except ImportError:
         from PyQt5.QtWidgets import (
             QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
             QTextEdit, QLineEdit, QPushButton, QLabel,
-            QApplication, QSystemTrayIcon, QMenu, QAction, QShortcut,
+            QApplication, QSystemTrayIcon, QMenu, QShortcut,
         )
         from PyQt5.QtCore import (
             Qt, QTimer, QPropertyAnimation, QEasingCurve,

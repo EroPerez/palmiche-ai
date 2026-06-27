@@ -21,7 +21,7 @@ import io
 import os
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 # ---------------------------------------------------------------------------
 # Shared state container
@@ -647,7 +647,7 @@ class _PalmicheComputerAgent:
 
     def _run_one_iteration(self) -> Literal["COMPLETE", "CONTINUE"]:
         """Call Gemini once, dispatch all returned function calls, and return status."""
-        from google.genai.types import Content, Part, FunctionResponse, FinishReason
+        from google.genai.types import Content, Part, FunctionResponse
 
         try:
             response = self._client.models.generate_content(
@@ -730,7 +730,6 @@ class _PalmicheComputerAgent:
 
     def _prune_old_screenshots(self, predefined_fns: list[str]) -> None:
         """Remove screenshots from older turns, keeping only the most recent ones."""
-        from google.genai.types import Part
 
         turns_with_screenshots = 0
         for content in reversed(self._contents):

@@ -1,7 +1,6 @@
 import json
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import List, Dict
 
 from ..config import HISTORY_FILE, MAX_HISTORY

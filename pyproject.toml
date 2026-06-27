@@ -35,8 +35,10 @@ adk = [
     "google-adk>=1.0.0",
     "litellm>=1.0.0",
 ]
+# 'gemini' is now an alias for 'adk' — litellm is needed for the universal agent
 gemini = [
     "google-adk>=1.0.0",
+    "litellm>=1.0.0",
 ]
 assets = [
     "yt-dlp>=2024.1.0",

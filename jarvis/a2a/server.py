@@ -24,7 +24,6 @@ from .models import (
     AgentCapabilities,
     AgentSkill,
     Artifact,
-    Message,
     Task,
     TaskStatus,
     jsonrpc_error,

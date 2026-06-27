@@ -1,5 +1,5 @@
 import anthropic
-from ..config import ANTHROPIC_API_KEY, JARVIS_GUARDRAILS_ENABLED, JARVIS_MODEL, JARVIS_NAME
+from ..config import ANTHROPIC_API_KEY, JARVIS_API_KEY, JARVIS_GUARDRAILS_ENABLED, JARVIS_MODEL, JARVIS_NAME
 from .prompts import get_system_prompt
 from ..tools.registry import get_tool_definitions, execute_tool
 from ..memory.history import ConversationHistory
@@ -17,7 +17,15 @@ class JarvisAgent:
                       are used instead of the static TOOL_DEFINITIONS / execute_tool.
                       This enables MCP and A2A client tools at runtime.
         """
-        self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        # JARVIS_API_KEY takes priority; ANTHROPIC_API_KEY is the fallback
+        self.client = anthropic.Anthropic(api_key=JARVIS_API_KEY or ANTHROPIC_API_KEY)
+        # Strip provider prefix so bare model names reach the Anthropic SDK
+        # (e.g. "anthropic/claude-haiku-4-5-20251001" → "claude-haiku-4-5-20251001")
+        self._model = (
+            JARVIS_MODEL.split("/", 1)[-1]
+            if JARVIS_MODEL.startswith("anthropic/")
+            else JARVIS_MODEL
+        )
         self.history = ConversationHistory()
         self.system_prompt = get_system_prompt(name)
         self._registry = registry
@@ -49,7 +57,7 @@ class JarvisAgent:
         for _ in range(10):  # safety limit on tool use loops
             try:
                 response = self.client.messages.create(
-                    model=JARVIS_MODEL,
+                    model=self._model,
                     max_tokens=4096,
                     system=self.system_prompt,
                     tools=self._tool_definitions(),
