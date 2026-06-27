@@ -18,6 +18,7 @@ from ..config import (
     ANTHROPIC_API_KEY,
     GOOGLE_API_KEY,
     JARVIS_GEMINI_MODEL,
+    JARVIS_GUARDRAILS_ENABLED,
     JARVIS_MODEL,
     JARVIS_NAME,
 )
@@ -93,6 +94,10 @@ class JarvisADKAgent:
         self.history = ConversationHistory()
         self._session_id = str(uuid.uuid4())
         self._use_gemini = use_gemini
+        self._guardrails = None
+        if JARVIS_GUARDRAILS_ENABLED:
+            from ..guardrails import GuardrailsEngine
+            self._guardrails = GuardrailsEngine.from_config()
 
         if use_gemini:
             if not GOOGLE_API_KEY:
@@ -160,7 +165,24 @@ class JarvisADKAgent:
 
     def chat(self, user_message: str) -> str:
         """Send a message and return the agent's response (blocks until complete)."""
-        return asyncio.run(self._chat_async(user_message))
+        if self._guardrails:
+            input_verdict = self._guardrails.check_input(user_message)
+            if input_verdict.blocked:
+                return input_verdict.message
+            if input_verdict.transformed_text is not None:
+                user_message = input_verdict.transformed_text
+
+        result = asyncio.run(self._chat_async(user_message))
+
+        if self._guardrails:
+            output_verdict = self._guardrails.check_output(result)
+            if output_verdict.blocked:
+                result = output_verdict.message
+            elif output_verdict.transformed_text is not None:
+                result = output_verdict.transformed_text
+
+        self.history.add("assistant", result)
+        return result
 
     async def _chat_async(self, user_message: str) -> str:
         """Async implementation: stream ADK events and collect the final text response."""
@@ -201,8 +223,5 @@ class JarvisADKAgent:
                     f"de herramientas MCP.\n\nDetalle: {msg}"
                 )
             return f"Error del agente: {msg}"
-
-        if final_text:
-            self.history.add("assistant", final_text)
 
         return final_text or "No se recibió respuesta del agente ADK."

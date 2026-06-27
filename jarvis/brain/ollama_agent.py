@@ -20,7 +20,7 @@ import json
 
 import requests
 
-from ..config import JARVIS_NAME, JARVIS_OLLAMA_HOST, JARVIS_OLLAMA_MODEL
+from ..config import JARVIS_GUARDRAILS_ENABLED, JARVIS_NAME, JARVIS_OLLAMA_HOST, JARVIS_OLLAMA_MODEL
 from ..memory.history import ConversationHistory
 from ..tools.registry import get_tool_definitions, execute_tool
 from .prompts import get_system_prompt
@@ -66,6 +66,10 @@ class JarvisOllamaAgent:
         self._registry = registry
         definitions = registry.definitions if registry is not None else get_tool_definitions()
         self._tools = _to_ollama_tools(definitions)
+        self._guardrails = None
+        if JARVIS_GUARDRAILS_ENABLED:
+            from ..guardrails import GuardrailsEngine
+            self._guardrails = GuardrailsEngine.from_config()
         self._verify_connection()
 
     def _execute_tool(self, name: str, inputs: dict) -> str:
@@ -106,6 +110,13 @@ class JarvisOllamaAgent:
 
     def chat(self, user_message: str) -> str:
         """Send a message and run the tool-use loop until the model returns plain text."""
+        if self._guardrails:
+            input_verdict = self._guardrails.check_input(user_message)
+            if input_verdict.blocked:
+                return input_verdict.message
+            if input_verdict.transformed_text is not None:
+                user_message = input_verdict.transformed_text
+
         self.history.add("user", user_message)
 
         # Build message list: system + history
@@ -138,6 +149,16 @@ class JarvisOllamaAgent:
 
             if not tool_calls:
                 text = assistant_msg.get("content") or ""
+
+                if self._guardrails:
+                    output_verdict = self._guardrails.check_output(text)
+                    if output_verdict.blocked:
+                        blocked_msg = output_verdict.message
+                        self.history.add("assistant", blocked_msg)
+                        return blocked_msg
+                    if output_verdict.transformed_text is not None:
+                        text = output_verdict.transformed_text
+
                 self.history.add("assistant", text)
                 return text
 
@@ -159,7 +180,21 @@ class JarvisOllamaAgent:
                 if not isinstance(raw_args, dict):
                     raw_args = {}
 
+                if self._guardrails:
+                    tool_verdict = self._guardrails.check_tool_call(tool_name, raw_args)
+                    if tool_verdict.blocked:
+                        messages.append({"role": "tool", "content": f"BLOCKED: {tool_verdict.message}"})
+                        continue
+
                 result = self._execute_tool(tool_name, raw_args)
+
+                if self._guardrails:
+                    result_verdict = self._guardrails.check_tool_result(str(result))
+                    if result_verdict.blocked:
+                        result = f"BLOCKED: {result_verdict.message}"
+                    elif result_verdict.transformed_text is not None:
+                        result = result_verdict.transformed_text
+
                 messages.append({"role": "tool", "content": result})
 
         err = "Se alcanzó el límite de iteraciones de herramientas."

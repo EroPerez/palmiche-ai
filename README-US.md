@@ -13,6 +13,7 @@
 - **Computer Use** — full browser and desktop visual control using Gemini (inspired by [google-gemini/computer-use-preview](https://github.com/google-gemini/computer-use-preview))
 - **External tools via MCP** — connect any MCP server (stdio or SSE/HTTP) and inject its tools directly into the agent; the model uses them automatically
 - **Remote agents via A2A** — delegate tasks to other AI agents (Google A2A) as if they were local tools; supports collaborative agent networks
+- **AI Guardrails** — rule-based safety system that validates inputs, outputs, and tool calls to prevent prompt injection, credential leaks, and dangerous commands; fully configurable via JSON
 - Four interchangeable backends: Anthropic SDK, Google ADK + LiteLLM, Google ADK + Gemini, and Ollama (local)
 - Optional voice input with speech recognition
 - Terminal interface with Rich (colors, markdown, panels)
@@ -250,6 +251,8 @@ nano jarvis/.env
 | `COMPUTER_USE_MODEL` | `gemini-2.5-flash` | Gemini model for computer use (requires `GOOGLE_API_KEY`) |
 | `COMPUTER_USE_BACKEND` | `playwright` | Computer use backend: `playwright` (browser) or `desktop` |
 | `COMPUTER_USE_MAX_ITERATIONS` | `30` | Visual agent iteration limit per task |
+| `JARVIS_GUARDRAILS_ENABLED` | `true` | Enable/disable AI safety guardrails |
+| `JARVIS_GUARDRAILS_FILE` | `~/.jarvis_guardrails.json` | Custom guardrail rules file |
 
 ## Usage guide
 
@@ -715,6 +718,23 @@ The chat window includes:
 | `JARVIS_WELCOME_AUDIO` | Path to MP3/WAV played on startup (generate with `python extract_assets.py`) |
 
 ## Security
+
+### AI Guardrails
+
+Rule-based safety system that validates content at four lifecycle phases:
+
+| Phase | Protection |
+|---|---|
+| **Input** | Prompt injection detection, length limits |
+| **Output** | Credential leak redaction (API keys, tokens), harmful content blocking |
+| **Tool Call** | Dangerous shell command blocking (`rm -rf /`, `mkfs`, `dd`), mandatory confirmation for destructive actions |
+| **Tool Result** | Secret redaction in tool output |
+
+Rules are fully customizable via `~/.jarvis_guardrails.json`. You can override, disable, or add new rules without modifying code.
+
+> Full documentation: **[jarvis/guardrails/README.md](jarvis/guardrails/README.md)**
+
+### Other measures
 
 - **Destructive tools** (`power_action`, `run_shell_command`, `setup_autostart`) require `confirmed=true` in code before executing — not just in the prompt.
 - Notifications on macOS pass title and message as argv arguments to `osascript`, never interpolated in the AppleScript source.

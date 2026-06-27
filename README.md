@@ -13,6 +13,7 @@
 - **Computer Use** — control visual de navegador y escritorio completo usando Gemini (inspirado en [google-gemini/computer-use-preview](https://github.com/google-gemini/computer-use-preview))
 - **Herramientas externas vía MCP** — conecta cualquier servidor MCP (stdio o SSE/HTTP) e inyecta sus herramientas directamente en el agente; el modelo las usa automáticamente
 - **Agentes remotos vía A2A** — delega tareas a otros agentes IA (Google A2A) como si fueran herramientas locales; soporta redes de agentes colaborativos
+- **AI Guardrails** — sistema de seguridad basado en reglas que valida entradas, salidas y llamadas a herramientas para prevenir inyección de prompts, filtración de credenciales y comandos peligrosos; totalmente configurable vía JSON
 - Cuatro backends intercambiables: Anthropic SDK, Google ADK + LiteLLM, Google ADK + Gemini, y Ollama (local)
 - Entrada por voz opcional con reconocimiento de habla
 - Interfaz en terminal con Rich (colores, markdown, paneles)
@@ -250,6 +251,8 @@ nano jarvis/.env
 | `COMPUTER_USE_MODEL` | `gemini-2.5-flash` | Modelo Gemini para computer use (requiere `GOOGLE_API_KEY`) |
 | `COMPUTER_USE_BACKEND` | `playwright` | Backend de computer use: `playwright` (browser) o `desktop` |
 | `COMPUTER_USE_MAX_ITERATIONS` | `30` | Límite de iteraciones del agente visual por tarea |
+| `JARVIS_GUARDRAILS_ENABLED` | `true` | Activar/desactivar guardrails de seguridad IA |
+| `JARVIS_GUARDRAILS_FILE` | `~/.jarvis_guardrails.json` | Archivo de reglas de guardrails personalizadas |
 
 ## Guía de uso
 
@@ -715,6 +718,23 @@ Variables `.env` del modo bandeja:
 | `JARVIS_WELCOME_AUDIO` | Ruta a MP3/WAV reproducido al arrancar (genera con `python extract_assets.py`) |
 
 ## Seguridad
+
+### AI Guardrails
+
+Sistema de seguridad basado en reglas que valida el contenido en cuatro fases del ciclo de vida:
+
+| Fase | Protección |
+|---|---|
+| **Input** | Detección de prompt injection, límite de longitud |
+| **Output** | Redacción de credenciales filtradas (API keys, tokens), bloqueo de contenido dañino |
+| **Tool Call** | Bloqueo de comandos shell peligrosos (`rm -rf /`, `mkfs`, `dd`), confirmación obligatoria para acciones destructivas |
+| **Tool Result** | Redacción de secretos en resultados de herramientas |
+
+Las reglas son completamente personalizables vía `~/.jarvis_guardrails.json`. Se pueden sobrescribir, desactivar o añadir reglas nuevas sin modificar código.
+
+> Documentación completa: **[jarvis/guardrails/README.md](jarvis/guardrails/README.md)**
+
+### Otras medidas
 
 - **Herramientas destructivas** (`power_action`, `run_shell_command`, `setup_autostart`) requieren `confirmed=true` en código antes de ejecutarse — no solo en el prompt.
 - Las notificaciones en macOS pasan título y mensaje como argumentos argv a `osascript`, nunca interpolados en el fuente AppleScript.
