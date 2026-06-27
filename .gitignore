@@ -22,3 +22,9 @@ jarvis/.env
 .DS_Store
 .idea/
 .vscode/
+
+# Models
+.ollama-models
+
+# Nodejs
+www/node_modules

@@ -72,6 +72,28 @@ Ejemplos:
     )
 
     # ------------------------------------------------------------------
+    # Web API flags
+    # ------------------------------------------------------------------
+    web = parser.add_argument_group("Web API")
+    web.add_argument(
+        "--serve-web",
+        action="store_true",
+        help="Iniciar como servidor web (Backend para Frontend UI)",
+    )
+    web.add_argument(
+        "--web-host",
+        type=str,
+        default="127.0.0.1",
+        help="Host del servidor Web API (default: 127.0.0.1)",
+    )
+    web.add_argument(
+        "--web-port",
+        type=int,
+        default=8000,
+        help="Puerto del servidor Web API (default: 8000)",
+    )
+
+    # ------------------------------------------------------------------
     # A2A (Agent-to-Agent) flags
     # ------------------------------------------------------------------
     a2a = parser.add_argument_group("A2A — Agent-to-Agent protocol")
@@ -299,6 +321,18 @@ def main():
             port=a2a_port,
             name=name,
         )
+        return
+
+    # ------------------------------------------------------------------
+    # Web API server mode
+    # ------------------------------------------------------------------
+    if args.serve_web:
+        from .api.server import run_web_server
+
+        web_host = args.web_host
+        web_port = args.web_port
+
+        run_web_server(agent, host=web_host, port=web_port)
         return
 
     voice_on = args.voice or VOICE_ENABLED

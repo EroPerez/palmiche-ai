@@ -160,7 +160,11 @@ class JarvisOllamaAgent:
                     raw_args = {}
 
                 result = self._execute_tool(tool_name, raw_args)
-                messages.append({"role": "tool", "content": result})
+                messages.append({
+                    "role": "tool", 
+                    "content": str(result),
+                    "name": tool_name
+                })
 
         err = "Se alcanzó el límite de iteraciones de herramientas."
         self.history.add("assistant", err)
