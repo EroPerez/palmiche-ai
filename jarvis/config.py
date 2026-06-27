@@ -60,6 +60,8 @@ JARVIS_CUSTOM_TOOLS_FILE: Path = Path(
 JARVIS_WAKE_WORD: str = os.getenv("JARVIS_WAKE_WORD", "palmiche")
 JARVIS_OLLAMA_HOST: str = os.getenv("JARVIS_OLLAMA_HOST", "http://localhost:11434")
 JARVIS_OLLAMA_MODEL: str = os.getenv("JARVIS_OLLAMA_MODEL", "llama3.2")
+JARVIS_LMSTUDIO_HOST: str = os.getenv("JARVIS_LMSTUDIO_HOST", "http://localhost:1234/v1")
+JARVIS_LMSTUDIO_MODEL: str = os.getenv("JARVIS_LMSTUDIO_MODEL", "local-model")
 # Optional path to a custom tray icon image (PNG/ICO). Empty → use the built-in
 # horse-head icon. Use this to point at your own Palmiche image if you have one.
 JARVIS_TRAY_ICON: str = os.getenv("JARVIS_TRAY_ICON", "")

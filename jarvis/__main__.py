@@ -210,6 +210,10 @@ def _build_agent(backend: str, name: str, registry=None):
     """
     backend = backend.strip().lower()
 
+    if backend == "lmstudio":
+        from .brain.lmstudio_agent import JarvisLMStudioAgent
+        return JarvisLMStudioAgent(name=name, registry=registry)
+
     if backend == "ollama":
         from .brain.ollama_agent import JarvisOllamaAgent
         return JarvisOllamaAgent(name=name, registry=registry)
@@ -228,7 +232,7 @@ def _build_agent(backend: str, name: str, registry=None):
         from .brain.agent import JarvisAgent
         return JarvisAgent(name=name, registry=registry)
 
-    raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk', 'gemini' u 'ollama'.")
+    raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk', 'gemini', 'ollama' u 'lmstudio'.")
 
 
 def main():
