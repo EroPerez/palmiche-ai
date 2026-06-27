@@ -18,6 +18,13 @@ class JarvisAgent:
                       This enables MCP and A2A client tools at runtime.
         """
         self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        # Strip provider prefix so bare model names reach the Anthropic SDK
+        # (e.g. "anthropic/claude-haiku-4-5-20251001" → "claude-haiku-4-5-20251001")
+        self._model = (
+            JARVIS_MODEL.split("/", 1)[-1]
+            if JARVIS_MODEL.startswith("anthropic/")
+            else JARVIS_MODEL
+        )
         self.history = ConversationHistory()
         self.system_prompt = get_system_prompt(name)
         self._registry = registry
@@ -49,7 +56,7 @@ class JarvisAgent:
         for _ in range(10):  # safety limit on tool use loops
             try:
                 response = self.client.messages.create(
-                    model=JARVIS_MODEL,
+                    model=self._model,
                     max_tokens=4096,
                     system=self.system_prompt,
                     tools=self._tool_definitions(),

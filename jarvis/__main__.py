@@ -195,6 +195,8 @@ def _build_agent(backend: str, name: str, registry=None, mcp_specs=None):
 
     if backend == "anthropic":
         # Pure Anthropic SDK loop — kept for users who prefer no ADK overhead.
+        # JarvisAgent auto-strips any "anthropic/" prefix from JARVIS_MODEL so
+        # the bare model name is sent to the Anthropic SDK.
         from .brain.agent import JarvisAgent
         return JarvisAgent(name=name, registry=registry)
 
@@ -289,14 +291,18 @@ def main():
         print("  Agrega a jarvis/.env: JARVIS_API_KEY=tu-key  (o GOOGLE_API_KEY=tu-key)")
         sys.exit(1)
     if backend == "adk":
-        # For 'adk' backend: validate that the model string is set and has a key
-        model_provider = JARVIS_MODEL.split("/")[0].lower() if "/" in JARVIS_MODEL else ""
-        needs_key = model_provider not in ("ollama", "ollama_chat", "")
+        # Use the same normalization as the universal agent to determine the provider
+        # so bare names like "claude-*" or "gpt-*" resolve correctly.
+        from .brain.adk_universal import _normalize_model_str
+        normalized = _normalize_model_str(JARVIS_MODEL)
+        model_provider = normalized.split("/")[0].lower() if "/" in normalized else ""
+        local_providers = {"ollama", "ollama_chat"}
+        needs_key = model_provider not in local_providers and bool(model_provider)
         has_key = bool(JARVIS_API_KEY or ANTHROPIC_API_KEY or GOOGLE_API_KEY)
         if needs_key and not has_key and not JARVIS_BASE_URL:
             print(f"[ERROR] No se encontró una API key para el modelo '{JARVIS_MODEL}'.")
             print("  Agrega a jarvis/.env: JARVIS_API_KEY=tu-api-key")
-            print("  O usa la variable específica del proveedor (ANTHROPIC_API_KEY, etc.)")
+            print("  O usa la variable específica del proveedor (ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.)")
             sys.exit(1)
     # 'ollama' validates its own connection at construction time
 
@@ -307,7 +313,10 @@ def main():
     # Build dynamic registry if remote tools are configured.
     # For ADK backends, MCP tools use the native McpToolset so they're
     # passed separately — the registry handles A2A and custom tools only.
-    registry = _build_dynamic_registry(a2a_urls, mcp_specs if backend not in ("adk", "gemini") else [])
+    # ADK backends (adk, gemini, ollama) consume mcp_specs as native McpToolsets,
+    # so exclude them from the sync dynamic registry to avoid duplicate connections.
+    _adk_backends = {"adk", "gemini", "ollama"}
+    registry = _build_dynamic_registry(a2a_urls, mcp_specs if backend not in _adk_backends else [])
 
     try:
         agent = _build_agent(backend, name, registry=registry, mcp_specs=mcp_specs)
@@ -354,7 +363,10 @@ def main():
             return goodbye_template
 
     if args.clear:
-        agent.history.clear()
+        if hasattr(agent, "clear"):
+            agent.clear()
+        else:
+            agent.history.clear()
         print_info("Historial borrado.")
         return
 
@@ -413,7 +425,10 @@ def main():
                 break
 
             if cmd in ("limpiar", "clear", "/clear"):
-                agent.history.clear()
+                if hasattr(agent, "clear"):
+                    agent.clear()
+                else:
+                    agent.history.clear()
                 console.clear()
                 print_banner(name, backend)
                 print_info("Historial borrado.")

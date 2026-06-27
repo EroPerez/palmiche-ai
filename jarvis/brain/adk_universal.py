@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 import uuid
 
 from ..config import (
@@ -45,8 +46,8 @@ from ..memory.history import ConversationHistory
 def _normalize_model_str(model_str: str) -> str:
     """Add provider prefix to legacy bare model names (no '/' present).
 
-    Handles old JARVIS_MODEL values like 'claude-haiku-4-5-20251001' or
-    'llama3.2' that pre-date the unified LiteLLM format.
+    Handles old JARVIS_MODEL values like 'claude-haiku-4-5-20251001', 'llama3.2',
+    or 'gpt-4o' that pre-date the unified LiteLLM format.
     """
     if "/" in model_str:
         return model_str
@@ -54,29 +55,38 @@ def _normalize_model_str(model_str: str) -> str:
     name = model_str.lower()
     if name.startswith("claude"):
         return f"anthropic/{model_str}"
-    if name.startswith("gpt") or name.startswith("o1") or name.startswith("o3"):
+    if name.startswith(("gpt", "o1", "o3")):
         return f"openai/{model_str}"
+    if name.startswith(("llama", "codellama", "qwen", "deepseek", "phi")):
+        return f"ollama_chat/{model_str}"
     # Bare gemini names (e.g. "gemini-2.0-flash") stay as-is — ADK handles them natively.
     return model_str
 
 
-def _effective_api_key(provider: str) -> str:
+def _effective_api_key(provider: str, api_key_override: str | None = None) -> str:
     """Return the best available API key for the given provider.
 
-    JARVIS_API_KEY always wins; then fall back to provider-specific env vars.
+    Priority: api_key_override > JARVIS_API_KEY > provider-specific env vars.
     """
+    if api_key_override:
+        return api_key_override
     if JARVIS_API_KEY:
         return JARVIS_API_KEY
-    if provider in ("anthropic",):
+    if provider == "anthropic":
         return ANTHROPIC_API_KEY
     if provider in ("gemini", "google", "vertex_ai", "vertex_ai_beta"):
         return GOOGLE_API_KEY
-    # For everything else LiteLLM will pick up the right env var automatically
+    # For everything else LiteLLM picks up the right env var automatically
     # (OPENAI_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY, etc.)
     return ""
 
 
-def _resolve_model(model_str: str):
+def _resolve_model(
+    model_str: str,
+    *,
+    api_key_override: str | None = None,
+    base_url_override: str | None = None,
+):
     """Build the ADK-compatible model object for the given LiteLLM model string.
 
     - Bare gemini names → returned as-is (ADK native, no LiteLLM overhead)
@@ -86,9 +96,10 @@ def _resolve_model(model_str: str):
 
     # Native Gemini: ADK supports these directly without LiteLLM
     if "/" not in model_str:
-        api_key = _effective_api_key("gemini")
+        api_key = _effective_api_key("gemini", api_key_override)
         if api_key:
-            os.environ.setdefault("GOOGLE_API_KEY", api_key)
+            # Overwrite (not setdefault) so JARVIS_API_KEY always wins
+            os.environ["GOOGLE_API_KEY"] = api_key
         return model_str
 
     provider = model_str.split("/")[0].lower()
@@ -104,11 +115,11 @@ def _resolve_model(model_str: str):
 
     kwargs: dict = {"model": model_str}
 
-    api_key = _effective_api_key(provider)
+    api_key = _effective_api_key(provider, api_key_override)
     if api_key:
         kwargs["api_key"] = api_key
 
-    base_url = JARVIS_BASE_URL
+    base_url = base_url_override or JARVIS_BASE_URL
     if base_url:
         kwargs["api_base"] = base_url
 
@@ -116,7 +127,9 @@ def _resolve_model(model_str: str):
 
 
 def _mcp_spec_to_toolset(spec: str):
-    """Convert an MCP spec string to an ADK McpToolset (reused from adk_agent)."""
+    """Convert an MCP spec string to an ADK McpToolset."""
+    import shlex
+    from urllib.parse import urlparse
     from google.adk.tools.mcp_tool.mcp_toolset import McpToolset
     from google.adk.tools.mcp_tool.mcp_session_manager import (
         SseConnectionParams,
@@ -125,10 +138,15 @@ def _mcp_spec_to_toolset(spec: str):
     from mcp import StdioServerParameters
 
     if spec.startswith(("http://", "https://")):
+        parsed = urlparse(spec)
+        if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise ValueError(
+                f"Remote MCP SSE endpoints must use https:// (got {spec!r}). "
+                "Only localhost HTTP is allowed for local development."
+            )
         return McpToolset(connection_params=SseConnectionParams(url=spec))
 
-    parts = spec.split()
-    import sys
+    parts = shlex.split(spec)
     filter_script = str(
         (__import__("pathlib").Path(__file__).resolve().parent.parent
          / "mcp_support" / "json_filter.py")
@@ -192,24 +210,13 @@ class JarvisUniversalADKAgent:
             from ..guardrails import GuardrailsEngine
             self._guardrails = GuardrailsEngine.from_config()
 
-        # Apply internal overrides (used when legacy backends redirect here)
         model_str = _model_override or JARVIS_MODEL
-        if _api_key_override:
-            # Temporarily surface the override so _effective_api_key() picks it up
-            _orig = os.environ.get("JARVIS_API_KEY", "")
-            os.environ["JARVIS_API_KEY"] = _api_key_override
-        if _base_url_override:
-            _orig_url = os.environ.get("JARVIS_BASE_URL", "")
-            os.environ["JARVIS_BASE_URL"] = _base_url_override
-
-        model = _resolve_model(model_str)
+        model = _resolve_model(
+            model_str,
+            api_key_override=_api_key_override,
+            base_url_override=_base_url_override,
+        )
         self._model_label = _normalize_model_str(model_str)
-
-        # Restore env (overrides only apply during _resolve_model)
-        if _api_key_override:
-            os.environ["JARVIS_API_KEY"] = _orig
-        if _base_url_override:
-            os.environ["JARVIS_BASE_URL"] = _orig_url
 
         from .adk_dynamic import adk_tools_from_registry
         tools: list = list(get_adk_tools()) + adk_tools_from_registry(registry)
@@ -218,8 +225,7 @@ class JarvisUniversalADKAgent:
             for spec in mcp_specs:
                 try:
                     tools.append(_mcp_spec_to_toolset(spec))
-                except Exception as exc:
-                    import sys
+                except Exception as exc:  # noqa: BLE001
                     print(
                         f"  [MCP] Error creando McpToolset para '{spec}': {exc}",
                         file=sys.stderr,
@@ -249,6 +255,24 @@ class JarvisUniversalADKAgent:
     @property
     def model_label(self) -> str:
         return self._model_label
+
+    def clear(self) -> None:
+        """Reset both the persistent conversation history and the active ADK session.
+
+        The ADK InMemorySessionService is the live context used by run_async().
+        Clearing only agent.history leaves stale context in the ADK session, so
+        this method resets both stores atomically.
+        """
+        self.history.clear()
+        # Create a fresh session to drop all ADK in-memory context
+        self._session_id = str(uuid.uuid4())
+        asyncio.run(
+            self._session_service.create_session(
+                app_name="jarvis",
+                user_id="user",
+                session_id=self._session_id,
+            )
+        )
 
     def chat(self, user_message: str) -> str:
         """Send a message and return the agent's response (blocks until complete)."""
@@ -292,8 +316,9 @@ class JarvisUniversalADKAgent:
                     for part in event.content.parts:
                         if hasattr(part, "text") and part.text:
                             final_text += part.text
-        except Exception as exc:
-            if isinstance(exc, BaseExceptionGroup):
+        except Exception as exc:  # noqa: BLE001
+            # BaseExceptionGroup is only available on Python 3.11+
+            if sys.version_info >= (3, 11) and isinstance(exc, BaseExceptionGroup):
                 parts_list = [f"{type(e).__name__}: {e}" for e in exc.exceptions]
                 msg = " | ".join(parts_list)
             else:
