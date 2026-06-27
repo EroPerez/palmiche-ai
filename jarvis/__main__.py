@@ -175,7 +175,7 @@ def _build_dynamic_registry(a2a_urls: list[str], mcp_specs: list[str]):
     return registry
 
 
-def _build_agent(backend: str, name: str, registry=None):
+def _build_agent(backend: str, name: str, registry=None, mcp_specs=None):
     """Construct the agent for the given backend, using *name* as the assistant name.
 
     'adk' auto-selects Gemini when GOOGLE_API_KEY is set and
@@ -185,6 +185,8 @@ def _build_agent(backend: str, name: str, registry=None):
         registry: Optional DynamicToolRegistry with extra tools (A2A/MCP/custom).
                   Supported by all backends — each brain injects the dynamic tools
                   into its own tool surface.
+        mcp_specs: Optional list of MCP specs. Passed to ADK backends so they
+                   can use the native McpToolset instead of the sync bridge.
     """
     backend = backend.strip().lower()
 
@@ -194,13 +196,13 @@ def _build_agent(backend: str, name: str, registry=None):
 
     if backend == "gemini":
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=True, name=name, registry=registry)
+        return JarvisADKAgent(use_gemini=True, name=name, registry=registry, mcp_specs=mcp_specs)
 
     if backend == "adk":
         from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY
         use_gemini = bool(GOOGLE_API_KEY) and not bool(ANTHROPIC_API_KEY)
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=use_gemini, name=name, registry=registry)
+        return JarvisADKAgent(use_gemini=use_gemini, name=name, registry=registry, mcp_specs=mcp_specs)
 
     if backend == "anthropic":
         from .brain.agent import JarvisAgent
@@ -268,11 +270,13 @@ def main():
     a2a_urls = list(A2A_AGENTS) + list(args.connect_a2a)
     mcp_specs = list(MCP_SERVERS) + list(args.connect_mcp)
 
-    # Build dynamic registry if remote tools are configured
-    registry = _build_dynamic_registry(a2a_urls, mcp_specs)
+    # Build dynamic registry if remote tools are configured.
+    # For ADK backends, MCP tools use the native McpToolset so they're
+    # passed separately — the registry handles A2A and custom tools only.
+    registry = _build_dynamic_registry(a2a_urls, mcp_specs if backend not in ("adk", "gemini") else [])
 
     try:
-        agent = _build_agent(backend, name, registry=registry)
+        agent = _build_agent(backend, name, registry=registry, mcp_specs=mcp_specs)
     except (ImportError, ValueError) as e:
         print_error(str(e))
         sys.exit(1)
