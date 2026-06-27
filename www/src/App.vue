@@ -17,6 +17,18 @@ let currentAssistantMessageIndex = -1
 let recognition = null
 let siriAnimation = null
 
+const btnListenClasses = computed(() => {
+  return isListening.value
+    ? 'bg-rose-500 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.4)] text-white scale-110'
+    : 'bg-zinc-700 border-zinc-600 hover:bg-zinc-600 text-zinc-300'
+})
+
+const isConnectedClasses = computed(() => {
+  return isConnected.value
+    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+    : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+})
+
 // Initialize Speech Recognition
 const initSpeechRecognition = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
