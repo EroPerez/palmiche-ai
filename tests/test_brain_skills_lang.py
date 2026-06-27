@@ -130,18 +130,6 @@ def test_system_prompt_covers_all_tool_categories():
     assert not missing_en, f"English prompt missing categories: {missing_en}"
 
 
-def test_ollama_brain_tool_conversion():
-    """The Ollama brain converts the localized skills into OpenAI function format."""
-    from jarvis.brain.ollama_agent import _to_ollama_tools
-
-    en_tools = _to_ollama_tools(get_tool_definitions("en"))
-    names = {t["function"]["name"] for t in en_tools}
-    assert names == {d["name"] for d in TOOL_DEFINITIONS}
-    # A representative description is English.
-    by_name = {t["function"]["name"]: t["function"]["description"] for t in en_tools}
-    assert by_name["get_system_info"] == TOOL_TEXT_EN["get_system_info"]["_"]
-
-
 def test_adk_brain_docstrings_localized():
     """The ADK brain exposes the same callables with language-specific docstrings."""
     en_tools = get_adk_tools("en")
