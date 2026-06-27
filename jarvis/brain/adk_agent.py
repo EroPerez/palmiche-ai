@@ -130,6 +130,7 @@ class JarvisADKAgent:
             elif output_verdict.transformed_text is not None:
                 result = output_verdict.transformed_text
 
+        self.history.add("assistant", result)
         return result
 
     async def _chat_async(self, user_message: str) -> str:
@@ -153,8 +154,5 @@ class JarvisADKAgent:
                 for part in event.content.parts:
                     if hasattr(part, "text") and part.text:
                         final_text += part.text
-
-        if final_text:
-            self.history.add("assistant", final_text)
 
         return final_text or "No se recibió respuesta del agente ADK."
