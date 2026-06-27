@@ -325,7 +325,7 @@ Los guardrails están integrados en los tres backends de agentes:
 | Backend | Input | Output | Tool Call | Tool Result |
 |---|---|---|---|---|
 | Anthropic SDK (`agent.py`) | Antes de `chat()` | Después de `end_turn` | Antes de `_execute_tool()` | Después de `_execute_tool()` |
-| Google ADK (`adk_agent.py`) | Antes de `chat()` | Después de `_chat_async()` | — (ADK gestiona tools internamente) | — |
+| Google ADK (`adk_agent.py`) | Antes de `chat()` | Después de `_chat_async()`, antes de persistir historial | — (ADK gestiona tools internamente) | — |
 | Ollama (`ollama_agent.py`) | Antes de `chat()` | Después de respuesta final | Antes de `_execute_tool()` | Después de `_execute_tool()` |
 
 ---
@@ -337,7 +337,7 @@ jarvis/guardrails/
 ├── __init__.py      # API pública: GuardrailsEngine, modelos
 ├── models.py        # GuardrailRule, GuardrailVerdict, enums
 ├── engine.py        # Motor de evaluación central
-├── defaults.py      # 8 reglas integradas
+├── defaults.py      # 13 reglas integradas
 └── README.md        # Este documento
 ```
 
@@ -345,7 +345,7 @@ jarvis/guardrails/
 
 ## Tests
 
-33 tests unitarios en `tests/test_guardrails.py`:
+46 tests unitarios en `tests/test_guardrails.py`:
 
 ```bash
 # Con pytest

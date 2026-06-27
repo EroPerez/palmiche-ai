@@ -28,7 +28,7 @@ Nuevo módulo `jarvis/guardrails/` que implementa un sistema de reglas entre usu
 - **4 acciones**: `block` (rechazar), `warn` (advertir), `redact` (reemplazar), `log` (solo registrar)
 - **Tipos de regla**: patrones regex, listas de keywords, allowlist/blocklist de herramientas, restricciones de argumentos, longitud máxima, validadores personalizados
 - **Integrado en los 3 backends**: Anthropic SDK, Google ADK, Ollama
-- **44 tests unitarios** en `tests/test_guardrails.py`
+- **46 tests unitarios** en `tests/test_guardrails.py`
 
 #### Nuevas variables de entorno
 
@@ -44,7 +44,7 @@ Nuevo módulo `jarvis/guardrails/` que implementa un sistema de reglas entre usu
 | `jarvis/guardrails/__init__.py` | Nuevo | API pública del módulo |
 | `jarvis/guardrails/models.py` | Nuevo | Modelos de datos (GuardrailRule, GuardrailVerdict) |
 | `jarvis/guardrails/engine.py` | Nuevo | Motor de evaluación central |
-| `jarvis/guardrails/defaults.py` | Nuevo | 8 reglas integradas |
+| `jarvis/guardrails/defaults.py` | Nuevo | 13 reglas integradas |
 | `jarvis/guardrails/README.md` | Nuevo | Documentación completa del sistema |
 | `jarvis/guardrails.example.json` | Nuevo | Ejemplo de configuración personalizada |
 | `jarvis/brain/agent.py` | Modificado | Integración de guardrails |
@@ -52,7 +52,7 @@ Nuevo módulo `jarvis/guardrails/` que implementa un sistema de reglas entre usu
 | `jarvis/brain/ollama_agent.py` | Modificado | Integración de guardrails |
 | `jarvis/config.py` | Modificado | Variables `JARVIS_GUARDRAILS_*` |
 | `jarvis/.env.example` | Modificado | Documentación de variables guardrails |
-| `tests/test_guardrails.py` | Nuevo | 33 tests unitarios |
+| `tests/test_guardrails.py` | Nuevo | 46 tests unitarios |
 
 ---
 

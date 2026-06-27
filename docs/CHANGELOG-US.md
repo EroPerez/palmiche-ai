@@ -28,7 +28,7 @@ New module `jarvis/guardrails/` implementing a rule-based system between users a
 - **4 actions**: `block` (reject), `warn` (advisory), `redact` (replace), `log` (record only)
 - **Rule types**: regex patterns, keyword lists, tool allow/block lists, argument constraints, max length, custom validators
 - **Integrated into all 3 backends**: Anthropic SDK, Google ADK, Ollama
-- **44 unit tests** in `tests/test_guardrails.py`
+- **46 unit tests** in `tests/test_guardrails.py`
 
 #### New environment variables
 
@@ -44,7 +44,7 @@ New module `jarvis/guardrails/` implementing a rule-based system between users a
 | `jarvis/guardrails/__init__.py` | New | Module public API |
 | `jarvis/guardrails/models.py` | New | Data models (GuardrailRule, GuardrailVerdict) |
 | `jarvis/guardrails/engine.py` | New | Core evaluation engine |
-| `jarvis/guardrails/defaults.py` | New | 8 built-in rules |
+| `jarvis/guardrails/defaults.py` | New | 13 built-in rules |
 | `jarvis/guardrails/README.md` | New | Full system documentation |
 | `jarvis/guardrails.example.json` | New | Custom configuration example |
 | `jarvis/brain/agent.py` | Modified | Guardrails integration |
@@ -52,7 +52,7 @@ New module `jarvis/guardrails/` implementing a rule-based system between users a
 | `jarvis/brain/ollama_agent.py` | Modified | Guardrails integration |
 | `jarvis/config.py` | Modified | `JARVIS_GUARDRAILS_*` variables |
 | `jarvis/.env.example` | Modified | Guardrails variable documentation |
-| `tests/test_guardrails.py` | New | 33 unit tests |
+| `tests/test_guardrails.py` | New | 46 unit tests |
 
 ---
 

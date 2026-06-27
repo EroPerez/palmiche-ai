@@ -48,6 +48,7 @@ class TestGuardrailRule:
         handler = logging.StreamHandler(stream)
         handler.setLevel(logging.WARNING)
         logger = logging.getLogger("jarvis.guardrails.models")
+        prev_level = logger.level
         logger.addHandler(handler)
         logger.setLevel(logging.WARNING)
 
@@ -56,6 +57,7 @@ class TestGuardrailRule:
                 return stream
             def __exit__(self_, *args):
                 logger.removeHandler(handler)
+                logger.setLevel(prev_level)
 
         return _Ctx()
 
