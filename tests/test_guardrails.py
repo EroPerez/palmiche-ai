@@ -1,6 +1,7 @@
 """Tests for the AI guardrails engine."""
 
 import json
+import logging
 import tempfile
 from pathlib import Path
 
@@ -30,13 +31,33 @@ class TestGuardrailRule:
         assert len(rule.patterns) == 1
 
     def test_from_dict_warns_on_unknown_keys(self):
-        rule = GuardrailRule.from_dict({
-            "id": "test-2",
-            "name": "Test",
-            "unknown_field": "ignored",
-        })
+        with self._capture_logs() as log_output:
+            rule = GuardrailRule.from_dict({
+                "id": "test-2",
+                "name": "Test",
+                "unknown_field": "ignored",
+            })
         assert rule.id == "test-2"
         assert not hasattr(rule, "unknown_field")
+        assert "Unknown guardrail rule fields" in log_output.getvalue()
+
+    @staticmethod
+    def _capture_logs():
+        import io
+        stream = io.StringIO()
+        handler = logging.StreamHandler(stream)
+        handler.setLevel(logging.WARNING)
+        logger = logging.getLogger("jarvis.guardrails.models")
+        logger.addHandler(handler)
+        logger.setLevel(logging.WARNING)
+
+        class _Ctx:
+            def __enter__(self_):
+                return stream
+            def __exit__(self_, *args):
+                logger.removeHandler(handler)
+
+        return _Ctx()
 
     def test_to_dict_roundtrip(self):
         rule = GuardrailRule(
