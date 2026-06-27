@@ -4,6 +4,7 @@ import anime from 'animejs'
 import SiriAnimation from './components/SiriAnimation.vue'
 import ChatMessage from './components/ChatMessage.vue'
 import TypingIndicator from './components/TypingIndicator.vue'
+import ConnectingOverlay from './components/ConnectingOverlay.vue'
 
 const messages = ref([])
 const inputMessage = ref('')
@@ -211,6 +212,15 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col h-[calc(100vh-24px)] container max-w-[60%] mx-auto bg-zinc-900 text-white border border-zinc-700/50 rounded-2xl overflow-hidden shadow-2xl relative">
+    <Transition
+      enter-active-class="transition-opacity duration-700"
+      leave-active-class="transition-opacity duration-700"
+      enter-from-class="opacity-0"
+      leave-to-class="opacity-0"
+    >
+      <ConnectingOverlay v-if="!isConnected" />
+    </Transition>
+
     <!-- Header with Glassmorphism -->
     <header class="p-4 bg-zinc-800/80 backdrop-blur-md border-b border-zinc-700/50 flex justify-between items-center z-10 sticky top-0">
       <div class="flex items-center gap-4">
