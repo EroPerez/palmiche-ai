@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import anime from 'animejs'
+import SiriAnimation from './components/SiriAnimation.vue'
 
 const messages = ref([])
 const inputMessage = ref('')
@@ -14,7 +15,6 @@ const isListening = ref(false)
 let ws = null
 let currentAssistantMessageIndex = -1
 let recognition = null
-let siriAnimation = null
 
 // Initialize Speech Recognition
 const initSpeechRecognition = () => {
@@ -31,7 +31,6 @@ const initSpeechRecognition = () => {
 
   recognition.onstart = () => {
     isListening.value = true
-    startSiriAnimation()
   }
 
   recognition.onresult = (event) => {
@@ -83,30 +82,6 @@ const toggleListening = () => {
 
 const stopListening = () => {
   isListening.value = false
-  if (siriAnimation) {
-    siriAnimation.pause()
-    anime({
-      targets: '.siri-wave',
-      scaleY: 1,
-      duration: 300,
-      easing: 'easeOutQuad'
-    })
-  }
-}
-
-const startSiriAnimation = () => {
-  siriAnimation = anime({
-    targets: '.siri-wave',
-    scaleY: [
-      { value: 2.5, duration: 400, easing: 'easeInOutSine' },
-      { value: 0.5, duration: 400, easing: 'easeInOutSine' },
-      { value: 1.5, duration: 400, easing: 'easeInOutSine' },
-      { value: 1, duration: 400, easing: 'easeInOutSine' }
-    ],
-    delay: anime.stagger(100),
-    loop: true,
-    direction: 'alternate'
-  })
 }
 
 const speakText = (text) => {
@@ -241,13 +216,7 @@ onMounted(() => {
     </div>
 
     <!-- Siri Animation Container -->
-    <div class="siri-container" v-show="isListening">
-      <div class="siri-wave wave-1"></div>
-      <div class="siri-wave wave-2"></div>
-      <div class="siri-wave wave-3"></div>
-      <div class="siri-wave wave-4"></div>
-      <div class="siri-wave wave-5"></div>
-    </div>
+    <SiriAnimation :isListening="isListening" />
 
     <div class="chat-input-area">
       <button 
@@ -272,17 +241,24 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .chat-container {
+  --size-xs: 4px;
+  --size-sm: 8px;
+  --size-md: 12px;
+  --size-lg: 16px;
+  --size-xl: 20px;
+
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 3 * var(--size-sm));
   max-width: 800px;
-  margin: 0 auto;
+  margin: var(--size-sm) auto;
   background-color: #121212;
   color: #fff;
-  border-left: 1px solid #333;
-  border-right: 1px solid #333;
+  border: 3px solid #333;
+  border-radius: var(--size-lg);
+  overflow: hidden;
   position: relative;
 }
 
@@ -293,18 +269,18 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+
+  h1 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
 }
 
 .header-left {
   display: flex;
   align-items: center;
   gap: 1rem;
-}
-
-.chat-header h1 {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 600;
 }
 
 .status {
@@ -314,6 +290,7 @@ onMounted(() => {
   background-color: #dc3545;
   color: white;
 }
+
 .status.connected {
   background-color: #28a745;
 }
@@ -375,28 +352,6 @@ onMounted(() => {
   color: #aaa;
 }
 
-/* Animación Siri */
-.siri-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  height: 40px;
-  background-color: #1a1a1a;
-  padding: 0.5rem;
-  border-top: 1px solid #333;
-}
-
-.siri-wave {
-  width: 6px;
-  height: 20px;
-  border-radius: 3px;
-}
-.wave-1 { background-color: #ff3b30; }
-.wave-2 { background-color: #ff9500; }
-.wave-3 { background-color: #4cd964; }
-.wave-4 { background-color: #5ac8fa; }
-.wave-5 { background-color: #007aff; }
 
 .chat-input-area {
   padding: 1rem;
