@@ -14,7 +14,7 @@ Nuevo módulo `jarvis/guardrails/` que implementa un sistema de reglas entre usu
 - **13 reglas integradas** (`defaults.py`):
   - Detección de prompt injection (6 patrones regex)
   - Detección de jailbreak (25 patrones: DAN, roleplay malicioso, hypothetical framing, opposite day, liberación, permisos, jailbreak ES/EN)
-  - Prevención de extracción del system prompt (5 patrones)
+  - Prevención de extracción del system prompt (15 patrones: show/reveal, how were you programmed, translate/encode/summarize prompt, ES/EN)
   - Filtro de lenguaje ofensivo y discriminatorio (insultos, discurso de odio, EN/ES)
   - Límite de longitud de entrada/salida
   - Redacción de credenciales (API keys, tokens GitHub, claves AWS, claves privadas)
@@ -28,7 +28,7 @@ Nuevo módulo `jarvis/guardrails/` que implementa un sistema de reglas entre usu
 - **4 acciones**: `block` (rechazar), `warn` (advertir), `redact` (reemplazar), `log` (solo registrar)
 - **Tipos de regla**: patrones regex, listas de keywords, allowlist/blocklist de herramientas, restricciones de argumentos, longitud máxima, validadores personalizados
 - **Integrado en los 3 backends**: Anthropic SDK, Google ADK, Ollama
-- **56 tests unitarios** en `tests/test_guardrails.py`
+- **62 tests unitarios** en `tests/test_guardrails.py`
 
 #### Nuevas variables de entorno
 
@@ -52,7 +52,7 @@ Nuevo módulo `jarvis/guardrails/` que implementa un sistema de reglas entre usu
 | `jarvis/brain/ollama_agent.py` | Modificado | Integración de guardrails |
 | `jarvis/config.py` | Modificado | Variables `JARVIS_GUARDRAILS_*` |
 | `jarvis/.env.example` | Modificado | Documentación de variables guardrails |
-| `tests/test_guardrails.py` | Nuevo | 56 tests unitarios |
+| `tests/test_guardrails.py` | Nuevo | 62 tests unitarios |
 
 ---
 

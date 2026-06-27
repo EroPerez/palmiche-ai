@@ -164,7 +164,7 @@ El sistema incluye 13 reglas integradas:
 | `input-max-length` | BLOCK | Bloquea entradas de más de 50,000 caracteres |
 | `input-prompt-injection` | BLOCK | Detecta 6 patrones comunes de prompt injection |
 | `input-jailbreak` | BLOCK | Detecta 25 patrones de jailbreak (DAN, roleplay malicioso, hypothetical framing, opposite day, liberación, permisos, jailbreak ES/EN) |
-| `input-system-prompt-extraction` | BLOCK | Bloquea intentos de extraer el prompt del sistema o la configuración interna |
+| `input-system-prompt-extraction` | BLOCK | Detecta 15 patrones de extracción del system prompt (show/reveal, how were you programmed, translate/encode/summarize prompt, ES/EN) |
 | `input-offensive-language` | BLOCK | Bloquea insultos raciales, homofóbicos, discurso de odio y lenguaje discriminatorio (EN/ES) |
 
 ### Fase OUTPUT
@@ -172,7 +172,7 @@ El sistema incluye 13 reglas integradas:
 | ID | Acción | Descripción |
 |---|---|---|
 | `output-no-credentials` | REDACT | Redacta API keys, tokens de GitHub, claves AWS, claves privadas |
-| `output-no-system-prompt-leak` | BLOCK | Bloquea respuestas que revelen el prompt del sistema o la configuración interna |
+| `output-no-system-prompt-leak` | BLOCK | Detecta 13 patrones de filtración del system prompt en respuestas (here is my prompt, I was instructed to, ES/EN) |
 | `output-no-offensive-language` | BLOCK | Bloquea respuestas con insultos, discurso de odio o lenguaje discriminatorio |
 | `output-no-harmful-instructions` | BLOCK | Bloquea instrucciones para actividades peligrosas |
 | `output-max-length` | BLOCK | Bloquea salidas de más de 100,000 caracteres |
@@ -345,7 +345,7 @@ jarvis/guardrails/
 
 ## Tests
 
-56 tests unitarios en `tests/test_guardrails.py`:
+62 tests unitarios en `tests/test_guardrails.py`:
 
 ```bash
 # Con pytest
