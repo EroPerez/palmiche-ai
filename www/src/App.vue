@@ -1,11 +1,6 @@
 <script setup>
 import { ref, onMounted, nextTick, computed } from 'vue'
 import anime from 'animejs'
-import SiriAnimation from './components/SiriAnimation.vue'
-import ChatMessage from './components/ChatMessage.vue'
-import TypingIndicator from './components/TypingIndicator.vue'
-import ConnectingOverlay from './components/ConnectingOverlay.vue'
-import Waveform from './components/Waveform.vue'
 
 const messages = ref([])
 const inputMessage = ref('')
@@ -20,18 +15,7 @@ const isListening = ref(false)
 let ws = null
 let currentAssistantMessageIndex = -1
 let recognition = null
-
-const btnListenClasses = computed(() => {
-  return isListening.value
-    ? 'bg-rose-500 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.4)] text-white scale-110'
-    : 'bg-zinc-700 border-zinc-600 hover:bg-zinc-600 text-zinc-300'
-})
-
-const isConnectedClasses = computed(() => {
-  return isConnected.value
-    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-    : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-})
+let siriAnimation = null
 
 // Initialize Speech Recognition
 const initSpeechRecognition = () => {
@@ -277,16 +261,13 @@ onMounted(() => {
     </div>
 
     <!-- Siri Animation Container -->
-    <SiriAnimation :isListening="isListening" />
-
-    <Transition
-      enter-active-class="transition-opacity duration-300"
-      leave-active-class="transition-opacity duration-300"
-      enter-from-class="opacity-0"
-      leave-to-class="opacity-0"
-    >
-      <Waveform v-if="isSpeaking" />
-    </Transition>
+    <div class="siri-container" v-show="isListening">
+      <div class="siri-wave wave-1"></div>
+      <div class="siri-wave wave-2"></div>
+      <div class="siri-wave wave-3"></div>
+      <div class="siri-wave wave-4"></div>
+      <div class="siri-wave wave-5"></div>
+    </div>
 
     <!-- Input Area -->
     <div class="p-4 bg-zinc-800/90 border-t border-zinc-700/50 flex gap-3 items-center backdrop-blur-md">
@@ -321,3 +302,193 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: #121212;
+  color: #fff;
+  border-left: 1px solid #333;
+  border-right: 1px solid #333;
+  position: relative;
+}
+
+.chat-header {
+  padding: 1rem;
+  background-color: #1a1a1a;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.chat-header h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.status {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  background-color: #dc3545;
+  color: white;
+}
+.status.connected {
+  background-color: #28a745;
+}
+
+.tts-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #ccc;
+  user-select: none;
+}
+.tts-toggle input {
+  cursor: pointer;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.message-bubble {
+  max-width: 80%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.role-user {
+  align-self: flex-end;
+  background-color: #0d6efd;
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.role-assistant {
+  align-self: flex-start;
+  background-color: #2a2a2a;
+  color: #e0e0e0;
+  border-bottom-left-radius: 4px;
+}
+
+.role-system {
+  align-self: center;
+  background-color: transparent;
+  color: #888;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.typing-indicator {
+  font-style: italic;
+  color: #aaa;
+}
+
+/* Animación Siri */
+.siri-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  background-color: #1a1a1a;
+  padding: 0.5rem;
+  border-top: 1px solid #333;
+}
+
+.siri-wave {
+  width: 6px;
+  height: 20px;
+  border-radius: 3px;
+}
+.wave-1 { background-color: #ff3b30; }
+.wave-2 { background-color: #ff9500; }
+.wave-3 { background-color: #4cd964; }
+.wave-4 { background-color: #5ac8fa; }
+.wave-5 { background-color: #007aff; }
+
+.chat-input-area {
+  padding: 1rem;
+  background-color: #1a1a1a;
+  border-top: 1px solid #333;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mic-btn {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 50%;
+  width: 45px;
+  height: 45px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.mic-btn.active {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+}
+
+.chat-input-area input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 24px;
+  border: 1px solid #444;
+  background-color: #2a2a2a;
+  color: white;
+  outline: none;
+}
+
+.chat-input-area input:focus {
+  border-color: #0d6efd;
+}
+
+.send-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 24px;
+  border: none;
+  background-color: #0d6efd;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.send-btn:hover:not(:disabled) {
+  background-color: #0b5ed7;
+}
+
+.send-btn:disabled, .mic-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>
