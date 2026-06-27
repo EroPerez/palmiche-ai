@@ -118,14 +118,16 @@ class JarvisADKAgent:
             input_verdict = self._guardrails.check_input(user_message)
             if input_verdict.blocked:
                 return input_verdict.message
+            if input_verdict.transformed_text is not None:
+                user_message = input_verdict.transformed_text
 
         result = asyncio.run(self._chat_async(user_message))
 
         if self._guardrails:
             output_verdict = self._guardrails.check_output(result)
             if output_verdict.blocked:
-                return output_verdict.message
-            if output_verdict.transformed_text is not None:
+                result = output_verdict.message
+            elif output_verdict.transformed_text is not None:
                 result = output_verdict.transformed_text
 
         return result

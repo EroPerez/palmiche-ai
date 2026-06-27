@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import importlib
 import json
 import logging
@@ -28,7 +29,8 @@ class GuardrailsEngine:
     """
 
     def __init__(self, rules: list[GuardrailRule] | None = None):
-        self._rules: list[GuardrailRule] = list(rules) if rules else list(DEFAULT_RULES)
+        source = rules if rules is not None else DEFAULT_RULES
+        self._rules: list[GuardrailRule] = copy.deepcopy(list(source))
         self._rules.sort(key=lambda r: r.priority)
 
     # ── Factory ───────────────────────────────────────────────────────
@@ -55,6 +57,11 @@ class GuardrailsEngine:
             try:
                 data = json.loads(config_path.read_text(encoding="utf-8"))
                 for raw_rule in data.get("rules", []):
+                    rule_id = raw_rule.get("id")
+                    if rule_id and rule_id in rules_by_id:
+                        merged = rules_by_id[rule_id].to_dict()
+                        merged.update(raw_rule)
+                        raw_rule = merged
                     rule = GuardrailRule.from_dict(raw_rule)
                     rules_by_id[rule.id] = rule
                 logger.info("Loaded %d guardrail rule(s) from %s", len(data.get("rules", [])), path)
@@ -67,7 +74,7 @@ class GuardrailsEngine:
 
     @property
     def rules(self) -> list[GuardrailRule]:
-        return list(self._rules)
+        return copy.deepcopy(self._rules)
 
     def add_rule(self, rule: GuardrailRule) -> None:
         """Add or replace a rule at runtime."""
@@ -248,7 +255,9 @@ class GuardrailsEngine:
             module_path, func_name = dotted_path.rsplit(".", 1)
             module = importlib.import_module(module_path)
             func = getattr(module, func_name)
+            if not callable(func):
+                return f"Custom validator {dotted_path} is not callable."
             return func(text, rule)
-        except Exception as exc:
+        except (ImportError, AttributeError, TypeError, ValueError, RuntimeError) as exc:
             logger.warning("Custom validator %s failed: %s", dotted_path, exc)
-            return None
+            return f"Custom validator {dotted_path} failed."

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import enum
+import logging
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 
 class GuardrailPhase(str, enum.Enum):
@@ -74,7 +77,10 @@ class GuardrailRule:
             data["phase"] = GuardrailPhase(data["phase"])
         if "action" in data:
             data["action"] = GuardrailAction(data["action"])
-        known = {f.name for f in cls.__dataclass_fields__.values()}
+        known = set(cls.__dataclass_fields__)
+        unknown = set(data) - known
+        if unknown:
+            logger.warning("Unknown guardrail rule fields (ignored): %s", ", ".join(sorted(unknown)))
         return cls(**{k: v for k, v in data.items() if k in known})
 
     def to_dict(self) -> dict:

@@ -114,6 +114,8 @@ class JarvisOllamaAgent:
             input_verdict = self._guardrails.check_input(user_message)
             if input_verdict.blocked:
                 return input_verdict.message
+            if input_verdict.transformed_text is not None:
+                user_message = input_verdict.transformed_text
 
         self.history.add("user", user_message)
 
@@ -188,7 +190,9 @@ class JarvisOllamaAgent:
 
                 if self._guardrails:
                     result_verdict = self._guardrails.check_tool_result(str(result))
-                    if result_verdict.transformed_text is not None:
+                    if result_verdict.blocked:
+                        result = f"BLOCKED: {result_verdict.message}"
+                    elif result_verdict.transformed_text is not None:
                         result = result_verdict.transformed_text
 
                 messages.append({"role": "tool", "content": result})

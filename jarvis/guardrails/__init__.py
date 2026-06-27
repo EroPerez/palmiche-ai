@@ -13,7 +13,7 @@ Quick start::
     if verdict.blocked:
         print(verdict.message)
 
-See ``jarvis/guardrails/README.md`` for the full rule specification.
+See ``jarvis/guardrails/README.md`` for the full rule specification and examples.
 """
 
 from .models import (

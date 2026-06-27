@@ -6,6 +6,56 @@ All notable changes to the project are documented in this file.
 
 ## [Unreleased] — 2026-06-26
 
+### AI Guardrails — AI safety mechanisms
+
+New module `jarvis/guardrails/` implementing a rule-based system between users and AI models to ensure the application behaves reliably, ethically, and securely.
+
+- **Evaluation engine** (`engine.py`): evaluates rules at 4 lifecycle phases (input, output, tool_call, tool_result)
+- **13 built-in rules** (`defaults.py`):
+  - Prompt injection detection (6 regex patterns)
+  - Jailbreak attempt detection (8 patterns: act as evil AI, bypass filters, forget training)
+  - System prompt extraction prevention (5 patterns)
+  - Offensive and discriminatory language filter (slurs, hate speech, EN/ES)
+  - Input/output length limits
+  - Credential redaction (API keys, GitHub tokens, AWS keys, private keys)
+  - System prompt leak prevention in model output
+  - Offensive language filter for model output
+  - Harmful content blocking in output
+  - Dangerous shell command blocking (`rm -rf /`, `mkfs`, `dd`, fork bombs)
+  - Mandatory confirmation for destructive actions
+  - Secret redaction in tool results
+- **JSON configuration** (`~/.jarvis_guardrails.json`): override, disable, or add rules
+- **4 actions**: `block` (reject), `warn` (advisory), `redact` (replace), `log` (record only)
+- **Rule types**: regex patterns, keyword lists, tool allow/block lists, argument constraints, max length, custom validators
+- **Integrated into all 3 backends**: Anthropic SDK, Google ADK, Ollama
+- **44 unit tests** in `tests/test_guardrails.py`
+
+#### New environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `JARVIS_GUARDRAILS_ENABLED` | `true` | Enable/disable guardrails globally |
+| `JARVIS_GUARDRAILS_FILE` | `~/.jarvis_guardrails.json` | Custom guardrail rules file |
+
+#### File changes
+
+| File | Type | Description |
+|---|---|---|
+| `jarvis/guardrails/__init__.py` | New | Module public API |
+| `jarvis/guardrails/models.py` | New | Data models (GuardrailRule, GuardrailVerdict) |
+| `jarvis/guardrails/engine.py` | New | Core evaluation engine |
+| `jarvis/guardrails/defaults.py` | New | 8 built-in rules |
+| `jarvis/guardrails/README.md` | New | Full system documentation |
+| `jarvis/guardrails.example.json` | New | Custom configuration example |
+| `jarvis/brain/agent.py` | Modified | Guardrails integration |
+| `jarvis/brain/adk_agent.py` | Modified | Guardrails integration |
+| `jarvis/brain/ollama_agent.py` | Modified | Guardrails integration |
+| `jarvis/config.py` | Modified | `JARVIS_GUARDRAILS_*` variables |
+| `jarvis/.env.example` | Modified | Guardrails variable documentation |
+| `tests/test_guardrails.py` | New | 33 unit tests |
+
+---
+
 ### Centralized Audio Engine (AudioEngine)
 
 New module `jarvis/interface/audio_engine.py` replacing scattered audio functions in `wake_word.py` and `tray.py` with a unified, centralized engine.

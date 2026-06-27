@@ -23,6 +23,8 @@ Palmiche J.A.R.V.I.S. es un asistente personal AI que corre como CLI, bandeja de
 │  JarvisOllamaAgent (Ollama)   │                                        │
 │                                                                         │
 │  Bucle agéntico: user → modelo → tool_use → execute → respuesta        │
+│                                                                         │
+│  GuardrailsEngine: valida input, output, tool_call y tool_result       │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────────────┐
@@ -74,10 +76,17 @@ palmiche-ai/
 │   ├── custom_tools.example.txt # Plantilla de ejemplo para herramientas personalizadas
 │   │
 │   ├── brain/
-│   │   ├── agent.py             # JarvisAgent (Anthropic SDK) — soporta DynamicToolRegistry
-│   │   ├── adk_agent.py         # JarvisADKAgent (Google ADK: Claude vía LiteLLM o Gemini nativo)
-│   │   ├── ollama_agent.py      # JarvisOllamaAgent (modelos locales via Ollama)
+│   │   ├── agent.py             # JarvisAgent (Anthropic SDK) — soporta DynamicToolRegistry + guardrails
+│   │   ├── adk_agent.py         # JarvisADKAgent (Google ADK: Claude vía LiteLLM o Gemini nativo) + guardrails
+│   │   ├── ollama_agent.py      # JarvisOllamaAgent (modelos locales via Ollama) + guardrails
 │   │   └── prompts.py           # System prompts (ES/EN según JARVIS_TOOL_LANG)
+│   │
+│   ├── guardrails/
+│   │   ├── __init__.py          # API pública: GuardrailsEngine, modelos
+│   │   ├── models.py            # GuardrailRule, GuardrailVerdict, enums (Phase, Action)
+│   │   ├── engine.py            # Motor de evaluación central (regex, keywords, validators)
+│   │   ├── defaults.py          # 13 reglas integradas (jailbreak, prompt injection, credential leak, etc.)
+│   │   └── README.md            # Documentación completa del sistema de guardrails
 │   │
 │   ├── tools/
 │   │   ├── registry.py          # 59 herramientas estáticas + dispatcher execute_tool()
@@ -449,6 +458,8 @@ Todas las variables se leen desde `jarvis/.env` (o del entorno del proceso).
 | `JARVIS_LOG_FILE` | `~/.jarvis_tools.log` | Archivo de log de ejecución de herramientas |
 | `JARVIS_LOG_ENABLED` | `true` | Activar/desactivar logging de herramientas |
 | `JARVIS_SUDO_PASSWORD` | — | Contraseña sudo automática (opcional) |
+| `JARVIS_GUARDRAILS_ENABLED` | `true` | Activar/desactivar guardrails de seguridad IA |
+| `JARVIS_GUARDRAILS_FILE` | `~/.jarvis_guardrails.json` | Archivo de reglas de guardrails personalizadas |
 
 ### Computer Use
 | Variable | Default | Descripción |
@@ -518,3 +529,4 @@ Usuario: "Agent2 opina que..."
 - **Logging**: todas las llamadas a herramientas se registran en `~/.jarvis_tools.log` con timestamp, inputs y resultado. Desactivable con `JARVIS_LOG_ENABLED=false`.
 - **Sudo automático**: cuando `JARVIS_SUDO_PASSWORD` está configurada, el agente la usa via `sudo -S` tras pedir confirmación al usuario. Si un comando falla con "Permission denied", el sistema detecta el error y ofrece reintentar con privilegios.
 - **Polkit rules** (`scripts/49-jarvis-power.rules`): permite acciones de energía (apagado/reinicio/suspensión) sin contraseña para el usuario configurado, sin requerir sudo global.
+- **AI Guardrails** (`jarvis/guardrails/`): sistema de reglas que valida entradas (detección de prompt injection), salidas (redacción de credenciales, bloqueo de contenido dañino), llamadas a herramientas (comandos peligrosos, confirmación de acciones destructivas) y resultados (redacción de secretos). Configurable vía `~/.jarvis_guardrails.json`. Ver `jarvis/guardrails/README.md` para la documentación completa.
