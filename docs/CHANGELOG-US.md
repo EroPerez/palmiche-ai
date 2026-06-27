@@ -13,7 +13,7 @@ New module `jarvis/guardrails/` implementing a rule-based system between users a
 - **Evaluation engine** (`engine.py`): evaluates rules at 4 lifecycle phases (input, output, tool_call, tool_result)
 - **13 built-in rules** (`defaults.py`):
   - Prompt injection detection (6 regex patterns)
-  - Jailbreak attempt detection (8 patterns: act as evil AI, bypass filters, forget training)
+  - Jailbreak attempt detection (25 patterns: DAN, malicious roleplay, hypothetical framing, opposite day, liberation, permissions, ES/EN jailbreak)
   - System prompt extraction prevention (5 patterns)
   - Offensive and discriminatory language filter (slurs, hate speech, EN/ES)
   - Input/output length limits
@@ -28,7 +28,7 @@ New module `jarvis/guardrails/` implementing a rule-based system between users a
 - **4 actions**: `block` (reject), `warn` (advisory), `redact` (replace), `log` (record only)
 - **Rule types**: regex patterns, keyword lists, tool allow/block lists, argument constraints, max length, custom validators
 - **Integrated into all 3 backends**: Anthropic SDK, Google ADK, Ollama
-- **46 unit tests** in `tests/test_guardrails.py`
+- **56 unit tests** in `tests/test_guardrails.py`
 
 #### New environment variables
 
@@ -52,7 +52,7 @@ New module `jarvis/guardrails/` implementing a rule-based system between users a
 | `jarvis/brain/ollama_agent.py` | Modified | Guardrails integration |
 | `jarvis/config.py` | Modified | `JARVIS_GUARDRAILS_*` variables |
 | `jarvis/.env.example` | Modified | Guardrails variable documentation |
-| `tests/test_guardrails.py` | New | 46 unit tests |
+| `tests/test_guardrails.py` | New | 56 unit tests |
 
 ---
 

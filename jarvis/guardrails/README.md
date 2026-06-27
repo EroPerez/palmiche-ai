@@ -163,7 +163,7 @@ El sistema incluye 13 reglas integradas:
 |---|---|---|
 | `input-max-length` | BLOCK | Bloquea entradas de más de 50,000 caracteres |
 | `input-prompt-injection` | BLOCK | Detecta 6 patrones comunes de prompt injection |
-| `input-jailbreak` | BLOCK | Detecta 8 patrones de jailbreak (actuar como IA maliciosa, bypass de filtros, olvidar entrenamiento) |
+| `input-jailbreak` | BLOCK | Detecta 25 patrones de jailbreak (DAN, roleplay malicioso, hypothetical framing, opposite day, liberación, permisos, jailbreak ES/EN) |
 | `input-system-prompt-extraction` | BLOCK | Bloquea intentos de extraer el prompt del sistema o la configuración interna |
 | `input-offensive-language` | BLOCK | Bloquea insultos raciales, homofóbicos, discurso de odio y lenguaje discriminatorio (EN/ES) |
 
@@ -345,7 +345,7 @@ jarvis/guardrails/
 
 ## Tests
 
-46 tests unitarios en `tests/test_guardrails.py`:
+56 tests unitarios en `tests/test_guardrails.py`:
 
 ```bash
 # Con pytest
