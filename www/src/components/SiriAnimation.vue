@@ -75,9 +75,32 @@ watch(() => props.isListening, (newVal) => {
   height: 20px;
   border-radius: 3px;
 }
-.wave-1 { background-color: #ff3b30; box-shadow: 0 0 10px #ff3b30, 0 0 15px rgba(255, 59, 48, 0.5); }
-.wave-2 { background-color: #ff9500; box-shadow: 0 0 10px #ff9500, 0 0 15px rgba(255, 149, 0, 0.5); }
-.wave-3 { background-color: #4cd964; box-shadow: 0 0 10px #4cd964, 0 0 15px rgba(76, 217, 100, 0.5); }
-.wave-4 { background-color: #5ac8fa; box-shadow: 0 0 10px #5ac8fa, 0 0 15px rgba(90, 200, 250, 0.5); }
-.wave-5 { background-color: #007aff; box-shadow: 0 0 10px #007aff, 0 0 15px rgba(0, 122, 255, 0.5); }
+
+.wave-1 {
+  background-color: #ff3b30;
+  box-shadow: 0 0 10px #ff3b30, 0 0 15px rgba(255, 59, 48, 0.5);
+}
+
+.wave-2 {
+  background-color: #ff9500;
+  box-shadow: 0 0 10px #ff9500, 0 0 15px rgba(255, 149, 0, 0.5);
+}
+
+.wave-3 {
+  background-color: #4cd964;
+  box-shadow: 0 0 10px #4cd964,
+  0 0 15px rgba(76, 217, 100, 0.5);
+}
+
+.wave-4 {
+  background-color: #5ac8fa;
+  box-shadow: 0 0 10px #5ac8fa,
+  0 0 15px rgba(90, 200, 250, 0.5);
+}
+
+.wave-5 {
+  background-color: #007aff;
+  box-shadow: 0 0 10px #007aff,
+  0 0 15px rgba(0, 122, 255, 0.5);
+}
 </style>
