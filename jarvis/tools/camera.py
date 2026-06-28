@@ -16,7 +16,6 @@ Install:
 """
 from __future__ import annotations
 
-import base64
 import time
 from pathlib import Path
 from typing import Optional
@@ -74,32 +73,25 @@ def _capture_frame(camera_index: int = 0, save_path: Optional[str] = None) -> tu
         cap.release()
 
 
+_vision_agent = None
+
+
+def _get_vision_agent():
+    """Lazy singleton of JarvisUniversalADKAgent for vision tasks."""
+    global _vision_agent
+    if _vision_agent is None:
+        from ..brain.adk_universal import JarvisUniversalADKAgent
+        _vision_agent = JarvisUniversalADKAgent()
+    return _vision_agent
+
+
 def _analyze_image(image_bytes: bytes, prompt: str) -> str:
-    """Send an image to the configured JARVIS_MODEL via the centralized LLM completion.
-
-    Routes through jarvis.brain.llm_completion which uses the same model
-    resolution, API key, and base URL as JarvisUniversalADKAgent.
-    """
-    from ..brain.llm_completion import completion
-
-    b64_image = base64.b64encode(image_bytes).decode("utf-8")
-
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{b64_image}",
-                    },
-                },
-            ],
-        }
-    ]
-
-    return completion(messages, temperature=0.3, max_tokens=1024)
+    """Send an image to JarvisUniversalADKAgent for multimodal analysis."""
+    try:
+        agent = _get_vision_agent()
+        return agent.vision_chat(image_bytes, prompt)
+    except Exception as e:
+        return f"Error al analizar imagen: {e}"
 
 
 def _get_camera_index() -> int:
