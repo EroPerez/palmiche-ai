@@ -156,6 +156,15 @@ JARVIS_GUARDRAILS_FILE: Path = Path(
 JARVIS_GUARDRAILS_ENABLED: bool = os.getenv("JARVIS_GUARDRAILS_ENABLED", "true").lower() == "true"
 
 # ---------------------------------------------------------------------------
+# Vision / Camera — multimodal object & gesture recognition
+# ---------------------------------------------------------------------------
+
+# Default camera device index (0 = first camera, 1 = second, etc.)
+# Vision analysis uses the same model configured in JARVIS_MODEL via LiteLLM,
+# so any multimodal-capable provider works (Gemini, Claude, GPT-4o, Ollama, etc.).
+VISION_CAMERA_INDEX: int = _get_positive_int("VISION_CAMERA_INDEX", 0)
+
+# ---------------------------------------------------------------------------
 # Computer Use — Gemini-powered visual browser/desktop automation
 # ---------------------------------------------------------------------------
 

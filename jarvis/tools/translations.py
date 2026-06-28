@@ -346,6 +346,70 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
         "url": "URL of the RSS/Atom feed",
         "max_items": "Maximum number of entries to show (default 10)",
     },
+    "camera_capture": {
+        "_": "Capture a photo from the system camera and save it to a file.",
+        "save_path": "Path to save the image. Default: ~/Capturas/camera_TIMESTAMP.jpg",
+        "camera_index": "Camera device index (0=default). -1 uses the configured default.",
+        "show_preview": "Show the captured frame in a preview window. Default: false.",
+    },
+    "camera_describe": {
+        "_": (
+            "Capture a photo from the camera and describe the scene using the configured multimodal AI model. Identifies people, objects, colors, environment and details."
+        ),
+        "prompt": "Custom prompt for the AI. Default: general scene description.",
+        "camera_index": "Camera device index. -1 uses the configured default.",
+        "save_path": "Optional path to save the captured image.",
+        "show_preview": "Show the captured frame in a preview window while analyzing. Default: false.",
+    },
+    "camera_recognize_objects": {
+        "_": (
+            "Capture a photo from the camera and identify all visible objects "
+            "with position, relative size and confidence level. Uses the configured multimodal AI model."
+        ),
+        "camera_index": "Camera device index. -1 uses the configured default.",
+        "save_path": "Optional path to save the captured image.",
+        "show_preview": "Show the captured frame in a preview window while analyzing. Default: false.",
+    },
+    "camera_recognize_gestures": {
+        "_": (
+            "Capture a photo from the camera and recognize hand gestures and body language. "
+            "Detects: thumbs up, peace sign, fist, open palm, pointing, pinch, OK, etc. "
+            "Uses the configured multimodal AI model."
+        ),
+        "camera_index": "Camera device index. -1 uses the configured default.",
+        "save_path": "Optional path to save the captured image.",
+        "show_preview": "Show the captured frame in a preview window while analyzing. Default: false.",
+    },
+    "camera_analyze": {
+        "_": (
+            "Capture a photo and analyze it with a custom prompt. "
+            "Flexible: 'how many people?', 'what color is the shirt?', "
+            "'is the door open?', 'read the text on the sign', etc."
+        ),
+        "prompt": "Question or instruction about what the camera sees.",
+        "camera_index": "Camera device index. -1 uses the configured default.",
+        "save_path": "Optional path to save the captured image.",
+        "show_preview": "Show the captured frame in a preview window while analyzing. Default: false.",
+    },
+    "camera_monitor": {
+        "_": (
+            "Monitor the camera for a period, analyzing frames at regular intervals. "
+            "Useful for detecting changes, counting people, watching activity or waiting for specific events."
+        ),
+        "task": "What to monitor (e.g. 'count people', 'detect movement'). Default: general changes.",
+        "duration": "Monitoring duration in seconds (max 60). Default: 10.",
+        "interval": "Seconds between captures (min 2). Default: 3.",
+        "camera_index": "Camera device index. -1 uses the configured default.",
+        "show_preview": "Show a live preview window while monitoring. Default: false.",
+    },
+    "camera_preview": {
+        "_": (
+            "Open a live camera preview window showing what the camera sees in real time. "
+            "No AI analysis is performed — purely for viewing the camera feed."
+        ),
+        "duration": "Preview duration in seconds (max 120). Default: 15.",
+        "camera_index": "Camera device index. -1 uses the configured default.",
+    },
     "computer_use_task": {
         "_": (
             "Visually control a web browser or the full desktop to complete a task "
