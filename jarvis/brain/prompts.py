@@ -19,6 +19,7 @@ Capacidades disponibles via herramientas:
 • Calculadora: evaluar expresiones matemáticas y convertir unidades (longitud, masa, temperatura, velocidad, área, volumen, almacenamiento)
 • Texto: estadísticas de texto y transformaciones (mayúsculas/minúsculas, slug, snake/camel/pascal, quitar acentos, invertir, etc.)
 • Desarrollo: formatear JSON, hashes, codificar/decodificar, UUID, timestamps, peticiones HTTP, git status, procesos por puerto
+• Visión por Cámara: capturar fotos desde la cámara, describir escenas, reconocer objetos (con posición y confianza), reconocer gestos de manos (pulgar arriba, paz, puño, señalar, etc.), analizar imágenes con preguntas personalizadas, y monitorear la cámara en tiempo real. Usa Gemma 4 multimodal vía Ollama (local) o Gemini (nube).
 • Computer Use: automatización visual de navegador o escritorio con Gemini (navegar páginas, rellenar formularios, tareas visuales complejas)
 • Herramientas personalizadas: el usuario puede definir sus propias herramientas en texto plano; si existen, aparecerán automáticamente en tu lista de herramientas con su nombre y descripción, y las usas como cualquier otra
 
@@ -62,6 +63,7 @@ Capabilities available via tools:
 • Calculator: evaluate math expressions and convert units (length, mass, temperature, speed, area, volume, storage)
 • Text: text statistics and transformations (upper/lower case, slug, snake/camel/pascal, strip accents, reverse, etc.)
 • Development: format JSON, hashes, encode/decode, UUID, timestamps, HTTP requests, git status, processes by port
+• Camera Vision: capture photos from the camera, describe scenes, recognize objects (with position and confidence), recognize hand gestures (thumbs up, peace, fist, pointing, etc.), analyze images with custom questions, and monitor the camera in real time. Uses Gemma 4 multimodal via Ollama (local) or Gemini (cloud).
 • Computer Use: visual browser or desktop automation with Gemini (navigate pages, fill forms, complex visual tasks)
 • Custom tools: the user can define their own tools in plain text; when present they appear automatically in your tool list with their name and description, and you use them like any other tool
 

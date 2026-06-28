@@ -156,6 +156,24 @@ JARVIS_GUARDRAILS_FILE: Path = Path(
 JARVIS_GUARDRAILS_ENABLED: bool = os.getenv("JARVIS_GUARDRAILS_ENABLED", "true").lower() == "true"
 
 # ---------------------------------------------------------------------------
+# Vision / Camera — multimodal object & gesture recognition
+# ---------------------------------------------------------------------------
+
+# Multimodal model for camera vision tasks. Default uses Gemma 3 via Ollama.
+# For Ollama: "gemma3:4b", "gemma3:12b", "llava:13b", etc.
+# For Gemini: "gemini-2.0-flash", "gemini-2.5-flash"
+VISION_MODEL: str = os.getenv("VISION_MODEL", "gemma3:4b")
+
+# Vision inference backend: "ollama" (local, default) or "gemini" (cloud API)
+VISION_BACKEND: str = os.getenv("VISION_BACKEND", "ollama")
+
+# Ollama host for vision model inference
+VISION_OLLAMA_HOST: str = os.getenv("VISION_OLLAMA_HOST", os.getenv("JARVIS_OLLAMA_HOST", "http://localhost:11434"))
+
+# Default camera device index (0 = first camera, 1 = second, etc.)
+VISION_CAMERA_INDEX: int = _get_positive_int("VISION_CAMERA_INDEX", 0)
+
+# ---------------------------------------------------------------------------
 # Computer Use — Gemini-powered visual browser/desktop automation
 # ---------------------------------------------------------------------------
 

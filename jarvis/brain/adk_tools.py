@@ -692,6 +692,94 @@ def computer_use_task(
     return _computer_use_task(task, backend, initial_url, max_iterations, model, headless)
 
 
+# ---------------------------------------------------------------------------
+# Camera Vision — multimodal object & gesture recognition
+# ---------------------------------------------------------------------------
+
+from ..tools.camera import (
+    camera_capture as _camera_capture,
+    camera_describe as _camera_describe,
+    camera_recognize_objects as _camera_recognize_objects,
+    camera_recognize_gestures as _camera_recognize_gestures,
+    camera_analyze as _camera_analyze,
+    camera_monitor as _camera_monitor,
+)
+
+
+def camera_capture(save_path: str = "", camera_index: int = -1) -> str:
+    """Capture a photo from the system camera and save it to a file.
+
+    Args:
+        save_path: Where to save the image. Default: ~/Capturas/camera_TIMESTAMP.jpg
+        camera_index: Camera device index (0=default). -1 uses the configured default.
+    """
+    return _camera_capture(save_path, camera_index)
+
+
+def camera_describe(prompt: str = "", camera_index: int = -1, save_path: str = "") -> str:
+    """Capture a photo from the camera and describe the scene using multimodal AI (Gemma 4).
+
+    Identifies people, objects, colors, environment and details in the scene.
+
+    Args:
+        prompt: Custom prompt for the AI. Default: general scene description.
+        camera_index: Camera device index. -1 uses the configured default.
+        save_path: Optional path to save the captured image.
+    """
+    return _camera_describe(prompt, camera_index, save_path)
+
+
+def camera_recognize_objects(camera_index: int = -1, save_path: str = "") -> str:
+    """Capture a photo from the camera and identify all visible objects.
+
+    Lists each object with its position in the frame, relative size and confidence level.
+
+    Args:
+        camera_index: Camera device index. -1 uses the configured default.
+        save_path: Optional path to save the captured image.
+    """
+    return _camera_recognize_objects(camera_index, save_path)
+
+
+def camera_recognize_gestures(camera_index: int = -1, save_path: str = "") -> str:
+    """Capture a photo and recognize hand gestures and body language.
+
+    Detects gestures like thumbs up, peace sign, fist, open palm, pointing, pinch, OK sign, etc.
+
+    Args:
+        camera_index: Camera device index. -1 uses the configured default.
+        save_path: Optional path to save the captured image.
+    """
+    return _camera_recognize_gestures(camera_index, save_path)
+
+
+def camera_analyze(prompt: str, camera_index: int = -1, save_path: str = "") -> str:
+    """Capture a photo and analyze it with a custom prompt.
+
+    Flexible visual Q&A: 'how many people?', 'what color is the shirt?', 'is the door open?', 'read the text on the sign', etc.
+
+    Args:
+        prompt: Question or instruction about what the camera sees.
+        camera_index: Camera device index. -1 uses the configured default.
+        save_path: Optional path to save the captured image.
+    """
+    return _camera_analyze(prompt, camera_index, save_path)
+
+
+def camera_monitor(task: str = "", duration: int = 10, interval: int = 3, camera_index: int = -1) -> str:
+    """Monitor the camera for a period, analyzing frames at regular intervals.
+
+    Useful for detecting changes, counting people over time, watching activity, or waiting for specific events.
+
+    Args:
+        task: What to monitor for (e.g. 'count people', 'detect movement'). Default: general scene changes.
+        duration: How many seconds to monitor (max 60). Default: 10.
+        interval: Seconds between frame captures (min 2). Default: 3.
+        camera_index: Camera device index. -1 uses the configured default.
+    """
+    return _camera_monitor(task, duration, interval, camera_index)
+
+
 ADK_TOOLS = [
     _with_logging(get_system_info),
     _with_logging(get_battery_info),
@@ -750,6 +838,12 @@ ADK_TOOLS = [
     _with_logging(git_status),
     _with_logging(find_process_on_port),
     _with_logging(computer_use_task),
+    _with_logging(camera_capture),
+    _with_logging(camera_describe),
+    _with_logging(camera_recognize_objects),
+    _with_logging(camera_recognize_gestures),
+    _with_logging(camera_analyze),
+    _with_logging(camera_monitor),
 ]
 
 
@@ -904,6 +998,46 @@ ADK_TOOL_DOCS_ES: dict[str, str] = {
         "        enable: True para activar el arranque automático, False para desactivarlo.\n"
         "        tray: Si True arranca en modo bandeja del sistema. Por defecto: True.\n"
         "        backend: Backend a usar al arrancar: anthropic, adk o gemini. Por defecto: anthropic.\n"
+    ),
+    "camera_capture": (
+        "Captura una foto desde la cámara del sistema y la guarda en un archivo.\n\n"
+        "    Args:\n"
+        "        save_path: Ruta donde guardar la imagen. Default: ~/Capturas/camera_TIMESTAMP.jpg\n"
+        "        camera_index: Índice del dispositivo de cámara (0=default). -1 usa el configurado.\n"
+    ),
+    "camera_describe": (
+        "Captura una foto desde la cámara y describe la escena usando IA multimodal (Gemma 4).\n\n"
+        "    Args:\n"
+        "        prompt: Prompt personalizado para la IA. Default: descripción general de la escena.\n"
+        "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
+        "        save_path: Ruta opcional para guardar la imagen capturada.\n"
+    ),
+    "camera_recognize_objects": (
+        "Captura una foto desde la cámara e identifica todos los objetos visibles con posición, tamaño relativo y confianza.\n\n"
+        "    Args:\n"
+        "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
+        "        save_path: Ruta opcional para guardar la imagen capturada.\n"
+    ),
+    "camera_recognize_gestures": (
+        "Captura una foto desde la cámara y reconoce gestos de manos y lenguaje corporal.\n\n"
+        "    Args:\n"
+        "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
+        "        save_path: Ruta opcional para guardar la imagen capturada.\n"
+    ),
+    "camera_analyze": (
+        "Captura una foto y la analiza con un prompt personalizado. Flexible para cualquier pregunta visual.\n\n"
+        "    Args:\n"
+        "        prompt: Pregunta o instrucción sobre lo que se ve en la cámara.\n"
+        "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
+        "        save_path: Ruta opcional para guardar la imagen capturada.\n"
+    ),
+    "camera_monitor": (
+        "Monitorea la cámara durante un período, analizando frames a intervalos regulares.\n\n"
+        "    Args:\n"
+        "        task: Qué monitorear (ej: 'contar personas', 'detectar movimiento'). Default: cambios generales.\n"
+        "        duration: Segundos de monitoreo (máx 60). Default: 10.\n"
+        "        interval: Segundos entre capturas (mín 2). Default: 3.\n"
+        "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
     ),
 }
 
