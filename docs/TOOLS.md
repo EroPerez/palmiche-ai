@@ -1,6 +1,6 @@
 # Guía de herramientas — Palmiche J.A.R.V.I.S.
 
-Referencia completa de las **59 herramientas** disponibles, con ejemplos de uso conversacional y preguntas frecuentes (FAQ) para cada categoría.
+Referencia completa de las **66 herramientas** disponibles, con ejemplos de uso conversacional y preguntas frecuentes (FAQ) para cada categoría.
 
 ---
 
@@ -24,6 +24,7 @@ Referencia completa de las **59 herramientas** disponibles, con ejemplos de uso 
 16. [Sistema — energía y autoarranque](#16-sistema--energía-y-autoarranque)
 17. [Computer Use ★](#17-computer-use-)
 18. [Herramientas externas (MCP y agentes A2A)](#18-herramientas-externas-mcp-y-agentes-a2a)
+19. [Visión por cámara ★](#19-visión-por-cámara-)
 
 ---
 
@@ -1289,7 +1290,7 @@ La herramienta `computer_use_task` siempre usa `google-genai` directamente con `
 
 ## 18. Herramientas externas (MCP y agentes A2A)
 
-Las 59 herramientas integradas son solo el punto de partida. Jarvis puede conectarse a **servidores MCP externos** e inyectar sus herramientas dinámicamente, además de delegar tareas a **agentes A2A remotos**. El modelo ve todas estas herramientas exactamente igual que las integradas.
+Las 66 herramientas integradas son solo el punto de partida. Jarvis puede conectarse a **servidores MCP externos** e inyectar sus herramientas dinámicamente, además de delegar tareas a **agentes A2A remotos**. El modelo ve todas estas herramientas exactamente igual que las integradas.
 
 > Guía completa con ejemplos paso a paso: **[MCP-AGENTS.md](MCP-AGENTS.md)**
 
@@ -1381,6 +1382,227 @@ Cualquier agente que implemente el protocolo A2A de Google (JSON-RPC 2.0 sobre H
 
 **¿Se puede combinar MCP y A2A en la misma sesión?**
 Sí; el modelo tiene acceso a todas las herramientas y decide cuáles usar según el contexto de cada petición.
+
+---
+
+## 19. Visión por cámara ★
+
+> Requiere `pip install "palmiche-jarvis[vision]"` y una cámara conectada al sistema.
+> El modelo configurado en `JARVIS_MODEL` debe ser multimodal (Claude 3.x, Gemini, GPT-4o, Llava…).
+
+### `camera_capture`
+
+Captura una foto desde la cámara y la guarda en disco.
+
+**Parámetros:**
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `save_path` | string | `~/Capturas/camera_TIMESTAMP.jpg` | Ruta de destino |
+| `camera_index` | integer | config | Índice del dispositivo (0 = predeterminado) |
+| `show_preview` | bool | `false` | Muestra la foto en ventana tras capturar |
+
+**Ejemplos de uso:**
+```
+Toma una foto con la cámara
+Captura una imagen y guárdala en ~/Fotos/selfie.jpg
+Haz una foto con la cámara secundaria (índice 1)
+```
+
+**FAQ:**
+
+**¿Dónde guarda las fotos por defecto?**
+En `~/Capturas/` con nombre `camera_YYYYMMDD_HHMMSS.jpg`. El directorio se crea automáticamente.
+
+**No detecta la cámara**
+Verifica que la cámara esté conectada y no esté en uso por otra aplicación. Prueba `camera_index=1` si tienes varias cámaras.
+
+---
+
+### `camera_describe`
+
+Captura una foto y la describe usando el modelo de IA configurado.
+
+**Parámetros:**
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `prompt` | string | descripción general | Pregunta o instrucción personalizada para el modelo |
+| `camera_index` | integer | config | Índice del dispositivo |
+| `save_path` | string | `~/Capturas/…` | Ruta opcional para guardar la imagen |
+| `show_preview` | bool | `false` | Muestra la imagen en ventana durante el análisis |
+
+**Ejemplos de uso:**
+```
+¿Qué ve la cámara ahora mismo?
+Describe lo que hay delante de mí
+¿Hay alguien en la habitación?
+Mira por la cámara y dime si el escritorio está ordenado
+```
+
+**FAQ:**
+
+**¿Qué modelo analiza la imagen?**
+El configurado en `JARVIS_MODEL`. Funciona con cualquier modelo multimodal: `claude-3-5-sonnet`, `gemini-2.5-flash`, `gpt-4o`, `llava` (Ollama), etc.
+
+**¿Qué tan rápido responde?**
+La captura tarda menos de 1 segundo. El análisis depende del modelo y la conexión.
+
+---
+
+### `camera_recognize_objects`
+
+Captura una foto e identifica todos los objetos presentes en la escena.
+
+**Parámetros:**
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `camera_index` | integer | config | Índice del dispositivo |
+| `save_path` | string | `~/Capturas/…` | Ruta opcional para guardar la imagen |
+| `show_preview` | bool | `false` | Muestra la imagen en ventana durante el análisis |
+
+**Ejemplos de uso:**
+```
+¿Qué objetos hay en mi escritorio?
+Identifica todo lo que hay en la habitación
+Lista los objetos que ves con la cámara
+¿Qué hay sobre la mesa?
+```
+
+**FAQ:**
+
+**¿Qué formato tiene la respuesta?**
+Lista numerada con: nombre del objeto, posición en el frame (izquierda/centro/derecha, arriba/medio/abajo), tamaño relativo y nivel de confianza (alto/medio/bajo).
+
+---
+
+### `camera_recognize_gestures`
+
+Captura una foto y reconoce gestos de manos y lenguaje corporal.
+
+**Parámetros:**
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `camera_index` | integer | config | Índice del dispositivo |
+| `save_path` | string | `~/Capturas/…` | Ruta opcional para guardar la imagen |
+| `show_preview` | bool | `false` | Muestra la imagen en ventana |
+
+**Ejemplos de uso:**
+```
+¿Qué gesto estoy haciendo?
+¿Cuántos dedos estoy mostrando?
+¿Estoy haciendo una señal de pulgar arriba?
+Reconoce el gesto de mi mano
+```
+
+**FAQ:**
+
+**¿Qué gestos puede reconocer?**
+Palma abierta, puño, señalar, pulgar arriba/abajo, señal de paz, OK, pellizco, saludo y cualquier otro que el modelo multimodal identifique visualmente.
+
+**¿Funciona con ambas manos?**
+Sí; el análisis cubre cada mano visible en el frame por separado.
+
+---
+
+### `camera_analyze`
+
+Captura una foto y la analiza con un prompt personalizado. La herramienta más flexible para cualquier pregunta visual.
+
+**Parámetros:**
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `prompt` | string | **requerido** | Pregunta o instrucción para el modelo sobre la imagen |
+| `camera_index` | integer | config | Índice del dispositivo |
+| `save_path` | string | `~/Capturas/…` | Ruta opcional para guardar la imagen |
+| `show_preview` | bool | `false` | Muestra la imagen en ventana |
+
+**Ejemplos de uso:**
+```
+Mira la cámara y dime de qué color es mi camisa
+¿Está abierta o cerrada la puerta detrás de mí?
+Lee el texto que aparece en el papel que tengo en la mano
+¿Cuántas personas hay en la sala?
+¿El entorno de trabajo parece ordenado o caótico?
+Analiza la expresión facial que tengo ahora mismo
+```
+
+**FAQ:**
+
+**¿Cuál es la diferencia con `camera_describe`?**
+`camera_describe` usa un prompt fijo de descripción general. `camera_analyze` acepta cualquier pregunta o instrucción específica que necesites.
+
+---
+
+### `camera_monitor`
+
+Monitorea la cámara durante un periodo, analizando frames a intervalos regulares y devolviendo un resumen de todo lo observado.
+
+**Parámetros:**
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `task` | string | cambios generales | Qué monitorear: "cuenta personas", "detecta movimiento", "avisa si alguien entra"… |
+| `duration` | integer | `10` | Segundos de monitoreo (máx. 60) |
+| `interval` | integer | `3` | Segundos entre capturas (mín. 2) |
+| `camera_index` | integer | config | Índice del dispositivo |
+| `show_preview` | bool | `false` | Muestra preview en vivo mientras monitorea |
+
+**Ejemplos de uso:**
+```
+Monitorea la cámara 30 segundos y dime si alguien entra
+Vigila la puerta durante 1 minuto
+Monitorea el escritorio 20 segundos y avísame si algo cambia
+¿Cuántas veces pasó alguien por delante de la cámara en 30 segundos?
+```
+
+**FAQ:**
+
+**¿Cuántos frames analiza?**
+`frames = duration ÷ interval`. Con los valores por defecto (10 s, cada 3 s): ~3 frames. Ajusta según la velocidad del movimiento a detectar.
+
+**¿Bloquea la conversación mientras monitorea?**
+Sí; la herramienta es síncrona y no devuelve hasta que acaba el periodo. Para duraciones largas usa llamadas cortas repetidas.
+
+**¿Cuál es el intervalo mínimo?**
+2 segundos (forzado en código). Intervalos menores saturarían el modelo de llamadas.
+
+---
+
+### `camera_preview`
+
+Abre una ventana de vista en vivo de la cámara sin análisis de IA. Ideal para comprobar encuadre y foco antes de usar otras herramientas de cámara.
+
+**Parámetros:**
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `duration` | integer | `15` | Segundos de preview (máx. 120) |
+| `camera_index` | integer | config | Índice del dispositivo |
+
+Cierra la ventana pulsando **ESC** o **Q**.
+
+**Ejemplos de uso:**
+```
+Abre la preview de la cámara
+Muéstrame lo que ve la cámara en vivo
+Activa la cámara 30 segundos para verificar que funciona
+¿La cámara está enfocada correctamente?
+```
+
+**FAQ:**
+
+**No aparece ninguna ventana**
+Requiere entorno gráfico activo (Xorg/Wayland). En sesiones SSH sin reenvío X11 no es posible mostrar ventanas.
+
+**La ventana da errores de Qt al abrirse**
+El módulo de cámara ajusta automáticamente `QT_QPA_PLATFORM=xcb` al importarse para evitar conflictos con plugins de Qt no incluidos en OpenCV.
+
+**¿Puedo cerrarla antes de que acabe el tiempo?**
+Sí, pulsa **ESC** o **Q** en la ventana.
 
 ---
 

@@ -16,9 +16,15 @@ Install:
 """
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import Optional
+
+# cv2 bundles xcb but not dxcb; override before the first cv2 import so Qt
+# doesn't abort trying to load a plugin that isn't there.
+if os.environ.get("QT_QPA_PLATFORM") == "dxcb":
+    os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
 def _capture_frame(camera_index: int = 0, save_path: Optional[str] = None) -> tuple[bytes, str]:
@@ -33,7 +39,6 @@ def _capture_frame(camera_index: int = 0, save_path: Optional[str] = None) -> tu
         raise ImportError(
             "opencv-python no está instalado.\n"
             "Instala con: pip install opencv-python\n"
-            "(La versión headless no soporta ventanas GUI como cv2.imshow)\n"
             f"Error: {exc}"
         ) from exc
 
@@ -106,7 +111,7 @@ def _try_show_frame(window_name: str, frame, wait_ms: int = 1) -> bool:
         cv2.imshow(window_name, frame)
         cv2.waitKey(wait_ms)
         return True
-    except cv2.error:
+    except Exception:
         return False
 
 

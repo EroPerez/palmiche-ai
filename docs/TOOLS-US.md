@@ -1,6 +1,6 @@
 # Tools guide — Palmiche J.A.R.V.I.S.
 
-Complete reference for the **59 available tools**, with conversational usage examples and frequently asked questions (FAQ) for each category.
+Complete reference for the **66 available tools**, with conversational usage examples and frequently asked questions (FAQ) for each category.
 
 ---
 
@@ -24,6 +24,7 @@ Complete reference for the **59 available tools**, with conversational usage exa
 16. [System — power and autostart](#16-system--power-and-autostart)
 17. [Computer Use ★](#17-computer-use-)
 18. [External tools (MCP and A2A agents)](#18-external-tools-mcp-and-a2a-agents)
+19. [Camera Vision ★](#19-camera-vision-)
 
 ---
 
@@ -1289,7 +1290,7 @@ The `computer_use_task` tool always uses `google-genai` directly with `GOOGLE_AP
 
 ## 18. External tools (MCP and A2A agents)
 
-The 59 built-in tools are just the starting point. Jarvis can connect to **external MCP servers** and inject their tools dynamically, as well as delegate tasks to **remote A2A agents**. The model sees all these tools exactly like the built-in ones.
+The 66 built-in tools are just the starting point. Jarvis can connect to **external MCP servers** and inject their tools dynamically, as well as delegate tasks to **remote A2A agents**. The model sees all these tools exactly like the built-in ones.
 
 > Full guide with step-by-step examples: **[MCP-AGENTS-US.md](MCP-AGENTS-US.md)**
 
@@ -1381,6 +1382,227 @@ Any agent that implements Google's A2A protocol (JSON-RPC 2.0 over HTTP). Anothe
 
 **Can I combine MCP and A2A in the same session?**
 Yes; the model has access to all tools and decides which ones to use based on the context of each request.
+
+---
+
+## 19. Camera Vision ★
+
+> Requires `pip install "palmiche-jarvis[vision]"` and a camera connected to the system.
+> The model configured in `JARVIS_MODEL` must be multimodal (Claude 3.x, Gemini, GPT-4o, Llava…).
+
+### `camera_capture`
+
+Captures a photo from the camera and saves it to disk.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `save_path` | string | `~/Capturas/camera_TIMESTAMP.jpg` | Destination path |
+| `camera_index` | integer | config | Device index (0 = default) |
+| `show_preview` | bool | `false` | Show the captured frame in a window |
+
+**Usage examples:**
+```
+Take a photo with the camera
+Capture an image and save it to ~/Photos/selfie.jpg
+Take a photo with the secondary camera (index 1)
+```
+
+**FAQ:**
+
+**Where does it save photos by default?**
+In `~/Capturas/` with name `camera_YYYYMMDD_HHMMSS.jpg`. The directory is created automatically.
+
+**Camera not detected**
+Verify the camera is connected and not in use by another application. Try `camera_index=1` if you have multiple cameras.
+
+---
+
+### `camera_describe`
+
+Captures a photo and describes it using the configured AI model.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `prompt` | string | general description | Custom question or instruction for the model |
+| `camera_index` | integer | config | Device index |
+| `save_path` | string | `~/Capturas/…` | Optional path to save the image |
+| `show_preview` | bool | `false` | Show the image in a window during analysis |
+
+**Usage examples:**
+```
+What does the camera see right now?
+Describe what's in front of me
+Is there anyone in the room?
+Look through the camera and tell me if the desk is tidy
+```
+
+**FAQ:**
+
+**Which model analyzes the image?**
+The one configured in `JARVIS_MODEL`. Any multimodal model works: `claude-3-5-sonnet`, `gemini-2.5-flash`, `gpt-4o`, `llava` (Ollama), etc.
+
+**How fast does it respond?**
+Capture takes under 1 second. Analysis time depends on the model and connection.
+
+---
+
+### `camera_recognize_objects`
+
+Captures a photo and identifies all objects present in the scene.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `camera_index` | integer | config | Device index |
+| `save_path` | string | `~/Capturas/…` | Optional path to save the image |
+| `show_preview` | bool | `false` | Show the image in a window during analysis |
+
+**Usage examples:**
+```
+What objects are on my desk?
+Identify everything in the room
+List the objects you see with the camera
+What's on the table?
+```
+
+**FAQ:**
+
+**What format does the response have?**
+Numbered list with: object name, position in frame (left/center/right, top/middle/bottom), relative size and confidence level (high/medium/low).
+
+---
+
+### `camera_recognize_gestures`
+
+Captures a photo and recognizes hand gestures and body language.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `camera_index` | integer | config | Device index |
+| `save_path` | string | `~/Capturas/…` | Optional path to save the image |
+| `show_preview` | bool | `false` | Show the image in a window |
+
+**Usage examples:**
+```
+What gesture am I making?
+How many fingers am I holding up?
+Am I making a thumbs up sign?
+Recognize the gesture my hand is making
+```
+
+**FAQ:**
+
+**What gestures can it recognize?**
+Open palm, fist, pointing, thumbs up/down, peace sign, OK, pinch, wave and any other the multimodal model can visually identify.
+
+**Does it work with both hands?**
+Yes; analysis covers each hand visible in the frame separately.
+
+---
+
+### `camera_analyze`
+
+Captures a photo and analyzes it with a custom prompt. The most flexible tool for any visual question.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `prompt` | string | **required** | Question or instruction for the model about the image |
+| `camera_index` | integer | config | Device index |
+| `save_path` | string | `~/Capturas/…` | Optional path to save the image |
+| `show_preview` | bool | `false` | Show the image in a window |
+
+**Usage examples:**
+```
+Look at the camera and tell me what color my shirt is
+Is the door behind me open or closed?
+Read the text on the paper I'm holding
+How many people are in the room?
+Does the workspace look tidy or chaotic?
+Analyze the facial expression I have right now
+```
+
+**FAQ:**
+
+**What's the difference from `camera_describe`?**
+`camera_describe` uses a fixed general-description prompt. `camera_analyze` accepts any specific question or instruction you need.
+
+---
+
+### `camera_monitor`
+
+Monitors the camera for a period, analyzing frames at regular intervals and returning a summary of all observations.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `task` | string | general changes | What to monitor: "count people", "detect movement", "alert if someone enters"… |
+| `duration` | integer | `10` | Seconds to monitor (max 60) |
+| `interval` | integer | `3` | Seconds between captures (min 2) |
+| `camera_index` | integer | config | Device index |
+| `show_preview` | bool | `false` | Show live preview while monitoring |
+
+**Usage examples:**
+```
+Monitor the camera for 30 seconds and tell me if anyone enters
+Watch the door for 1 minute
+Monitor the desk for 20 seconds and alert me if anything changes
+How many times did someone walk past the camera in 30 seconds?
+```
+
+**FAQ:**
+
+**How many frames does it analyze?**
+`frames = duration ÷ interval`. With default values (10 s, every 3 s): ~3 frames. Adjust based on the speed of movement you want to detect.
+
+**Does it block the conversation while monitoring?**
+Yes; the tool is synchronous and doesn't return until the period ends. For longer durations, use repeated short calls.
+
+**What is the minimum interval?**
+2 seconds (enforced in code). Shorter intervals would flood the model with too many calls.
+
+---
+
+### `camera_preview`
+
+Opens a live camera view window with no AI analysis. Ideal for checking framing and focus before using other camera tools.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `duration` | integer | `15` | Seconds of preview (max 120) |
+| `camera_index` | integer | config | Device index |
+
+Close the window by pressing **ESC** or **Q**.
+
+**Usage examples:**
+```
+Open the camera preview
+Show me what the camera sees live
+Activate the camera for 30 seconds to verify it works
+Is the camera focused correctly?
+```
+
+**FAQ:**
+
+**No window appears**
+Requires an active graphical environment (Xorg/Wayland). SSH sessions without X11 forwarding cannot display windows.
+
+**The window shows Qt errors on open**
+The camera module automatically sets `QT_QPA_PLATFORM=xcb` on import to prevent conflicts with Qt plugins not bundled with OpenCV.
+
+**Can I close it before the time runs out?**
+Yes, press **ESC** or **Q** in the window.
 
 ---
 
