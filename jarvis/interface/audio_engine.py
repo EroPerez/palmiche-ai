@@ -334,16 +334,22 @@ class AudioEngine:
         except Exception:
             return None
 
+    _PYTTSX3_LANG_HINTS: dict[str, list[str]] = {
+        "es": ["es", "spanish", "español"],
+        "en": ["en", "english"],
+    }
+
     def _tts_pyttsx3(self, text: str) -> bool:
         try:
             import pyttsx3
 
             engine = pyttsx3.init()
             voices = engine.getProperty("voices") or []
+            hints = self._PYTTSX3_LANG_HINTS.get(self.lang, [self.lang])
             for v in voices:
                 vid = (v.id or "").lower()
                 vname = (v.name or "").lower()
-                if "es" in vid or "spanish" in vname or "español" in vname:
+                if any(h in vid or h in vname for h in hints):
                     engine.setProperty("voice", v.id)
                     break
             engine.setProperty("rate", 135)
@@ -370,8 +376,9 @@ class AudioEngine:
                 with self._process_lock:
                     self._current_process = None
             elif system == "Darwin":
+                voice = "Monica" if self.lang.startswith("es") else "Samantha"
                 proc = subprocess.Popen(
-                    ["say", "-v", "Monica", text],
+                    ["say", "-v", voice, text],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
                 with self._process_lock:

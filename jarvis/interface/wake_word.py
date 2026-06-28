@@ -86,11 +86,14 @@ def _open_microphone_quietly(mic):
 
 from ..config import JARVIS_TOOL_LANG
 
-def _get_lang(name: str, default: str = "es-ES") -> str:
-    """Read a language env var, accepting only 'en'/'es' and falling back to *default*."""
-    if name == "en":
-        return "en-US"   
-    return default
+_SPEECH_LANG_MAP: dict[str, str] = {
+    "es": "es-ES",
+    "en": "en-US",
+}
+
+def _get_lang(code: str, default: str = "es-ES") -> str:
+    """Map a short language code ('en', 'es') to a BCP-47 speech locale."""
+    return _SPEECH_LANG_MAP.get(code, default)
 
 class WakeWordListener:
     """Daemon thread that listens for a wake word and fires a callback.
