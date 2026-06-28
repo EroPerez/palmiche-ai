@@ -4,6 +4,104 @@ Todos los cambios notables del proyecto se documentan en este archivo.
 
 ---
 
+## [Unreleased] — 2026-06-28
+
+### ADK universal multi-proveedor vía LiteLLM (#45)
+
+El backend `adk` ahora es el motor por defecto y soporta cualquier proveedor LLM compatible con LiteLLM mediante una única interfaz unificada.
+
+#### Nuevo agente universal
+
+- **`jarvis/brain/adk_universal.py`** (nuevo): `JarvisUniversalADKAgent` reemplaza al anterior `JarvisADKAgent`
+  - Soporta cualquier proveedor con solo cambiar `JARVIS_MODEL`: Anthropic, OpenAI, Gemini, Ollama, Groq, Mistral, Azure, AWS Bedrock y cualquier proxy compatible con OpenAI
+  - Auto-normalización de nombres de modelo legacy (`claude-haiku-*` → `anthropic/claude-haiku-*`, `llama3.2` → `ollama_chat/llama3.2`, etc.)
+  - Resolución inteligente de API keys: `JARVIS_API_KEY` > variables de proveedor específico
+  - Soporte para endpoint personalizado vía `JARVIS_BASE_URL` (Ollama local, vLLM, llama.cpp, Azure)
+  - Gemini nativo sin LiteLLM cuando el modelo no contiene prefijo de proveedor (ej. `gemini-2.0-flash`)
+- **`jarvis/brain/adk_agent.py`** (eliminado): reemplazado por `adk_universal.py`
+- **Backend por defecto** cambiado de `anthropic` a `adk`
+- Los backends `gemini` y `ollama` se convierten en **aliases de compatibilidad** que internamente usan `JarvisUniversalADKAgent`
+- Seguridad MCP: los endpoints SSE remotos ahora requieren `https://` (solo `localhost` acepta HTTP)
+
+#### Nuevas variables de entorno
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `JARVIS_API_KEY` | — | Clave API unificada — reemplaza todas las claves de proveedor específico. LiteLLM la usa para el proveedor del modelo seleccionado |
+| `JARVIS_BASE_URL` | — | URL base del proveedor (Ollama local, vLLM, llama.cpp, Azure, proxies compatibles con OpenAI) |
+| `JARVIS_TOOL_LANG` | `en` | Idioma de los schemas de herramientas y el system prompt interno (`en`/`es`). Solo afecta lo que el modelo ve — el asistente responde en el idioma del usuario |
+| `JARVIS_CUSTOM_TOOLS_FILE` | `~/.jarvis_custom_tools.txt` | Archivo de texto plano para definir herramientas personalizadas sin escribir Python |
+
+#### Variables deprecadas (siguen funcionando como fallback)
+
+| Variable | Reemplazada por |
+|---|---|
+| `JARVIS_GEMINI_MODEL` | `JARVIS_MODEL=gemini-2.0-flash` |
+| `JARVIS_OLLAMA_HOST` | `JARVIS_BASE_URL=http://localhost:11434` |
+| `JARVIS_OLLAMA_MODEL` | `JARVIS_MODEL=ollama_chat/llama3.2` |
+
+#### `JARVIS_MODEL` — formato LiteLLM
+
+El valor por defecto cambia de `claude-haiku-4-5-20251001` a `anthropic/claude-haiku-4-5-20251001`. Ejemplos de modelos soportados:
+
+```ini
+# Anthropic Claude (default)
+JARVIS_MODEL=anthropic/claude-haiku-4-5-20251001
+JARVIS_MODEL=anthropic/claude-sonnet-4-5-20251001
+
+# OpenAI
+JARVIS_MODEL=openai/gpt-4o
+
+# Google Gemini (ADK nativo, sin LiteLLM)
+JARVIS_MODEL=gemini-2.0-flash
+
+# Google Gemini (vía LiteLLM)
+JARVIS_MODEL=gemini/gemini-2.0-flash
+
+# Ollama local
+JARVIS_MODEL=ollama_chat/llama3.2
+JARVIS_BASE_URL=http://localhost:11434
+
+# Groq
+JARVIS_MODEL=groq/llama-3.1-70b-versatile
+
+# Mistral
+JARVIS_MODEL=mistral/mistral-large-latest
+
+# Azure OpenAI
+JARVIS_MODEL=azure/gpt-4o
+JARVIS_BASE_URL=https://mi-endpoint.openai.azure.com
+
+# AWS Bedrock
+JARVIS_MODEL=bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0
+```
+
+#### Herramientas personalizadas en texto plano
+
+`JARVIS_CUSTOM_TOOLS_FILE` permite definir herramientas sin escribir Python. Cada herramienta mapea un nombre + descripción + parámetros a un comando shell. Disponibles en todos los backends.
+
+#### Tests nuevos
+
+- `tests/test_api_key_resolution.py` — resolución de claves por proveedor
+- `tests/test_brain_skills_lang.py` — idioma de herramientas (`JARVIS_TOOL_LANG`)
+- `tests/test_dynamic_tools_all_brains.py` — herramientas dinámicas en todos los backends
+
+#### Cambios en archivos
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `jarvis/brain/adk_universal.py` | Nuevo | `JarvisUniversalADKAgent` multi-proveedor vía LiteLLM |
+| `jarvis/brain/adk_agent.py` | Eliminado | Reemplazado por `adk_universal.py` |
+| `jarvis/__main__.py` | Modificado | Backend `adk` como default; aliases `gemini`/`ollama`; validación de keys multi-proveedor |
+| `jarvis/config.py` | Modificado | `JARVIS_API_KEY`, `JARVIS_BASE_URL`, `JARVIS_TOOL_LANG`, `JARVIS_CUSTOM_TOOLS_FILE`; `JARVIS_MODEL` default `anthropic/...`; `JARVIS_BACKEND` default `adk` |
+| `jarvis/.env.example` | Modificado | Documentación del nuevo formato de modelo y variables unificadas |
+| `pyproject.toml` | Modificado | Dependencias actualizadas |
+| `tests/test_api_key_resolution.py` | Nuevo | Tests de resolución de API keys |
+| `tests/test_brain_skills_lang.py` | Nuevo | Tests de idioma de herramientas |
+| `tests/test_dynamic_tools_all_brains.py` | Nuevo | Tests de herramientas dinámicas |
+
+---
+
 ## [Unreleased] — 2026-06-26
 
 ### AI Guardrails — mecanismos de seguridad para IA

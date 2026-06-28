@@ -31,11 +31,13 @@ def close_application(name: str, force: bool = False) -> str:
     if not target:
         return "Nombre de proceso inválido: no puede estar vacío"
 
+    target_lower = target.lower()
     killed = []
-    for proc in psutil.process_iter(["pid", "name"]):
+    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
         try:
             proc_name = proc.info.get("name") or ""
-            if target.lower() in proc_name.lower():
+            cmdline = " ".join(proc.info.get("cmdline") or [])
+            if target_lower in proc_name.lower() or target_lower in cmdline.lower():
                 if force:
                     proc.kill()
                 else:

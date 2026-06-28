@@ -320,13 +320,14 @@ for rule in engine.rules:
 
 ## Integración con backends
 
-Los guardrails están integrados en los tres backends de agentes:
+Los guardrails están integrados en los dos backends de agentes:
 
-| Backend | Input | Output | Tool Call | Tool Result |
-|---|---|---|---|---|
-| Anthropic SDK (`agent.py`) | Antes de `chat()` | Después de `end_turn` | Antes de `_execute_tool()` | Después de `_execute_tool()` |
-| Google ADK (`adk_agent.py`) | Antes de `chat()` | Después de `_chat_async()`, antes de persistir historial | — (ADK gestiona tools internamente) | — |
-| Ollama (`ollama_agent.py`) | Antes de `chat()` | Después de respuesta final | Antes de `_execute_tool()` | Después de `_execute_tool()` |
+| Backend | Archivo | Input | Output | Tool Call | Tool Result |
+|---|---|---|---|---|---|
+| ADK universal (default) | `adk_universal.py` | Antes de `chat()` | Después de `_chat_async()`, en `chat()` | — (ADK gestiona herramientas internamente) | — |
+| Anthropic SDK | `agent.py` | Antes de `chat()` | Después de `end_turn` | Antes de `_execute_tool()` | Después de `_execute_tool()` |
+
+> El backend ADK (`JarvisUniversalADKAgent`) no intercepta `tool_call` ni `tool_result` individualmente porque el loop agéntico de Google ADK gestiona la ejecución de herramientas de forma interna. El backend Anthropic (`JarvisAgent`) implementa las cuatro fases porque controla el loop completo.
 
 ---
 

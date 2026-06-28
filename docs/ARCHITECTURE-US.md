@@ -19,8 +19,9 @@ Palmiche J.A.R.V.I.S. is a personal AI assistant that runs as a CLI, system tray
 ┌────────────────────────────────▼────────────────────────────────────────┐
 │                            AGENT LAYER                                  │
 │                                                                         │
-│  JarvisAgent (Anthropic SDK)  │  JarvisADKAgent (Google ADK)           │
-│  JarvisOllamaAgent (Ollama)   │                                        │
+│  JarvisUniversalADKAgent (ADK + LiteLLM, default)                      │
+│    └─ Anthropic · OpenAI · Gemini · Ollama · Groq · Mistral · Azure   │
+│  JarvisAgent (Anthropic SDK, native loop without ADK)                  │
 │                                                                         │
 │  Agentic loop: user → model → tool_use → execute → response           │
 │                                                                         │
@@ -76,9 +77,8 @@ palmiche-ai/
 │   ├── custom_tools.example.txt # Example template for custom tools
 │   │
 │   ├── brain/
-│   │   ├── agent.py             # JarvisAgent (Anthropic SDK) — supports DynamicToolRegistry + guardrails
-│   │   ├── adk_agent.py         # JarvisADKAgent (Google ADK: Claude via LiteLLM or native Gemini) + guardrails
-│   │   ├── ollama_agent.py      # JarvisOllamaAgent (local models via Ollama) + guardrails
+│   │   ├── agent.py             # JarvisAgent (Anthropic SDK) — native loop without ADK + guardrails
+│   │   ├── adk_universal.py     # JarvisUniversalADKAgent (ADK + LiteLLM multi-provider) + guardrails
 │   │   └── prompts.py           # System prompts (EN/ES based on JARVIS_TOOL_LANG)
 │   │
 │   ├── guardrails/

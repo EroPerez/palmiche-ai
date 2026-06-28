@@ -488,6 +488,7 @@ _LEGACY_PREDEFINED_FUNCTIONS = [
 
 _MAX_SCREENSHOTS_IN_CONTEXT = 3
 
+from ..config import GOOGLE_API_KEY, JARVIS_API_KEY
 
 class _PalmicheComputerAgent:
     """Agentic loop that uses Gemini computer use to drive a Computer backend."""
@@ -509,10 +510,10 @@ class _PalmicheComputerAgent:
         self._model = model
         self._is_legacy = model in _LEGACY_MODELS
 
-        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
+        api_key = JARVIS_API_KEY or GOOGLE_API_KEY
         if not api_key:
             raise ValueError(
-                "GOOGLE_API_KEY o GEMINI_API_KEY no está configurada.\n"
+                "JARVIS_API_KEY o GEMINI_API_KEY no está configurada.\n"
                 "Agrégala a jarvis/.env para usar computer use."
             )
 
@@ -538,7 +539,7 @@ class _PalmicheComputerAgent:
         )
 
         initial_state = computer.take_screenshot()
-        screenshot_b64 = base64.b64encode(initial_state.screenshot).decode()
+        _ = base64.b64encode(initial_state.screenshot).decode()
 
         from google.genai.types import Content, Part
         self._contents: list[Content] = [
@@ -799,15 +800,16 @@ def computer_use_task(
     Returns:
         A text summary of what was accomplished.
     """
-    from ..config import COMPUTER_USE_BACKEND, COMPUTER_USE_MAX_ITERATIONS, COMPUTER_USE_MODEL, GOOGLE_API_KEY
+    from ..config import COMPUTER_USE_BACKEND, COMPUTER_USE_MAX_ITERATIONS, COMPUTER_USE_MODEL
 
     resolved_model = model or COMPUTER_USE_MODEL or "gemini-2.5-flash"
     resolved_backend = backend or COMPUTER_USE_BACKEND or "playwright"
     resolved_max_iterations = max_iterations or COMPUTER_USE_MAX_ITERATIONS or 30
+    api_key = JARVIS_API_KEY or GOOGLE_API_KEY
 
-    if not GOOGLE_API_KEY:
+    if not api_key:
         return (
-            "Error: GOOGLE_API_KEY no está configurada. "
+            "Error: JARVIS_API_KEY no está configurada. "
             "Agrégala a jarvis/.env para usar computer use."
         )
 
