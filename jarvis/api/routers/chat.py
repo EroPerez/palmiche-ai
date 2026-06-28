@@ -30,7 +30,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 try:
                     # Execute chat logic in a thread to avoid blocking the asyncio event loop
                     response_text = await asyncio.to_thread(agent.chat, req.message)
-                    
+
                     # For a simple, functional first version, we simulate streaming 
                     # by sending chunks (or just the whole text in one stream block).
                     # A robust version would integrate directly with the LLM's stream generator.
@@ -40,10 +40,10 @@ async def websocket_endpoint(websocket: WebSocket):
                         chunk = word + (" " if i < len(words) - 1 else "")
                         await websocket.send_text(WSChatResponse(type="stream", content=chunk).json())
                         await asyncio.sleep(0.01)  # small delay for UI effect
-                        
+
                     # End event
                     await websocket.send_text(WSChatResponse(type="end", content=response_text).json())
-                    
+
                 except Exception as exc:
                     resp = WSChatResponse(type="error", content=f"Agent Error: {str(exc)}")
                     await websocket.send_text(resp.json())

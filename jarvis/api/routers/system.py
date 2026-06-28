@@ -22,5 +22,5 @@ async def get_history(request: Request):
             # We filter out complex tool_use messages for the simple UI history for now
             if isinstance(msg["content"], str):
                 formatted_msgs.append(ChatMessage(role=msg["role"], content=msg["content"]))
-                
+
     return HistoryResponse(messages=formatted_msgs)
