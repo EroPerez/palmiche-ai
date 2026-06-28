@@ -352,8 +352,9 @@ def camera_monitor(
     )
 
     observations = []
-    total_frames = max(1, duration // interval)
+    total_frames = max(1, (duration + interval - 1) // interval)
     start = time.time()
+    next_capture_at = start
 
     try:
         import cv2
@@ -372,11 +373,16 @@ def camera_monitor(
             cap.read()
 
         frame_num = 0
-        while time.time() - start < duration and frame_num < total_frames:
+        while frame_num < total_frames and next_capture_at - start < duration:
+            sleep_for = next_capture_at - time.time()
+            if sleep_for > 0:
+                time.sleep(sleep_for)
+
             frame_num += 1
             ret, frame = cap.read()
             if not ret or frame is None:
                 observations.append(f"Frame {frame_num}: Error al capturar")
+                next_capture_at = start + frame_num * interval
                 continue
 
             _, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
@@ -391,8 +397,7 @@ def camera_monitor(
             elapsed = time.time() - start
             observations.append(f"[{elapsed:.1f}s] Frame {frame_num}: {result}")
 
-            if frame_num < total_frames:
-                time.sleep(interval)
+            next_capture_at = start + frame_num * interval
     finally:
         cap.release()
 
