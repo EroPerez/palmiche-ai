@@ -5,11 +5,13 @@ import SiriAnimation from './components/SiriAnimation.vue'
 import ChatMessage from './components/ChatMessage.vue'
 import TypingIndicator from './components/TypingIndicator.vue'
 import ConnectingOverlay from './components/ConnectingOverlay.vue'
+import LiquidWaveform from './components/LiquidWaveform.vue'
 
 const messages = ref([])
 const inputMessage = ref('')
 const isConnected = ref(false)
 const isTyping = ref(false)
+const isSpeaking = ref(false)
 
 // Voice feature states
 const isTTSActive = ref(false)
@@ -112,6 +114,19 @@ const speakText = (text) => {
 
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = 'es-ES'
+  
+  utterance.onstart = () => {
+    isSpeaking.value = true
+  }
+
+  utterance.onend = () => {
+    isSpeaking.value = false
+  }
+
+  utterance.onerror = () => {
+    isSpeaking.value = false
+  }
+
   // Puedes ajustar voz, rate, pitch aquí si lo deseas.
   window.speechSynthesis.speak(utterance)
 }
@@ -263,6 +278,15 @@ onMounted(() => {
 
     <!-- Siri Animation Container -->
     <SiriAnimation :isListening="isListening" />
+
+    <Transition
+      enter-active-class="transition-opacity duration-300"
+      leave-active-class="transition-opacity duration-300"
+      enter-from-class="opacity-0"
+      leave-to-class="opacity-0"
+    >
+      <LiquidWaveform v-if="isSpeaking" />
+    </Transition>
 
     <!-- Input Area -->
     <div class="p-4 bg-zinc-800/90 border-t border-zinc-700/50 flex gap-3 items-center backdrop-blur-md">
