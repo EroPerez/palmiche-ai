@@ -1,8 +1,8 @@
 """Camera vision: multimodal object & gesture recognition via the configured JARVIS_MODEL.
 
-Captures frames from the system camera (OpenCV) and sends them to the same
-model configured in JARVIS_MODEL via LiteLLM for analysis. This means any
-multimodal-capable provider works: Gemini, Claude, GPT-4o, Ollama (gemma3,
+Captures frames from the system camera (OpenCV) and sends them to the
+JarvisUniversalADKAgent's centralized LLM completion for analysis. This means
+any multimodal-capable provider works: Gemini, Claude, GPT-4o, Ollama (gemma3,
 llava), etc. — no separate vision model needed.
 
 Features:
@@ -16,8 +16,6 @@ Install:
 """
 from __future__ import annotations
 
-import base64
-import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -34,7 +32,8 @@ def _capture_frame(camera_index: int = 0, save_path: Optional[str] = None) -> tu
     except ImportError as exc:
         raise ImportError(
             "opencv-python no está instalado.\n"
-            "Instala con: pip install opencv-python-headless\n"
+            "Instala con: pip install opencv-python\n"
+            "(La versión headless no soporta ventanas GUI como cv2.imshow)\n"
             f"Error: {exc}"
         ) from exc
 
@@ -74,91 +73,25 @@ def _capture_frame(camera_index: int = 0, save_path: Optional[str] = None) -> tu
         cap.release()
 
 
+_vision_agent = None
+
+
+def _get_vision_agent():
+    """Lazy singleton of JarvisUniversalADKAgent for vision tasks."""
+    global _vision_agent
+    if _vision_agent is None:
+        from ..brain.adk_universal import JarvisUniversalADKAgent
+        _vision_agent = JarvisUniversalADKAgent()
+    return _vision_agent
+
+
 def _analyze_image(image_bytes: bytes, prompt: str) -> str:
-    """Send an image to the configured JARVIS_MODEL via LiteLLM for analysis.
-
-    Uses the same model, API key, and base URL that the ADK universal agent
-    uses — no separate vision model configuration needed.
-    """
-    from ..config import JARVIS_MODEL, JARVIS_API_KEY, JARVIS_BASE_URL
-
-    model = JARVIS_MODEL
-    b64_image = base64.b64encode(image_bytes).decode("utf-8")
-
-    # Ollama models via direct API (LiteLLM's image support for Ollama can
-    # be inconsistent, so we call the Ollama REST API directly for
-    # ollama_chat/* models).
-    if model.startswith("ollama_chat/") or model.startswith("ollama/"):
-        return _analyze_via_ollama(
-            b64_image, prompt,
-            model=model.split("/", 1)[1],
-            host=JARVIS_BASE_URL or "http://localhost:11434",
-        )
-
-    # All other providers via LiteLLM (Anthropic, OpenAI, Gemini, Groq, etc.)
+    """Send an image to JarvisUniversalADKAgent for multimodal analysis."""
     try:
-        import litellm
-    except ImportError as exc:
-        return (
-            "Error: litellm no está instalado.\n"
-            f"Instala con: pip install litellm\nDetalle: {exc}"
-        )
-
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{b64_image}",
-                    },
-                },
-            ],
-        }
-    ]
-
-    kwargs: dict = {"model": model, "messages": messages, "temperature": 0.3, "max_tokens": 1024}
-    if JARVIS_API_KEY:
-        kwargs["api_key"] = JARVIS_API_KEY
-    if JARVIS_BASE_URL:
-        kwargs["api_base"] = JARVIS_BASE_URL
-
-    try:
-        response = litellm.completion(**kwargs)
-        return response.choices[0].message.content or "No se recibió respuesta del modelo."
+        agent = _get_vision_agent()
+        return agent.vision_chat(image_bytes, prompt)
     except Exception as e:
-        return f"Error al analizar imagen con {model}: {e}"
-
-
-def _analyze_via_ollama(b64_image: str, prompt: str, model: str, host: str) -> str:
-    """Call the Ollama REST API directly for multimodal inference."""
-    import requests
-
-    url = f"{host.rstrip('/')}/api/generate"
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "images": [b64_image],
-        "stream": False,
-        "options": {"temperature": 0.3, "num_predict": 1024},
-    }
-
-    try:
-        resp = requests.post(url, json=payload, timeout=120)
-        resp.raise_for_status()
-        return resp.json().get("response", "No se recibió respuesta del modelo.")
-    except requests.ConnectionError:
-        return (
-            f"Error: No se pudo conectar a Ollama en {host}. "
-            "Verifica que Ollama está ejecutándose (ollama serve) y que el modelo está descargado "
-            f"(ollama pull {model})."
-        )
-    except requests.Timeout:
-        return "Error: Timeout al esperar respuesta de Ollama. El modelo puede estar cargándose."
-    except Exception as e:
-        return f"Error al comunicarse con Ollama: {e}"
+        return f"Error al analizar imagen: {e}"
 
 
 def _get_camera_index() -> int:

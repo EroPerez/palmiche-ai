@@ -335,3 +335,41 @@ class JarvisUniversalADKAgent:
             return f"Error del agente: {msg}"
 
         return final_text or "No se recibió respuesta del agente ADK."
+
+    def vision_chat(self, image_bytes: bytes, prompt: str, mime_type: str = "image/jpeg") -> str:
+        """Send an image + text prompt and return the agent's response."""
+        return asyncio.run(self._vision_chat_async(image_bytes, prompt, mime_type))
+
+    async def _vision_chat_async(
+        self, image_bytes: bytes, prompt: str, mime_type: str,
+    ) -> str:
+        from google.genai import types
+
+        content = types.Content(
+            role="user",
+            parts=[
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                types.Part.from_text(text=prompt),
+            ],
+        )
+
+        final_text = ""
+        try:
+            async for event in self._runner.run_async(
+                user_id="user",
+                session_id=self._session_id,
+                new_message=content,
+            ):
+                if event.is_final_response() and event.content:
+                    for part in event.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            final_text += part.text
+        except Exception as exc:  # noqa: BLE001
+            if sys.version_info >= (3, 11) and isinstance(exc, BaseExceptionGroup):
+                parts_list = [f"{type(e).__name__}: {e}" for e in exc.exceptions]
+                msg = " | ".join(parts_list)
+            else:
+                msg = str(exc)
+            return f"Error de visión: {msg}"
+
+        return final_text or "No se recibió respuesta del agente ADK."
