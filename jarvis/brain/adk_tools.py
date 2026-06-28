@@ -703,20 +703,22 @@ from ..tools.camera import (
     camera_recognize_gestures as _camera_recognize_gestures,
     camera_analyze as _camera_analyze,
     camera_monitor as _camera_monitor,
+    camera_preview as _camera_preview,
 )
 
 
-def camera_capture(save_path: str = "", camera_index: int = -1) -> str:
+def camera_capture(save_path: str = "", camera_index: int = -1, show_preview: bool = False) -> str:
     """Capture a photo from the system camera and save it to a file.
 
     Args:
         save_path: Where to save the image. Default: ~/Capturas/camera_TIMESTAMP.jpg
         camera_index: Camera device index (0=default). -1 uses the configured default.
+        show_preview: Show the captured frame in a preview window.
     """
-    return _camera_capture(save_path, camera_index)
+    return _camera_capture(save_path, camera_index, show_preview)
 
 
-def camera_describe(prompt: str = "", camera_index: int = -1, save_path: str = "") -> str:
+def camera_describe(prompt: str = "", camera_index: int = -1, save_path: str = "", show_preview: bool = False) -> str:
     """Capture a photo from the camera and describe the scene using the configured multimodal AI model.
 
     Identifies people, objects, colors, environment and details in the scene.
@@ -725,11 +727,12 @@ def camera_describe(prompt: str = "", camera_index: int = -1, save_path: str = "
         prompt: Custom prompt for the AI. Default: general scene description.
         camera_index: Camera device index. -1 uses the configured default.
         save_path: Optional path to save the captured image.
+        show_preview: Show the captured frame in a preview window while analyzing.
     """
-    return _camera_describe(prompt, camera_index, save_path)
+    return _camera_describe(prompt, camera_index, save_path, show_preview)
 
 
-def camera_recognize_objects(camera_index: int = -1, save_path: str = "") -> str:
+def camera_recognize_objects(camera_index: int = -1, save_path: str = "", show_preview: bool = False) -> str:
     """Capture a photo from the camera and identify all visible objects.
 
     Lists each object with its position in the frame, relative size and confidence level.
@@ -737,11 +740,12 @@ def camera_recognize_objects(camera_index: int = -1, save_path: str = "") -> str
     Args:
         camera_index: Camera device index. -1 uses the configured default.
         save_path: Optional path to save the captured image.
+        show_preview: Show the captured frame in a preview window while analyzing.
     """
-    return _camera_recognize_objects(camera_index, save_path)
+    return _camera_recognize_objects(camera_index, save_path, show_preview)
 
 
-def camera_recognize_gestures(camera_index: int = -1, save_path: str = "") -> str:
+def camera_recognize_gestures(camera_index: int = -1, save_path: str = "", show_preview: bool = False) -> str:
     """Capture a photo and recognize hand gestures and body language.
 
     Detects gestures like thumbs up, peace sign, fist, open palm, pointing, pinch, OK sign, etc.
@@ -749,11 +753,12 @@ def camera_recognize_gestures(camera_index: int = -1, save_path: str = "") -> st
     Args:
         camera_index: Camera device index. -1 uses the configured default.
         save_path: Optional path to save the captured image.
+        show_preview: Show the captured frame in a preview window while analyzing.
     """
-    return _camera_recognize_gestures(camera_index, save_path)
+    return _camera_recognize_gestures(camera_index, save_path, show_preview)
 
 
-def camera_analyze(prompt: str, camera_index: int = -1, save_path: str = "") -> str:
+def camera_analyze(prompt: str, camera_index: int = -1, save_path: str = "", show_preview: bool = False) -> str:
     """Capture a photo and analyze it with a custom prompt.
 
     Flexible visual Q&A: 'how many people?', 'what color is the shirt?', 'is the door open?', 'read the text on the sign', etc.
@@ -762,11 +767,12 @@ def camera_analyze(prompt: str, camera_index: int = -1, save_path: str = "") -> 
         prompt: Question or instruction about what the camera sees.
         camera_index: Camera device index. -1 uses the configured default.
         save_path: Optional path to save the captured image.
+        show_preview: Show the captured frame in a preview window while analyzing.
     """
-    return _camera_analyze(prompt, camera_index, save_path)
+    return _camera_analyze(prompt, camera_index, save_path, show_preview)
 
 
-def camera_monitor(task: str = "", duration: int = 10, interval: int = 3, camera_index: int = -1) -> str:
+def camera_monitor(task: str = "", duration: int = 10, interval: int = 3, camera_index: int = -1, show_preview: bool = False) -> str:
     """Monitor the camera for a period, analyzing frames at regular intervals.
 
     Useful for detecting changes, counting people over time, watching activity, or waiting for specific events.
@@ -776,8 +782,22 @@ def camera_monitor(task: str = "", duration: int = 10, interval: int = 3, camera
         duration: How many seconds to monitor (max 60). Default: 10.
         interval: Seconds between frame captures (min 2). Default: 3.
         camera_index: Camera device index. -1 uses the configured default.
+        show_preview: Show a live preview window while monitoring.
     """
-    return _camera_monitor(task, duration, interval, camera_index)
+    return _camera_monitor(task, duration, interval, camera_index, show_preview)
+
+
+def camera_preview(duration: int = 15, camera_index: int = -1) -> str:
+    """Open a live camera preview window showing what the camera sees in real time.
+
+    No AI analysis is performed — this is purely for viewing the camera feed.
+    The window stays open for the specified duration or until ESC/Q is pressed.
+
+    Args:
+        duration: How many seconds to show the preview (max 120). Default: 15.
+        camera_index: Camera device index. -1 uses the configured default.
+    """
+    return _camera_preview(duration, camera_index)
 
 
 ADK_TOOLS = [
@@ -844,6 +864,7 @@ ADK_TOOLS = [
     _with_logging(camera_recognize_gestures),
     _with_logging(camera_analyze),
     _with_logging(camera_monitor),
+    _with_logging(camera_preview),
 ]
 
 
@@ -1004,6 +1025,7 @@ ADK_TOOL_DOCS_ES: dict[str, str] = {
         "    Args:\n"
         "        save_path: Ruta donde guardar la imagen. Default: ~/Capturas/camera_TIMESTAMP.jpg\n"
         "        camera_index: Índice del dispositivo de cámara (0=default). -1 usa el configurado.\n"
+        "        show_preview: Mostrar la imagen capturada en una ventana de preview.\n"
     ),
     "camera_describe": (
         "Captura una foto desde la cámara y describe la escena usando el modelo de IA multimodal configurado.\n\n"
@@ -1011,18 +1033,21 @@ ADK_TOOL_DOCS_ES: dict[str, str] = {
         "        prompt: Prompt personalizado para la IA. Default: descripción general de la escena.\n"
         "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
         "        save_path: Ruta opcional para guardar la imagen capturada.\n"
+        "        show_preview: Mostrar la imagen en una ventana de preview mientras se analiza.\n"
     ),
     "camera_recognize_objects": (
         "Captura una foto desde la cámara e identifica todos los objetos visibles con posición, tamaño relativo y confianza.\n\n"
         "    Args:\n"
         "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
         "        save_path: Ruta opcional para guardar la imagen capturada.\n"
+        "        show_preview: Mostrar la imagen en una ventana de preview mientras se analiza.\n"
     ),
     "camera_recognize_gestures": (
         "Captura una foto desde la cámara y reconoce gestos de manos y lenguaje corporal.\n\n"
         "    Args:\n"
         "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
         "        save_path: Ruta opcional para guardar la imagen capturada.\n"
+        "        show_preview: Mostrar la imagen en una ventana de preview mientras se analiza.\n"
     ),
     "camera_analyze": (
         "Captura una foto y la analiza con un prompt personalizado. Flexible para cualquier pregunta visual.\n\n"
@@ -1030,6 +1055,7 @@ ADK_TOOL_DOCS_ES: dict[str, str] = {
         "        prompt: Pregunta o instrucción sobre lo que se ve en la cámara.\n"
         "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
         "        save_path: Ruta opcional para guardar la imagen capturada.\n"
+        "        show_preview: Mostrar la imagen en una ventana de preview mientras se analiza.\n"
     ),
     "camera_monitor": (
         "Monitorea la cámara durante un período, analizando frames a intervalos regulares.\n\n"
@@ -1037,6 +1063,13 @@ ADK_TOOL_DOCS_ES: dict[str, str] = {
         "        task: Qué monitorear (ej: 'contar personas', 'detectar movimiento'). Default: cambios generales.\n"
         "        duration: Segundos de monitoreo (máx 60). Default: 10.\n"
         "        interval: Segundos entre capturas (mín 2). Default: 3.\n"
+        "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
+        "        show_preview: Mostrar preview en vivo de la cámara mientras se monitorea.\n"
+    ),
+    "camera_preview": (
+        "Abre una ventana de preview en vivo de la cámara. Muestra lo que ve la cámara en tiempo real sin análisis de IA.\n\n"
+        "    Args:\n"
+        "        duration: Segundos de preview (máx 120). Default: 15.\n"
         "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
     ),
 }

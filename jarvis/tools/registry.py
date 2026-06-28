@@ -26,6 +26,7 @@ from .computer_use import computer_use_task
 from .camera import (
     camera_capture, camera_describe, camera_recognize_objects,
     camera_recognize_gestures, camera_analyze, camera_monitor,
+    camera_preview,
 )
 
 TOOL_DEFINITIONS = [
@@ -929,6 +930,10 @@ TOOL_DEFINITIONS = [
                     "type": "integer",
                     "description": "Índice del dispositivo de cámara (0=default). -1 usa el configurado.",
                 },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen capturada en una ventana de preview. Default: false.",
+                },
             },
             "required": [],
         },
@@ -953,6 +958,10 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "description": "Ruta opcional para guardar la imagen capturada.",
                 },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen capturada en una ventana de preview mientras se analiza. Default: false.",
+                },
             },
             "required": [],
         },
@@ -973,6 +982,10 @@ TOOL_DEFINITIONS = [
                 "save_path": {
                     "type": "string",
                     "description": "Ruta opcional para guardar la imagen capturada.",
+                },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen en una ventana de preview mientras se analiza. Default: false.",
                 },
             },
             "required": [],
@@ -995,6 +1008,10 @@ TOOL_DEFINITIONS = [
                 "save_path": {
                     "type": "string",
                     "description": "Ruta opcional para guardar la imagen capturada.",
+                },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen en una ventana de preview mientras se analiza. Default: false.",
                 },
             },
             "required": [],
@@ -1022,6 +1039,10 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "description": "Ruta opcional para guardar la imagen capturada.",
                 },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen en una ventana de preview mientras se analiza. Default: false.",
+                },
             },
             "required": ["prompt"],
         },
@@ -1046,6 +1067,32 @@ TOOL_DEFINITIONS = [
                 "interval": {
                     "type": "integer",
                     "description": "Segundos entre capturas (mín 2). Default: 3.",
+                },
+                "camera_index": {
+                    "type": "integer",
+                    "description": "Índice del dispositivo de cámara. -1 usa el configurado.",
+                },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar preview en vivo de la cámara mientras se monitorea. Default: false.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "camera_preview",
+        "description": (
+            "Abre una ventana de preview en vivo de la cámara. Muestra lo que ve la cámara "
+            "en tiempo real sin análisis de IA. Útil para verificar encuadre, iluminación o "
+            "simplemente ver qué está captando la cámara."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "integer",
+                    "description": "Segundos de preview (máx 120). Default: 15.",
                 },
                 "camera_index": {
                     "type": "integer",
@@ -1270,23 +1317,32 @@ def execute_tool(name: str, inputs: dict) -> str:
         "get_rss_feed": lambda i: get_rss_feed(i["url"], i.get("max_items", 10)),
         # Camera vision
         "camera_capture": lambda i: camera_capture(
-            i.get("save_path", ""), i.get("camera_index", -1)
+            i.get("save_path", ""), i.get("camera_index", -1),
+            i.get("show_preview", False),
         ),
         "camera_describe": lambda i: camera_describe(
-            i.get("prompt", ""), i.get("camera_index", -1), i.get("save_path", "")
+            i.get("prompt", ""), i.get("camera_index", -1), i.get("save_path", ""),
+            i.get("show_preview", False),
         ),
         "camera_recognize_objects": lambda i: camera_recognize_objects(
-            i.get("camera_index", -1), i.get("save_path", "")
+            i.get("camera_index", -1), i.get("save_path", ""),
+            i.get("show_preview", False),
         ),
         "camera_recognize_gestures": lambda i: camera_recognize_gestures(
-            i.get("camera_index", -1), i.get("save_path", "")
+            i.get("camera_index", -1), i.get("save_path", ""),
+            i.get("show_preview", False),
         ),
         "camera_analyze": lambda i: camera_analyze(
-            i["prompt"], i.get("camera_index", -1), i.get("save_path", "")
+            i["prompt"], i.get("camera_index", -1), i.get("save_path", ""),
+            i.get("show_preview", False),
         ),
         "camera_monitor": lambda i: camera_monitor(
             i.get("task", ""), i.get("duration", 10),
-            i.get("interval", 3), i.get("camera_index", -1)
+            i.get("interval", 3), i.get("camera_index", -1),
+            i.get("show_preview", False),
+        ),
+        "camera_preview": lambda i: camera_preview(
+            i.get("duration", 15), i.get("camera_index", -1),
         ),
         # Computer use
         "computer_use_task": lambda i: computer_use_task(

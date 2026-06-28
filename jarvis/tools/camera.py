@@ -17,6 +17,7 @@ Install:
 from __future__ import annotations
 
 import base64
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -165,6 +166,39 @@ def _get_camera_index() -> int:
     return VISION_CAMERA_INDEX
 
 
+def _try_show_frame(window_name: str, frame, wait_ms: int = 1) -> bool:
+    """Try to display a frame via cv2.imshow. Returns False if GUI unavailable."""
+    try:
+        import cv2
+        cv2.imshow(window_name, frame)
+        cv2.waitKey(wait_ms)
+        return True
+    except cv2.error:
+        return False
+
+
+def _destroy_window(window_name: str) -> None:
+    try:
+        import cv2
+        cv2.destroyWindow(window_name)
+        cv2.waitKey(1)
+    except Exception:
+        pass
+
+
+def _show_jpeg_preview(jpeg_bytes: bytes, window_name: str) -> None:
+    """Decode JPEG bytes and show in a cv2 window (non-blocking)."""
+    try:
+        import cv2
+        import numpy as np
+        arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if frame is not None:
+            _try_show_frame(window_name, frame)
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Public tool functions
 # ---------------------------------------------------------------------------
@@ -196,12 +230,14 @@ _DESCRIBE_PROMPT = (
 def camera_capture(
     save_path: str = "",
     camera_index: int = -1,
+    show_preview: bool = False,
 ) -> str:
     """Capture a photo from the camera and save it.
 
     Args:
         save_path: Where to save the image. Default: ~/Capturas/camera_TIMESTAMP.jpg
         camera_index: Camera device index (0=default). -1 uses config default.
+        show_preview: Show the captured frame in a window.
 
     Returns:
         Path to the saved image file.
@@ -209,7 +245,18 @@ def camera_capture(
     cam = camera_index if camera_index >= 0 else _get_camera_index()
 
     try:
-        _, path = _capture_frame(cam, save_path or None)
+        image_bytes, path = _capture_frame(cam, save_path or None)
+        if show_preview:
+            try:
+                import cv2
+                import numpy as np
+                arr = np.frombuffer(image_bytes, dtype=np.uint8)
+                frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                if frame is not None:
+                    _try_show_frame("Jarvis - Captura", frame, wait_ms=3000)
+                    _destroy_window("Jarvis - Captura")
+            except Exception:
+                pass
         return f"Foto capturada y guardada en: {path}"
     except (ImportError, RuntimeError) as e:
         return str(e)
@@ -219,6 +266,7 @@ def camera_describe(
     prompt: str = "",
     camera_index: int = -1,
     save_path: str = "",
+    show_preview: bool = False,
 ) -> str:
     """Capture a photo and describe what the camera sees using the configured AI model.
 
@@ -226,6 +274,7 @@ def camera_describe(
         prompt: Custom prompt for the AI. Default: general scene description.
         camera_index: Camera device index. -1 uses config default.
         save_path: Optional path to also save the captured image.
+        show_preview: Show the captured frame in a preview window while analyzing.
 
     Returns:
         AI-generated description of the scene.
@@ -237,19 +286,28 @@ def camera_describe(
     except (ImportError, RuntimeError) as e:
         return str(e)
 
+    if show_preview:
+        _show_jpeg_preview(image_bytes, "Jarvis - Describe")
+
     result = _analyze_image(image_bytes, prompt or _DESCRIBE_PROMPT)
+
+    if show_preview:
+        _destroy_window("Jarvis - Describe")
+
     return f"[Imagen guardada: {path}]\n\n{result}"
 
 
 def camera_recognize_objects(
     camera_index: int = -1,
     save_path: str = "",
+    show_preview: bool = False,
 ) -> str:
     """Capture a photo and identify all objects in the scene.
 
     Args:
         camera_index: Camera device index. -1 uses config default.
         save_path: Optional path to save the captured image.
+        show_preview: Show the captured frame in a preview window while analyzing.
 
     Returns:
         Structured list of detected objects.
@@ -261,19 +319,28 @@ def camera_recognize_objects(
     except (ImportError, RuntimeError) as e:
         return str(e)
 
+    if show_preview:
+        _show_jpeg_preview(image_bytes, "Jarvis - Objetos")
+
     result = _analyze_image(image_bytes, _OBJECT_PROMPT)
+
+    if show_preview:
+        _destroy_window("Jarvis - Objetos")
+
     return f"[Imagen guardada: {path}]\n\n{result}"
 
 
 def camera_recognize_gestures(
     camera_index: int = -1,
     save_path: str = "",
+    show_preview: bool = False,
 ) -> str:
     """Capture a photo and recognize hand gestures and body language.
 
     Args:
         camera_index: Camera device index. -1 uses config default.
         save_path: Optional path to save the captured image.
+        show_preview: Show the captured frame in a preview window while analyzing.
 
     Returns:
         Description of detected gestures.
@@ -285,7 +352,14 @@ def camera_recognize_gestures(
     except (ImportError, RuntimeError) as e:
         return str(e)
 
+    if show_preview:
+        _show_jpeg_preview(image_bytes, "Jarvis - Gestos")
+
     result = _analyze_image(image_bytes, _GESTURE_PROMPT)
+
+    if show_preview:
+        _destroy_window("Jarvis - Gestos")
+
     return f"[Imagen guardada: {path}]\n\n{result}"
 
 
@@ -293,6 +367,7 @@ def camera_analyze(
     prompt: str,
     camera_index: int = -1,
     save_path: str = "",
+    show_preview: bool = False,
 ) -> str:
     """Capture a photo and analyze it with a custom prompt.
 
@@ -303,6 +378,7 @@ def camera_analyze(
         prompt: The question or instruction for the AI about the image.
         camera_index: Camera device index. -1 uses config default.
         save_path: Optional path to save the captured image.
+        show_preview: Show the captured frame in a preview window while analyzing.
 
     Returns:
         AI response to the visual prompt.
@@ -317,7 +393,14 @@ def camera_analyze(
     except (ImportError, RuntimeError) as e:
         return str(e)
 
+    if show_preview:
+        _show_jpeg_preview(image_bytes, "Jarvis - Análisis")
+
     result = _analyze_image(image_bytes, prompt)
+
+    if show_preview:
+        _destroy_window("Jarvis - Análisis")
+
     return f"[Imagen guardada: {path}]\n\n{result}"
 
 
@@ -326,6 +409,7 @@ def camera_monitor(
     duration: int = 10,
     interval: int = 3,
     camera_index: int = -1,
+    show_preview: bool = False,
 ) -> str:
     """Monitor the camera for a period, analyzing frames at regular intervals.
 
@@ -335,6 +419,7 @@ def camera_monitor(
         duration: How many seconds to monitor (max 60). Default: 10.
         interval: Seconds between frame captures (min 2). Default: 3.
         camera_index: Camera device index. -1 uses config default.
+        show_preview: Show a live preview window while monitoring.
 
     Returns:
         Summary of observations across all captured frames.
@@ -355,13 +440,15 @@ def camera_monitor(
     total_frames = max(1, (duration + interval - 1) // interval)
     start = time.time()
     next_capture_at = start
+    preview_active = False
+    window_name = "Jarvis - Monitor"
 
     try:
         import cv2
     except ImportError:
         return (
             "opencv-python no está instalado.\n"
-            "Instala con: pip install opencv-python-headless"
+            "Instala con: pip install opencv-python"
         )
 
     cap = cv2.VideoCapture(cam)
@@ -376,7 +463,16 @@ def camera_monitor(
         while frame_num < total_frames and next_capture_at - start < duration:
             sleep_for = next_capture_at - time.time()
             if sleep_for > 0:
-                time.sleep(sleep_for)
+                if show_preview and preview_active:
+                    end_wait = time.time() + sleep_for
+                    while time.time() < end_wait:
+                        ret_p, frame_p = cap.read()
+                        if ret_p and frame_p is not None:
+                            _try_show_frame(window_name, frame_p, wait_ms=30)
+                        else:
+                            time.sleep(0.03)
+                else:
+                    time.sleep(sleep_for)
 
             frame_num += 1
             ret, frame = cap.read()
@@ -384,6 +480,9 @@ def camera_monitor(
                 observations.append(f"Frame {frame_num}: Error al capturar")
                 next_capture_at = start + frame_num * interval
                 continue
+
+            if show_preview:
+                preview_active = _try_show_frame(window_name, frame, wait_ms=1)
 
             _, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             image_bytes = jpeg.tobytes()
@@ -400,8 +499,71 @@ def camera_monitor(
             next_capture_at = start + frame_num * interval
     finally:
         cap.release()
+        if show_preview and preview_active:
+            _destroy_window(window_name)
 
     header = f"Monitoreo de cámara ({duration}s, {frame_num} frames capturados)"
     if task:
         header += f"\nTarea: {task}"
     return header + "\n\n" + "\n\n".join(observations)
+
+
+def camera_preview(
+    duration: int = 15,
+    camera_index: int = -1,
+) -> str:
+    """Open a live camera preview window. Shows what the camera sees in real time.
+
+    The window stays open for the specified duration or until the user presses
+    ESC or Q. No AI analysis is performed — this is purely for viewing.
+
+    Args:
+        duration: How many seconds to show the preview (max 120). Default: 15.
+        camera_index: Camera device index. -1 uses config default.
+
+    Returns:
+        Status message about the preview session.
+    """
+    cam = camera_index if camera_index >= 0 else _get_camera_index()
+    duration = max(1, min(duration, 120))
+    window_name = "Jarvis - Preview (ESC para cerrar)"
+
+    try:
+        import cv2
+    except ImportError:
+        return (
+            "opencv-python no está instalado.\n"
+            "Instala con: pip install opencv-python"
+        )
+
+    cap = cv2.VideoCapture(cam)
+    if not cap.isOpened():
+        return f"No se pudo abrir la cámara (índice {cam})."
+
+    try:
+        for _ in range(5):
+            cap.read()
+
+        start = time.time()
+        frames_shown = 0
+
+        while time.time() - start < duration:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                continue
+
+            if not _try_show_frame(window_name, frame, wait_ms=30):
+                return "Error: No se pudo abrir la ventana de preview. Verifica que tienes un entorno gráfico disponible."
+
+            frames_shown += 1
+
+            key = cv2.waitKey(1) & 0xFF
+            if key in (27, ord('q'), ord('Q')):
+                elapsed = time.time() - start
+                return f"Preview cerrado por el usuario después de {elapsed:.1f}s ({frames_shown} frames)."
+
+        elapsed = time.time() - start
+        return f"Preview completado: {elapsed:.1f}s, {frames_shown} frames mostrados."
+    finally:
+        cap.release()
+        _destroy_window(window_name)

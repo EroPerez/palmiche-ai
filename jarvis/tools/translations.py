@@ -350,6 +350,7 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
         "_": "Capture a photo from the system camera and save it to a file.",
         "save_path": "Path to save the image. Default: ~/Capturas/camera_TIMESTAMP.jpg",
         "camera_index": "Camera device index (0=default). -1 uses the configured default.",
+        "show_preview": "Show the captured frame in a preview window. Default: false.",
     },
     "camera_describe": {
         "_": (
@@ -358,6 +359,7 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
         "prompt": "Custom prompt for the AI. Default: general scene description.",
         "camera_index": "Camera device index. -1 uses the configured default.",
         "save_path": "Optional path to save the captured image.",
+        "show_preview": "Show the captured frame in a preview window while analyzing. Default: false.",
     },
     "camera_recognize_objects": {
         "_": (
@@ -366,6 +368,7 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
         ),
         "camera_index": "Camera device index. -1 uses the configured default.",
         "save_path": "Optional path to save the captured image.",
+        "show_preview": "Show the captured frame in a preview window while analyzing. Default: false.",
     },
     "camera_recognize_gestures": {
         "_": (
@@ -375,6 +378,7 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
         ),
         "camera_index": "Camera device index. -1 uses the configured default.",
         "save_path": "Optional path to save the captured image.",
+        "show_preview": "Show the captured frame in a preview window while analyzing. Default: false.",
     },
     "camera_analyze": {
         "_": (
@@ -385,6 +389,7 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
         "prompt": "Question or instruction about what the camera sees.",
         "camera_index": "Camera device index. -1 uses the configured default.",
         "save_path": "Optional path to save the captured image.",
+        "show_preview": "Show the captured frame in a preview window while analyzing. Default: false.",
     },
     "camera_monitor": {
         "_": (
@@ -394,6 +399,15 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
         "task": "What to monitor (e.g. 'count people', 'detect movement'). Default: general changes.",
         "duration": "Monitoring duration in seconds (max 60). Default: 10.",
         "interval": "Seconds between captures (min 2). Default: 3.",
+        "camera_index": "Camera device index. -1 uses the configured default.",
+        "show_preview": "Show a live preview window while monitoring. Default: false.",
+    },
+    "camera_preview": {
+        "_": (
+            "Open a live camera preview window showing what the camera sees in real time. "
+            "No AI analysis is performed — purely for viewing the camera feed."
+        ),
+        "duration": "Preview duration in seconds (max 120). Default: 15.",
         "camera_index": "Camera device index. -1 uses the configured default.",
     },
     "computer_use_task": {

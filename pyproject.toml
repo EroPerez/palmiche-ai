@@ -58,7 +58,7 @@ computer-use = [
     "mss>=9.0.1",
 ]
 vision = [
-    "opencv-python-headless>=4.8.0",
+    "opencv-python>=4.8.0",
 ]
 all = [
     "palmiche-jarvis[voice,tray,adk,assets,a2a,mcp,computer-use,vision]",
