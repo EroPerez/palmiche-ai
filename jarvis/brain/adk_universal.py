@@ -25,6 +25,7 @@ Install:
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import os
 import sys
 import uuid
@@ -244,7 +245,7 @@ class JarvisUniversalADKAgent:
             app_name="jarvis",
             session_service=self._session_service,
         )
-        asyncio.run(
+        JarvisUniversalADKAgent._run_async(
             self._session_service.create_session(
                 app_name="jarvis",
                 user_id="user",
@@ -266,13 +267,33 @@ class JarvisUniversalADKAgent:
         self.history.clear()
         # Create a fresh session to drop all ADK in-memory context
         self._session_id = str(uuid.uuid4())
-        asyncio.run(
+        self._run_async(
             self._session_service.create_session(
                 app_name="jarvis",
                 user_id="user",
                 session_id=self._session_id,
             )
         )
+
+    @staticmethod
+    def _run_async(coro):
+        """Run a coroutine, handling the case where a loop is already running.
+
+        When camera or other tools call this from inside the ADK agent's own
+        async event loop, asyncio.run() would raise "cannot be called from a
+        running event loop". We detect that and delegate to a worker thread
+        that starts its own fresh event loop instead.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is not None and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(asyncio.run, coro)
+                return future.result()
+        return asyncio.run(coro)
 
     def chat(self, user_message: str) -> str:
         """Send a message and return the agent's response (blocks until complete)."""
@@ -283,7 +304,7 @@ class JarvisUniversalADKAgent:
             if input_verdict.transformed_text is not None:
                 user_message = input_verdict.transformed_text
 
-        result = asyncio.run(self._chat_async(user_message))
+        result = self._run_async(self._chat_async(user_message))
 
         if self._guardrails:
             output_verdict = self._guardrails.check_output(result)
@@ -338,7 +359,7 @@ class JarvisUniversalADKAgent:
 
     def vision_chat(self, image_bytes: bytes, prompt: str, mime_type: str = "image/jpeg") -> str:
         """Send an image + text prompt and return the agent's response."""
-        return asyncio.run(self._vision_chat_async(image_bytes, prompt, mime_type))
+        return self._run_async(self._vision_chat_async(image_bytes, prompt, mime_type))
 
     async def _vision_chat_async(
         self, image_bytes: bytes, prompt: str, mime_type: str,

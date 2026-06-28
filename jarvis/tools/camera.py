@@ -21,25 +21,30 @@ import time
 from pathlib import Path
 from typing import Optional
 
-# cv2 bundles xcb but not dxcb; override before the first cv2 import so Qt
-# doesn't abort trying to load a plugin that isn't there.
-if os.environ.get("QT_QPA_PLATFORM") == "dxcb":
-    os.environ["QT_QPA_PLATFORM"] = "xcb"
+# cv2 (opencv-python) links its own Qt build. On Deepin/DDE the system sets
+# QT_QPA_PLATFORM=dxcb which cv2 doesn't ship, causing Qt to SIGABRT the
+# process. "offscreen" is always available and lets VideoCapture / imencode
+# work normally; imshow() becomes a no-op caught by _try_show_frame's except.
+if os.environ.get("QT_QPA_PLATFORM") in ("dxcb", "xcb", ""):
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 
 def _import_cv2():
-    """Import cv2 and fix Qt plugin path conflict.
+    """Import cv2, neutralising Qt platform conflicts.
 
-    opencv-python bundles its own Qt plugins directory which often lacks
-    system-specific platform plugins (e.g. dxcb on Deepin/DDE) and fonts,
-    producing noisy warnings. Removing the path lets Qt fall back to the
-    system's native plugins.
+    opencv-python sets QT_QPA_PLATFORM_PLUGIN_PATH to its own bundled plugin
+    dir. After import we clear that path so system Qt apps aren't affected,
+    then pin QT_QPA_PLATFORM=offscreen so cv2's own Qt subsystem never tries
+    to open a display connection (which would SIGABRT on headless or on
+    platforms whose plugin cv2 doesn't ship, e.g. dxcb on Deepin).
     """
     import cv2
 
     qt_path = os.environ.get("QT_QPA_PLATFORM_PLUGIN_PATH", "")
     if "cv2" in qt_path or "opencv" in qt_path:
         os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH", None)
+    # Keep offscreen pinned even if something reset it after module load.
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
     return cv2
 
 
