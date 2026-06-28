@@ -5,7 +5,7 @@ import SiriAnimation from './components/SiriAnimation.vue'
 import ChatMessage from './components/ChatMessage.vue'
 import TypingIndicator from './components/TypingIndicator.vue'
 import ConnectingOverlay from './components/ConnectingOverlay.vue'
-import LiquidWaveform from './components/LiquidWaveform.vue'
+import Waveform from './components/Waveform.vue'
 
 const messages = ref([])
 const inputMessage = ref('')
@@ -285,7 +285,7 @@ onMounted(() => {
       enter-from-class="opacity-0"
       leave-to-class="opacity-0"
     >
-      <LiquidWaveform v-if="isSpeaking" />
+      <Waveform v-if="isSpeaking" />
     </Transition>
 
     <!-- Input Area -->
