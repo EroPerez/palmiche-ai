@@ -160,9 +160,12 @@ JARVIS_GUARDRAILS_ENABLED: bool = os.getenv("JARVIS_GUARDRAILS_ENABLED", "true")
 # ---------------------------------------------------------------------------
 
 # Default camera device index (0 = first camera, 1 = second, etc.)
-# Vision analysis uses the same model configured in JARVIS_MODEL via LiteLLM,
-# so any multimodal-capable provider works (Gemini, Claude, GPT-4o, Ollama, etc.).
 VISION_CAMERA_INDEX: int = _get_positive_int("VISION_CAMERA_INDEX", 0)
+
+# Model used for camera/image analysis. Must be a multimodal-capable model.
+# When empty, falls back to JARVIS_MODEL (which must then be multimodal itself).
+# Examples: gemini/gemini-2.0-flash, anthropic/claude-haiku-4-5-20251001, openai/gpt-4o
+VISION_MODEL: str = os.getenv("VISION_MODEL", "")
 
 # ---------------------------------------------------------------------------
 # Computer Use — Gemini-powered visual browser/desktop automation

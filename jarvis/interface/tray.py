@@ -749,9 +749,6 @@ def run_tray(
     tray.activated.connect(_on_tray_activated)
     tray.show()
 
-    # ── Play startup audio (if configured via JARVIS_WELCOME_AUDIO) ──────────
-    _play_startup_audio(app)
-
     app.exec()
 
 
