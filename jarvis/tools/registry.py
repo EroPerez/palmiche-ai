@@ -23,6 +23,11 @@ from .timer import set_timer, set_alarm, list_timers, cancel_timer
 from .calculator import calculate, convert_units
 from .text_tools import text_stats, text_transform
 from .computer_use import computer_use_task
+from .camera import (
+    camera_capture, camera_describe, camera_recognize_objects,
+    camera_recognize_gestures, camera_analyze, camera_monitor,
+    camera_preview,
+)
 
 TOOL_DEFINITIONS = [
     {
@@ -909,6 +914,195 @@ TOOL_DEFINITIONS = [
         },
     },
     # -------------------------------------------------------------------------
+    # Camera Vision — multimodal object & gesture recognition
+    # -------------------------------------------------------------------------
+    {
+        "name": "camera_capture",
+        "description": "Captura una foto desde la cámara del sistema y la guarda en un archivo.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "save_path": {
+                    "type": "string",
+                    "description": "Ruta donde guardar la imagen. Default: ~/Capturas/camera_TIMESTAMP.jpg",
+                },
+                "camera_index": {
+                    "type": "integer",
+                    "description": "Índice del dispositivo de cámara (0=default). -1 usa el configurado.",
+                },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen capturada en una ventana de preview. Default: false.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "camera_describe",
+        "description": (
+            "Captura una foto desde la cámara y describe la escena usando el modelo de IA multimodal configurado. Identifica personas, objetos, colores, entorno y detalles."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "Prompt personalizado para la IA. Default: descripción general de la escena.",
+                },
+                "camera_index": {
+                    "type": "integer",
+                    "description": "Índice del dispositivo de cámara. -1 usa el configurado.",
+                },
+                "save_path": {
+                    "type": "string",
+                    "description": "Ruta opcional para guardar la imagen capturada.",
+                },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen capturada en una ventana de preview mientras se analiza. Default: false.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "camera_recognize_objects",
+        "description": (
+            "Captura una foto desde la cámara e identifica todos los objetos visibles "
+            "con posición, tamaño relativo y nivel de confianza. Usa el modelo multimodal configurado."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "camera_index": {
+                    "type": "integer",
+                    "description": "Índice del dispositivo de cámara. -1 usa el configurado.",
+                },
+                "save_path": {
+                    "type": "string",
+                    "description": "Ruta opcional para guardar la imagen capturada.",
+                },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen en una ventana de preview mientras se analiza. Default: false.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "camera_recognize_gestures",
+        "description": (
+            "Captura una foto desde la cámara y reconoce gestos de manos y lenguaje corporal. "
+            "Detecta: pulgar arriba, paz, puño, palma abierta, señalar, pinza, OK, etc. "
+            "Usa el modelo multimodal configurado."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "camera_index": {
+                    "type": "integer",
+                    "description": "Índice del dispositivo de cámara. -1 usa el configurado.",
+                },
+                "save_path": {
+                    "type": "string",
+                    "description": "Ruta opcional para guardar la imagen capturada.",
+                },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen en una ventana de preview mientras se analiza. Default: false.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "camera_analyze",
+        "description": (
+            "Captura una foto y la analiza con un prompt personalizado. "
+            "Flexible: '¿cuántas personas hay?', '¿de qué color es la camisa?', "
+            "'¿está abierta la puerta?', 'lee el texto del cartel', etc."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "Pregunta o instrucción sobre lo que se ve en la cámara.",
+                },
+                "camera_index": {
+                    "type": "integer",
+                    "description": "Índice del dispositivo de cámara. -1 usa el configurado.",
+                },
+                "save_path": {
+                    "type": "string",
+                    "description": "Ruta opcional para guardar la imagen capturada.",
+                },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar la imagen en una ventana de preview mientras se analiza. Default: false.",
+                },
+            },
+            "required": ["prompt"],
+        },
+    },
+    {
+        "name": "camera_monitor",
+        "description": (
+            "Monitorea la cámara durante un período, analizando frames a intervalos regulares. "
+            "Útil para detectar cambios, contar personas, vigilar actividad o esperar eventos específicos."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "Qué monitorear (ej: 'contar personas', 'detectar movimiento'). Default: cambios generales.",
+                },
+                "duration": {
+                    "type": "integer",
+                    "description": "Segundos de monitoreo (máx 60). Default: 10.",
+                },
+                "interval": {
+                    "type": "integer",
+                    "description": "Segundos entre capturas (mín 2). Default: 3.",
+                },
+                "camera_index": {
+                    "type": "integer",
+                    "description": "Índice del dispositivo de cámara. -1 usa el configurado.",
+                },
+                "show_preview": {
+                    "type": "boolean",
+                    "description": "Mostrar preview en vivo de la cámara mientras se monitorea. Default: false.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "camera_preview",
+        "description": (
+            "Abre una ventana de preview en vivo de la cámara. Muestra lo que ve la cámara "
+            "en tiempo real sin análisis de IA. Útil para verificar encuadre, iluminación o "
+            "simplemente ver qué está captando la cámara."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "integer",
+                    "description": "Segundos de preview (máx 120). Default: 15.",
+                },
+                "camera_index": {
+                    "type": "integer",
+                    "description": "Índice del dispositivo de cámara. -1 usa el configurado.",
+                },
+            },
+            "required": [],
+        },
+    },
+    # -------------------------------------------------------------------------
     # Computer Use — visual browser/desktop automation via Gemini
     # -------------------------------------------------------------------------
     {
@@ -1121,6 +1315,35 @@ def execute_tool(name: str, inputs: dict) -> str:
         # Web content
         "fetch_webpage": lambda i: fetch_webpage(i["url"], i.get("max_chars", 3000)),
         "get_rss_feed": lambda i: get_rss_feed(i["url"], i.get("max_items", 10)),
+        # Camera vision
+        "camera_capture": lambda i: camera_capture(
+            i.get("save_path", ""), i.get("camera_index", -1),
+            i.get("show_preview", False),
+        ),
+        "camera_describe": lambda i: camera_describe(
+            i.get("prompt", ""), i.get("camera_index", -1), i.get("save_path", ""),
+            i.get("show_preview", False),
+        ),
+        "camera_recognize_objects": lambda i: camera_recognize_objects(
+            i.get("camera_index", -1), i.get("save_path", ""),
+            i.get("show_preview", False),
+        ),
+        "camera_recognize_gestures": lambda i: camera_recognize_gestures(
+            i.get("camera_index", -1), i.get("save_path", ""),
+            i.get("show_preview", False),
+        ),
+        "camera_analyze": lambda i: camera_analyze(
+            i["prompt"], i.get("camera_index", -1), i.get("save_path", ""),
+            i.get("show_preview", False),
+        ),
+        "camera_monitor": lambda i: camera_monitor(
+            i.get("task", ""), i.get("duration", 10),
+            i.get("interval", 3), i.get("camera_index", -1),
+            i.get("show_preview", False),
+        ),
+        "camera_preview": lambda i: camera_preview(
+            i.get("duration", 15), i.get("camera_index", -1),
+        ),
         # Computer use
         "computer_use_task": lambda i: computer_use_task(
             i["task"],

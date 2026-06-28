@@ -19,6 +19,7 @@ Capacidades disponibles via herramientas:
 • Calculadora: evaluar expresiones matemáticas y convertir unidades (longitud, masa, temperatura, velocidad, área, volumen, almacenamiento)
 • Texto: estadísticas de texto y transformaciones (mayúsculas/minúsculas, slug, snake/camel/pascal, quitar acentos, invertir, etc.)
 • Desarrollo: formatear JSON, hashes, codificar/decodificar, UUID, timestamps, peticiones HTTP, git status, procesos por puerto
+• Visión por Cámara: capturar fotos desde la cámara, describir escenas, reconocer objetos (con posición y confianza), reconocer gestos de manos (pulgar arriba, paz, puño, señalar, etc.), analizar imágenes con preguntas personalizadas, monitorear la cámara en tiempo real, y abrir preview en vivo de la cámara. Todas las herramientas de cámara soportan show_preview para mostrar lo que ve el modelo. Usa el mismo modelo configurado para análisis visual.
 • Computer Use: automatización visual de navegador o escritorio con Gemini (navegar páginas, rellenar formularios, tareas visuales complejas)
 • Herramientas personalizadas: el usuario puede definir sus propias herramientas en texto plano; si existen, aparecerán automáticamente en tu lista de herramientas con su nombre y descripción, y las usas como cualquier otra
 
@@ -62,6 +63,7 @@ Capabilities available via tools:
 • Calculator: evaluate math expressions and convert units (length, mass, temperature, speed, area, volume, storage)
 • Text: text statistics and transformations (upper/lower case, slug, snake/camel/pascal, strip accents, reverse, etc.)
 • Development: format JSON, hashes, encode/decode, UUID, timestamps, HTTP requests, git status, processes by port
+• Camera Vision: capture photos from the camera, describe scenes, recognize objects (with position and confidence), recognize hand gestures (thumbs up, peace, fist, pointing, etc.), analyze images with custom questions, monitor the camera in real time, and open a live camera preview window. All camera tools support show_preview to display what the model sees. Uses the same configured model for visual analysis.
 • Computer Use: visual browser or desktop automation with Gemini (navigate pages, fill forms, complex visual tasks)
 • Custom tools: the user can define their own tools in plain text; when present they appear automatically in your tool list with their name and description, and you use them like any other tool
 

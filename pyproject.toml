@@ -57,8 +57,11 @@ computer-use = [
     "Pillow>=10.0.0",
     "mss>=9.0.1",
 ]
+vision = [
+    "opencv-python>=4.8.0",
+]
 all = [
-    "palmiche-jarvis[voice,tray,adk,assets,a2a,mcp,computer-use]",
+    "palmiche-jarvis[voice,tray,adk,assets,a2a,mcp,computer-use,vision]",
 ]
 
 [project.scripts]
