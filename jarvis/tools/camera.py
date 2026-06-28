@@ -16,9 +16,26 @@ Install:
 """
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import Optional
+
+
+def _import_cv2():
+    """Import cv2 and fix Qt plugin path conflict.
+
+    opencv-python bundles its own Qt plugins directory which often lacks
+    system-specific platform plugins (e.g. dxcb on Deepin/DDE) and fonts,
+    producing noisy warnings. Removing the path lets Qt fall back to the
+    system's native plugins.
+    """
+    import cv2
+
+    qt_path = os.environ.get("QT_QPA_PLATFORM_PLUGIN_PATH", "")
+    if "cv2" in qt_path or "opencv" in qt_path:
+        os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH", None)
+    return cv2
 
 
 def _capture_frame(camera_index: int = 0, save_path: Optional[str] = None) -> tuple[bytes, str]:
@@ -28,7 +45,7 @@ def _capture_frame(camera_index: int = 0, save_path: Optional[str] = None) -> tu
     Raises RuntimeError if the camera cannot be opened.
     """
     try:
-        import cv2
+        cv2 = _import_cv2()
     except ImportError as exc:
         raise ImportError(
             "opencv-python no está instalado.\n"
@@ -102,17 +119,17 @@ def _get_camera_index() -> int:
 def _try_show_frame(window_name: str, frame, wait_ms: int = 1) -> bool:
     """Try to display a frame via cv2.imshow. Returns False if GUI unavailable."""
     try:
-        import cv2
+        cv2 = _import_cv2()
         cv2.imshow(window_name, frame)
         cv2.waitKey(wait_ms)
         return True
-    except cv2.error:
+    except Exception:
         return False
 
 
 def _destroy_window(window_name: str) -> None:
     try:
-        import cv2
+        cv2 = _import_cv2()
         cv2.destroyWindow(window_name)
         cv2.waitKey(1)
     except Exception:
@@ -122,7 +139,7 @@ def _destroy_window(window_name: str) -> None:
 def _show_jpeg_preview(jpeg_bytes: bytes, window_name: str) -> None:
     """Decode JPEG bytes and show in a cv2 window (non-blocking)."""
     try:
-        import cv2
+        cv2 = _import_cv2()
         import numpy as np
         arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
@@ -181,7 +198,7 @@ def camera_capture(
         image_bytes, path = _capture_frame(cam, save_path or None)
         if show_preview:
             try:
-                import cv2
+                cv2 = _import_cv2()
                 import numpy as np
                 arr = np.frombuffer(image_bytes, dtype=np.uint8)
                 frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
@@ -377,7 +394,7 @@ def camera_monitor(
     window_name = "Jarvis - Monitor"
 
     try:
-        import cv2
+        cv2 = _import_cv2()
     except ImportError:
         return (
             "opencv-python no está instalado.\n"
@@ -462,7 +479,7 @@ def camera_preview(
     window_name = "Jarvis - Preview (ESC para cerrar)"
 
     try:
-        import cv2
+        cv2 = _import_cv2()
     except ImportError:
         return (
             "opencv-python no está instalado.\n"
