@@ -1,7 +1,9 @@
-"""Camera vision: multimodal object & gesture recognition via Gemma 4 / Ollama.
+"""Camera vision: multimodal object & gesture recognition via the configured JARVIS_MODEL.
 
-Captures frames from the system camera (OpenCV) and sends them to a local
-multimodal model (Gemma 4 12B by default) running on Ollama for analysis.
+Captures frames from the system camera (OpenCV) and sends them to the same
+model configured in JARVIS_MODEL via LiteLLM for analysis. This means any
+multimodal-capable provider works: Gemini, Claude, GPT-4o, Ollama (gemma3,
+llava), etc. — no separate vision model needed.
 
 Features:
   - Single frame capture & describe
@@ -9,19 +11,12 @@ Features:
   - Hand gesture recognition
   - Continuous monitoring with callbacks
 
-Backends for inference:
-  ollama  – local Ollama server (default, no API key needed)
-  gemini  – Google Gemini API (needs GOOGLE_API_KEY)
-
 Install:
     pip install "palmiche-jarvis[vision]"
-    ollama pull gemma3:4b   # or gemma3:12b for better quality
 """
 from __future__ import annotations
 
 import base64
-import io
-import json
 import time
 from pathlib import Path
 from typing import Optional
@@ -62,35 +57,83 @@ def _capture_frame(camera_index: int = 0, save_path: Optional[str] = None) -> tu
 
         if save_path:
             dest = Path(save_path).expanduser()
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            with open(dest, "wb") as f:
-                f.write(jpeg_bytes)
-            path_str = str(dest)
         else:
             from datetime import datetime
             captures_dir = Path.home() / "Capturas"
             captures_dir.mkdir(exist_ok=True)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             dest = captures_dir / f"camera_{ts}.jpg"
-            with open(dest, "wb") as f:
-                f.write(jpeg_bytes)
-            path_str = str(dest)
 
-        return jpeg_bytes, path_str
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with open(dest, "wb") as f:
+            f.write(jpeg_bytes)
+
+        return jpeg_bytes, str(dest)
     finally:
         cap.release()
 
 
-def _analyze_with_ollama(
-    image_bytes: bytes,
-    prompt: str,
-    model: str,
-    host: str,
-) -> str:
-    """Send an image to Ollama's multimodal API and return the text response."""
-    import requests
+def _analyze_image(image_bytes: bytes, prompt: str) -> str:
+    """Send an image to the configured JARVIS_MODEL via LiteLLM for analysis.
 
+    Uses the same model, API key, and base URL that the ADK universal agent
+    uses — no separate vision model configuration needed.
+    """
+    from ..config import JARVIS_MODEL, JARVIS_API_KEY, JARVIS_BASE_URL
+
+    model = JARVIS_MODEL
     b64_image = base64.b64encode(image_bytes).decode("utf-8")
+
+    # Ollama models via direct API (LiteLLM's image support for Ollama can
+    # be inconsistent, so we call the Ollama REST API directly for
+    # ollama_chat/* models).
+    if model.startswith("ollama_chat/") or model.startswith("ollama/"):
+        return _analyze_via_ollama(
+            b64_image, prompt,
+            model=model.split("/", 1)[1],
+            host=JARVIS_BASE_URL or "http://localhost:11434",
+        )
+
+    # All other providers via LiteLLM (Anthropic, OpenAI, Gemini, Groq, etc.)
+    try:
+        import litellm
+    except ImportError as exc:
+        return (
+            "Error: litellm no está instalado.\n"
+            f"Instala con: pip install litellm\nDetalle: {exc}"
+        )
+
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{b64_image}",
+                    },
+                },
+            ],
+        }
+    ]
+
+    kwargs: dict = {"model": model, "messages": messages, "temperature": 0.3, "max_tokens": 1024}
+    if JARVIS_API_KEY:
+        kwargs["api_key"] = JARVIS_API_KEY
+    if JARVIS_BASE_URL:
+        kwargs["api_base"] = JARVIS_BASE_URL
+
+    try:
+        response = litellm.completion(**kwargs)
+        return response.choices[0].message.content or "No se recibió respuesta del modelo."
+    except Exception as e:
+        return f"Error al analizar imagen con {model}: {e}"
+
+
+def _analyze_via_ollama(b64_image: str, prompt: str, model: str, host: str) -> str:
+    """Call the Ollama REST API directly for multimodal inference."""
+    import requests
 
     url = f"{host.rstrip('/')}/api/generate"
     payload = {
@@ -98,17 +141,13 @@ def _analyze_with_ollama(
         "prompt": prompt,
         "images": [b64_image],
         "stream": False,
-        "options": {
-            "temperature": 0.3,
-            "num_predict": 1024,
-        },
+        "options": {"temperature": 0.3, "num_predict": 1024},
     }
 
     try:
         resp = requests.post(url, json=payload, timeout=120)
         resp.raise_for_status()
-        data = resp.json()
-        return data.get("response", "No se recibió respuesta del modelo.")
+        return resp.json().get("response", "No se recibió respuesta del modelo.")
     except requests.ConnectionError:
         return (
             f"Error: No se pudo conectar a Ollama en {host}. "
@@ -121,75 +160,14 @@ def _analyze_with_ollama(
         return f"Error al comunicarse con Ollama: {e}"
 
 
-def _analyze_with_gemini(
-    image_bytes: bytes,
-    prompt: str,
-    model: str,
-) -> str:
-    """Send an image to Google Gemini API and return the text response."""
-    from ..config import GOOGLE_API_KEY, JARVIS_API_KEY
-
-    api_key = JARVIS_API_KEY or GOOGLE_API_KEY
-    if not api_key:
-        return (
-            "Error: Se requiere GOOGLE_API_KEY o JARVIS_API_KEY para usar Gemini. "
-            "Configúrala en jarvis/.env."
-        )
-
-    try:
-        from google import genai
-        from google.genai import types as gtypes
-    except ImportError as exc:
-        return (
-            f"Error: google-genai no está instalado. "
-            f"Instala con: pip install google-genai\nDetalle: {exc}"
-        )
-
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=model,
-        contents=[
-            gtypes.Content(
-                role="user",
-                parts=[
-                    gtypes.Part(text=prompt),
-                    gtypes.Part(
-                        inline_data=gtypes.Blob(
-                            mime_type="image/jpeg",
-                            data=image_bytes,
-                        )
-                    ),
-                ],
-            )
-        ],
-        config=gtypes.GenerateContentConfig(
-            temperature=0.3,
-            max_output_tokens=1024,
-        ),
-    )
-
-    if response.candidates and response.candidates[0].content:
-        parts = response.candidates[0].content.parts
-        return " ".join(p.text for p in parts if hasattr(p, "text") and p.text)
-
-    return "No se recibió respuesta de Gemini."
-
-
-def _get_vision_config():
-    """Return resolved vision configuration values."""
-    from ..config import (
-        VISION_MODEL,
-        VISION_BACKEND,
-        VISION_OLLAMA_HOST,
-        VISION_CAMERA_INDEX,
-    )
-    return VISION_MODEL, VISION_BACKEND, VISION_OLLAMA_HOST, VISION_CAMERA_INDEX
+def _get_camera_index() -> int:
+    from ..config import VISION_CAMERA_INDEX
+    return VISION_CAMERA_INDEX
 
 
 # ---------------------------------------------------------------------------
 # Public tool functions
 # ---------------------------------------------------------------------------
-
 
 _OBJECT_PROMPT = (
     "Analyze this image carefully. List every distinct object you can identify. "
@@ -228,15 +206,12 @@ def camera_capture(
     Returns:
         Path to the saved image file.
     """
-    _, _, _, default_cam = _get_vision_config()
-    cam = camera_index if camera_index >= 0 else default_cam
+    cam = camera_index if camera_index >= 0 else _get_camera_index()
 
     try:
         _, path = _capture_frame(cam, save_path or None)
         return f"Foto capturada y guardada en: {path}"
-    except ImportError as e:
-        return str(e)
-    except RuntimeError as e:
+    except (ImportError, RuntimeError) as e:
         return str(e)
 
 
@@ -245,7 +220,7 @@ def camera_describe(
     camera_index: int = -1,
     save_path: str = "",
 ) -> str:
-    """Capture a photo and describe what the camera sees using Gemma 4 multimodal AI.
+    """Capture a photo and describe what the camera sees using the configured AI model.
 
     Args:
         prompt: Custom prompt for the AI. Default: general scene description.
@@ -255,20 +230,14 @@ def camera_describe(
     Returns:
         AI-generated description of the scene.
     """
-    model, backend, host, default_cam = _get_vision_config()
-    cam = camera_index if camera_index >= 0 else default_cam
-    analysis_prompt = prompt or _DESCRIBE_PROMPT
+    cam = camera_index if camera_index >= 0 else _get_camera_index()
 
     try:
         image_bytes, path = _capture_frame(cam, save_path or None)
     except (ImportError, RuntimeError) as e:
         return str(e)
 
-    if backend == "gemini":
-        result = _analyze_with_gemini(image_bytes, analysis_prompt, model)
-    else:
-        result = _analyze_with_ollama(image_bytes, analysis_prompt, model, host)
-
+    result = _analyze_image(image_bytes, prompt or _DESCRIBE_PROMPT)
     return f"[Imagen guardada: {path}]\n\n{result}"
 
 
@@ -278,9 +247,6 @@ def camera_recognize_objects(
 ) -> str:
     """Capture a photo and identify all objects in the scene.
 
-    Uses Gemma 4 multimodal AI to detect and list objects with positions
-    and confidence levels.
-
     Args:
         camera_index: Camera device index. -1 uses config default.
         save_path: Optional path to save the captured image.
@@ -288,19 +254,14 @@ def camera_recognize_objects(
     Returns:
         Structured list of detected objects.
     """
-    model, backend, host, default_cam = _get_vision_config()
-    cam = camera_index if camera_index >= 0 else default_cam
+    cam = camera_index if camera_index >= 0 else _get_camera_index()
 
     try:
         image_bytes, path = _capture_frame(cam, save_path or None)
     except (ImportError, RuntimeError) as e:
         return str(e)
 
-    if backend == "gemini":
-        result = _analyze_with_gemini(image_bytes, _OBJECT_PROMPT, model)
-    else:
-        result = _analyze_with_ollama(image_bytes, _OBJECT_PROMPT, model, host)
-
+    result = _analyze_image(image_bytes, _OBJECT_PROMPT)
     return f"[Imagen guardada: {path}]\n\n{result}"
 
 
@@ -310,9 +271,6 @@ def camera_recognize_gestures(
 ) -> str:
     """Capture a photo and recognize hand gestures and body language.
 
-    Uses Gemma 4 multimodal AI to detect hand poses, finger positions,
-    and gestures (thumbs up, peace, pointing, fist, open palm, etc.).
-
     Args:
         camera_index: Camera device index. -1 uses config default.
         save_path: Optional path to save the captured image.
@@ -320,19 +278,14 @@ def camera_recognize_gestures(
     Returns:
         Description of detected gestures.
     """
-    model, backend, host, default_cam = _get_vision_config()
-    cam = camera_index if camera_index >= 0 else default_cam
+    cam = camera_index if camera_index >= 0 else _get_camera_index()
 
     try:
         image_bytes, path = _capture_frame(cam, save_path or None)
     except (ImportError, RuntimeError) as e:
         return str(e)
 
-    if backend == "gemini":
-        result = _analyze_with_gemini(image_bytes, _GESTURE_PROMPT, model)
-    else:
-        result = _analyze_with_ollama(image_bytes, _GESTURE_PROMPT, model, host)
-
+    result = _analyze_image(image_bytes, _GESTURE_PROMPT)
     return f"[Imagen guardada: {path}]\n\n{result}"
 
 
@@ -354,8 +307,7 @@ def camera_analyze(
     Returns:
         AI response to the visual prompt.
     """
-    model, backend, host, default_cam = _get_vision_config()
-    cam = camera_index if camera_index >= 0 else default_cam
+    cam = camera_index if camera_index >= 0 else _get_camera_index()
 
     if not prompt:
         return "Error: Se requiere un prompt/pregunta para analizar la imagen."
@@ -365,11 +317,7 @@ def camera_analyze(
     except (ImportError, RuntimeError) as e:
         return str(e)
 
-    if backend == "gemini":
-        result = _analyze_with_gemini(image_bytes, prompt, model)
-    else:
-        result = _analyze_with_ollama(image_bytes, prompt, model, host)
-
+    result = _analyze_image(image_bytes, prompt)
     return f"[Imagen guardada: {path}]\n\n{result}"
 
 
@@ -381,9 +329,6 @@ def camera_monitor(
 ) -> str:
     """Monitor the camera for a period, analyzing frames at regular intervals.
 
-    Useful for detecting changes, counting people over time, monitoring
-    activity, or watching for specific events.
-
     Args:
         task: What to monitor for (e.g., "count people", "detect movement",
               "watch for someone entering"). Default: general scene changes.
@@ -394,8 +339,7 @@ def camera_monitor(
     Returns:
         Summary of observations across all captured frames.
     """
-    model, backend, host, default_cam = _get_vision_config()
-    cam = camera_index if camera_index >= 0 else default_cam
+    cam = camera_index if camera_index >= 0 else _get_camera_index()
 
     duration = max(1, min(duration, 60))
     interval = max(2, interval)
@@ -413,11 +357,11 @@ def camera_monitor(
 
     try:
         import cv2
-    except ImportError as e:
-        return str(ImportError(
+    except ImportError:
+        return (
             "opencv-python no está instalado.\n"
             "Instala con: pip install opencv-python-headless"
-        ))
+        )
 
     cap = cv2.VideoCapture(cam)
     if not cap.isOpened():
@@ -442,10 +386,7 @@ def camera_monitor(
                 frame_num=frame_num, total_frames=total_frames
             )
 
-            if backend == "gemini":
-                result = _analyze_with_gemini(image_bytes, current_prompt, model)
-            else:
-                result = _analyze_with_ollama(image_bytes, current_prompt, model, host)
+            result = _analyze_image(image_bytes, current_prompt)
 
             elapsed = time.time() - start
             observations.append(f"[{elapsed:.1f}s] Frame {frame_num}: {result}")

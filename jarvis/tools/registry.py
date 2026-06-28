@@ -936,8 +936,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "camera_describe",
         "description": (
-            "Captura una foto desde la cámara y describe la escena usando IA multimodal "
-            "(Gemma 4 / Ollama). Identifica personas, objetos, colores, entorno y detalles."
+            "Captura una foto desde la cámara y describe la escena usando el modelo de IA multimodal configurado. Identifica personas, objetos, colores, entorno y detalles."
         ),
         "input_schema": {
             "type": "object",
@@ -962,7 +961,7 @@ TOOL_DEFINITIONS = [
         "name": "camera_recognize_objects",
         "description": (
             "Captura una foto desde la cámara e identifica todos los objetos visibles "
-            "con posición, tamaño relativo y nivel de confianza. Usa IA multimodal (Gemma 4)."
+            "con posición, tamaño relativo y nivel de confianza. Usa el modelo multimodal configurado."
         ),
         "input_schema": {
             "type": "object",
@@ -984,7 +983,7 @@ TOOL_DEFINITIONS = [
         "description": (
             "Captura una foto desde la cámara y reconoce gestos de manos y lenguaje corporal. "
             "Detecta: pulgar arriba, paz, puño, palma abierta, señalar, pinza, OK, etc. "
-            "Usa IA multimodal (Gemma 4)."
+            "Usa el modelo multimodal configurado."
         ),
         "input_schema": {
             "type": "object",

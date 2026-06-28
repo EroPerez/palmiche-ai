@@ -353,8 +353,7 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
     },
     "camera_describe": {
         "_": (
-            "Capture a photo from the camera and describe the scene using multimodal AI "
-            "(Gemma 4 / Ollama). Identifies people, objects, colors, environment and details."
+            "Capture a photo from the camera and describe the scene using the configured multimodal AI model. Identifies people, objects, colors, environment and details."
         ),
         "prompt": "Custom prompt for the AI. Default: general scene description.",
         "camera_index": "Camera device index. -1 uses the configured default.",
@@ -363,7 +362,7 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
     "camera_recognize_objects": {
         "_": (
             "Capture a photo from the camera and identify all visible objects "
-            "with position, relative size and confidence level. Uses multimodal AI (Gemma 4)."
+            "with position, relative size and confidence level. Uses the configured multimodal AI model."
         ),
         "camera_index": "Camera device index. -1 uses the configured default.",
         "save_path": "Optional path to save the captured image.",
@@ -372,7 +371,7 @@ TOOL_TEXT_EN: dict[str, dict[str, str]] = {
         "_": (
             "Capture a photo from the camera and recognize hand gestures and body language. "
             "Detects: thumbs up, peace sign, fist, open palm, pointing, pinch, OK, etc. "
-            "Uses multimodal AI (Gemma 4)."
+            "Uses the configured multimodal AI model."
         ),
         "camera_index": "Camera device index. -1 uses the configured default.",
         "save_path": "Optional path to save the captured image.",

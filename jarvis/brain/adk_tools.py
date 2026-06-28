@@ -717,7 +717,7 @@ def camera_capture(save_path: str = "", camera_index: int = -1) -> str:
 
 
 def camera_describe(prompt: str = "", camera_index: int = -1, save_path: str = "") -> str:
-    """Capture a photo from the camera and describe the scene using multimodal AI (Gemma 4).
+    """Capture a photo from the camera and describe the scene using the configured multimodal AI model.
 
     Identifies people, objects, colors, environment and details in the scene.
 
@@ -1006,7 +1006,7 @@ ADK_TOOL_DOCS_ES: dict[str, str] = {
         "        camera_index: Índice del dispositivo de cámara (0=default). -1 usa el configurado.\n"
     ),
     "camera_describe": (
-        "Captura una foto desde la cámara y describe la escena usando IA multimodal (Gemma 4).\n\n"
+        "Captura una foto desde la cámara y describe la escena usando el modelo de IA multimodal configurado.\n\n"
         "    Args:\n"
         "        prompt: Prompt personalizado para la IA. Default: descripción general de la escena.\n"
         "        camera_index: Índice del dispositivo de cámara. -1 usa el configurado.\n"
