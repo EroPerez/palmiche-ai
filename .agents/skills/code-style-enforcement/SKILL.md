@@ -22,6 +22,7 @@ This skill governs the visual styling, formatting, and structural constraints of
 4. **Braces for Control Structures**:
    * All control structures (such as `if`, `else`, `for`, `while`, `switch`) **must** use block braces `{}`.
    * Single-line control statements without braces are strictly prohibited.
+   * Don't set a blank line between the control structure condition and the opening brace or closing brace.
    * Example:
 
      ```typescript
@@ -30,8 +31,29 @@ This skill governs the visual styling, formatting, and structural constraints of
        doSomething()
      }
 
+     for (let i = 0; i <= 10; i++) {
+      if (condition) {
+         doSomething()
+      }
+
+      if (otheCondition) {
+         doSomething()
+      }
+     }
+
      // Incorrect
      if (condition) doSomething()
+
+     for (let i = 0;;) {
+
+      if (condition) {
+        doSomething()
+      }
+      if (otheCondition) {
+        doSomething()
+      }
+
+     }
      ```
 
 5. **Spacing Around Control Structures and Variables**:
@@ -72,3 +94,34 @@ function getData({ data, pagination, meta }){}
 // Incorrect
 function getData(data, pagination, meta){}
 ```
+
+9. **Object Literal many fields**:
+   * If a object literal has more than 2 fields, set a new line for each field, and put the braces in the same line as the object name.
+   * Example:
+
+     ```typescript
+     // Correct
+     const options = {
+       field1: 'value1',
+       field2: 'value2',
+       field3: 'value3',
+     }
+
+     // Incorrect
+     const options = { field1: 'value1', field2: 'value2', field3: 'value3' }
+     ```
+
+10. **Avoid lines with black spaces at the end of the file**
+    * Example:
+
+     ```typescript
+     // Correct
+     let 1;
+
+     // Incorrect
+     let 1 ;
+       
+      let b = 7;   
+     ```
+
+11. **Limit columns to 80 characters**

@@ -5,7 +5,7 @@ import ChatMessage from './components/ChatMessage.vue'
 import ConnectingOverlay from './components/ConnectingOverlay.vue'
 import TypingIndicator from './components/TypingIndicator.vue'
 import SiriAnimation from './components/SiriAnimation.vue'
-import LiquidWaveform from './components/LiquidWaveform.vue'
+import Waveform from './components/Waveform.vue'
 
 const messages = ref([])
 const inputMessage = ref('')
@@ -20,7 +20,6 @@ const isListening = ref(false)
 let ws = null
 let currentAssistantMessageIndex = -1
 let recognition = null
-let siriAnimation = null
 
 const btnListenClasses = computed(() => {
   return isListening.value
@@ -57,6 +56,7 @@ const initSpeechRecognition = () => {
     let interimTranscript = ''
 
     for (let i = event.resultIndex; i < event.results.length; ++i) {
+
       if (event.results[i].isFinal) {
         finalTranscript += event.results[i][0].transcript
       } else {
@@ -64,7 +64,7 @@ const initSpeechRecognition = () => {
       }
     }
 
-    // Si ya teníamos texto escrito antes de hablar, lo ideal sería concatenarlo, 
+    // Si ya teníamos texto escrito antes de hablar, lo ideal sería concatenarlo,
     // pero para este caso básico simplemente sobrescribimos con lo que se escucha
     // para que se vea como en Gemini.
     if (finalTranscript || interimTranscript) {
@@ -73,13 +73,14 @@ const initSpeechRecognition = () => {
   }
 
   recognition.onerror = (event) => {
-    console.error("Speech recognition error", event.error)
+    console.error('Speech recognition error', event.error)
     stopListening()
   }
 
   recognition.onend = () => {
     stopListening()
     // Enviar automáticamente cuando termina de escuchar (si hay texto)
+
     if (inputMessage.value.trim() !== '') {
       sendMessage()
     }
@@ -115,7 +116,7 @@ const speakText = (text) => {
 
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = 'es-ES'
-  
+
   utterance.onstart = () => {
     isSpeaking.value = true
   }
@@ -148,31 +149,37 @@ const connectWebSocket = () => {
         isTyping.value = true
         messages.value.push({ role: 'assistant', content: '' })
         currentAssistantMessageIndex = messages.value.length - 1
+
         break
       case 'stream':
         if (currentAssistantMessageIndex !== -1) {
           messages.value[currentAssistantMessageIndex].content += data.content
           scrollToBottom()
         }
+
         break
       case 'end':
         isTyping.value = false
+
         if (currentAssistantMessageIndex !== -1) {
           let finalContent = data.content
+
           // Eliminar el bloque de razonamiento para que no se guarde ni se hable (TTS)
           finalContent = finalContent.replace(/<(think|thought|reasoning)>[\s\S]*?(?:<\/\1>|$)/gi, '').trim()
-          
+
           messages.value[currentAssistantMessageIndex].content = finalContent
           animateNewMessage(currentAssistantMessageIndex)
           speakText(finalContent)
         }
         currentAssistantMessageIndex = -1
         scrollToBottom()
+
         break
       case 'error':
         isTyping.value = false
         messages.value.push({ role: 'system', content: `Error: ${data.content}` })
         scrollToBottom()
+
         break
     }
   }
@@ -190,9 +197,11 @@ const sendMessage = () => {
   }
 
   const userText = inputMessage.value.trim()
+
   messages.value.push({ role: 'user', content: userText })
 
   const msgObj = { message: userText, type: 'text' }
+
   ws.send(JSON.stringify(msgObj))
 
   inputMessage.value = ''
@@ -247,7 +256,7 @@ onMounted(() => {
       enter-from-class="opacity-0"
       leave-to-class="opacity-0"
     >
-      <LiquidWaveform v-if="isSpeaking" />
+      <Waveform v-if="isSpeaking" />
     </Transition>
 
     <!-- Header with Glassmorphism -->
@@ -257,7 +266,7 @@ onMounted(() => {
           Jarvis UI
         </h1>
         <span
-          class="text-xs px-2.5 py-1 rounded-full font-medium transition-colors duration-300" 
+          class="text-xs px-2.5 py-1 rounded-full font-medium transition-colors duration-300"
           :class="isConnectedClasses"
         >
           {{ isConnected ? 'Online' : 'Offline' }}
@@ -280,7 +289,7 @@ onMounted(() => {
     </header>
 
     <!-- Chat Messages -->
-    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-zinc-900/50">
+    <div class="chat-messages flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-zinc-900/50">
       <ChatMessage
         v-for="(msg, index) in messages"
         :key="index"
@@ -300,196 +309,34 @@ onMounted(() => {
           'flex-shrink-0 w-11 h-11 flex justify-center items-center rounded-full text-xl transition-all duration-300 border disabled:opacity-50 disabled:cursor-not-allowed',
           btnListenClasses,
         ]"
-        @click="toggleListening"
         title="Hablar con Jarvis"
         :disabled="!isConnected || isTyping"
+        @click="toggleListening"
       >
-        <svg viewBox="0 0 24 24" fill="currentColor" width="26px" height="26px">
+        <svg
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          width="26px"
+          height="26px"
+        >
           <path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z" />
         </svg>
       </button>
       <input
         v-model="inputMessage"
-        @keyup.enter="sendMessage"
-        type="text" 
+        type="text"
+        class="flex-1 px-5 py-3 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-inner"
         placeholder="Pregúntale a Jarvis..."
         :disabled="!isConnected || isTyping"
-        class="flex-1 px-5 py-3 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-inner"
+        @keyup.enter="sendMessage"
       />
       <button
-        @click="sendMessage"
         :disabled="!isConnected || !inputMessage || isTyping"
         class="px-6 py-3 rounded-full bg-indigo-600 text-white font-medium hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20"
+        @click="sendMessage"
       >
         Enviar
       </button>
     </div>
   </div>
 </template>
-
-<style scoped>
-.chat-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  max-width: 800px;
-  margin: 0 auto;
-  background-color: #121212;
-  color: #fff;
-  border-left: 1px solid #333;
-  border-right: 1px solid #333;
-  position: relative;
-}
-
-.chat-header {
-  padding: 1rem;
-  background-color: #1a1a1a;
-  border-bottom: 1px solid #333;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.chat-header h1 {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.status {
-  font-size: 0.8rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  background-color: #dc3545;
-  color: white;
-}
-.status.connected {
-  background-color: #28a745;
-}
-
-.tts-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #ccc;
-  user-select: none;
-}
-.tts-toggle input {
-  cursor: pointer;
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.message-bubble {
-  max-width: 80%;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  line-height: 1.4;
-  word-wrap: break-word;
-}
-
-.role-user {
-  align-self: flex-end;
-  background-color: #0d6efd;
-  color: white;
-  border-bottom-right-radius: 4px;
-}
-
-.role-assistant {
-  align-self: flex-start;
-  background-color: #2a2a2a;
-  color: #e0e0e0;
-  border-bottom-left-radius: 4px;
-}
-
-.role-system {
-  align-self: center;
-  background-color: transparent;
-  color: #888;
-  font-size: 0.85rem;
-  text-align: center;
-}
-
-.typing-indicator {
-  font-style: italic;
-  color: #aaa;
-}
-
-.chat-input-area {
-  padding: 1rem;
-  background-color: #1a1a1a;
-  border-top: 1px solid #333;
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.mic-btn {
-  background-color: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 50%;
-  width: 45px;
-  height: 45px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.mic-btn.active {
-  background-color: #dc3545;
-  border-color: #dc3545;
-  box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
-}
-
-.chat-input-area input {
-  flex: 1;
-  padding: 0.75rem 1rem;
-  border-radius: 24px;
-  border: 1px solid #444;
-  background-color: #2a2a2a;
-  color: white;
-  outline: none;
-}
-
-.chat-input-area input:focus {
-  border-color: #0d6efd;
-}
-
-.send-btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 24px;
-  border: none;
-  background-color: #0d6efd;
-  color: white;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.2s;
-}
-
-.send-btn:hover:not(:disabled) {
-  background-color: #0b5ed7;
-}
-
-.send-btn:disabled, .mic-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-</style>
