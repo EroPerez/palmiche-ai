@@ -16,6 +16,8 @@ Ejemplos:
   python -m jarvis --backend gemini         # Google ADK + Gemini nativo
   python -m jarvis --tray                   # Bandeja del sistema + ventana de chat
   python -m jarvis --web                    # Web UI (FastAPI + Vue 3)
+  python -m jarvis --web --serve-a2a        # Web UI + A2A en un solo servidor
+  python -m jarvis --serve-a2a              # Solo A2A (sin frontend)
   python -m jarvis -q '¿cuánta RAM tengo?' # Consulta rápida y salir
   python -m jarvis --voice                  # Con reconocimiento de voz
   python -m jarvis --clear                  # Borrar historial y salir
@@ -308,42 +310,27 @@ def main():
         sys.exit(1)
 
     # ------------------------------------------------------------------
-    # A2A server mode — starts HTTP server, no interactive CLI
+    # Web UI / A2A server mode — single FastAPI server for both
     # ------------------------------------------------------------------
-    if args.serve_a2a:
-        from .a2a.server import run_a2a_server
-
-        a2a_host = args.a2a_host or A2A_HOST
-        a2a_port = args.a2a_port or A2A_PORT
-
-        print(f"  Iniciando servidor A2A para '{name}' en {a2a_host}:{a2a_port}...")
-
-        def _agent_factory():
-            """Create a fresh agent per A2A session (isolated conversation history)."""
-            from .brain.agent import JarvisAgent
-            return JarvisAgent(name=name, registry=registry)
-
-        run_a2a_server(
-            agent_factory=_agent_factory,
-            host=a2a_host,
-            port=a2a_port,
-            name=name,
-        )
-        return
-
-    # ------------------------------------------------------------------
-    # Web UI mode
-    # ------------------------------------------------------------------
-    if args.web or args.web_dev:
+    if args.web or args.web_dev or args.serve_a2a:
         web_host = args.web_host
         web_port = args.web_port
 
+        if args.serve_a2a:
+            web_host = args.a2a_host or web_host
+            web_port = args.a2a_port or web_port
+
+        agent_factory = None
+        if args.serve_a2a:
+            def agent_factory():
+                return _build_agent(backend, name, registry=registry)
+
         if args.web_dev:
             from .interface.web import run_web_dev
-            run_web_dev(agent, host=web_host, port=web_port)
+            run_web_dev(agent, host=web_host, port=web_port, agent_factory=agent_factory, name=name)
         else:
             from .interface.web import run_web
-            run_web(agent, host=web_host, port=web_port)
+            run_web(agent, host=web_host, port=web_port, agent_factory=agent_factory, name=name)
         return
 
     voice_on = args.voice or VOICE_ENABLED
