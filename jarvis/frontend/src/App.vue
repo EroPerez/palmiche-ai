@@ -1,6 +1,11 @@
 <script setup>
 import { ref, onMounted, nextTick, computed } from 'vue'
 import anime from 'animejs'
+import ChatMessage from './components/ChatMessage.vue'
+import ConnectingOverlay from './components/ConnectingOverlay.vue'
+import TypingIndicator from './components/TypingIndicator.vue'
+import SiriAnimation from './components/SiriAnimation.vue'
+import LiquidWaveform from './components/LiquidWaveform.vue'
 
 const messages = ref([])
 const inputMessage = ref('')
@@ -9,7 +14,7 @@ const isTyping = ref(false)
 const isSpeaking = ref(false)
 
 // Voice feature states
-const isTTSActive = ref(false)
+const isTTSActive = ref(true)
 const isListening = ref(false)
 
 let ws = null
@@ -153,7 +158,10 @@ const connectWebSocket = () => {
       case 'end':
         isTyping.value = false
         if (currentAssistantMessageIndex !== -1) {
-          const finalContent = data.content
+          let finalContent = data.content
+          // Eliminar el bloque de razonamiento para que no se guarde ni se hable (TTS)
+          finalContent = finalContent.replace(/<(think|thought|reasoning)>[\s\S]*?(?:<\/\1>|$)/gi, '').trim()
+          
           messages.value[currentAssistantMessageIndex].content = finalContent
           animateNewMessage(currentAssistantMessageIndex)
           speakText(finalContent)
@@ -232,6 +240,16 @@ onMounted(() => {
       <ConnectingOverlay v-if="!isConnected" />
     </Transition>
 
+    <!-- Efecto Liquid Waveform (Hablando) -->
+    <Transition
+      enter-active-class="transition-opacity duration-500"
+      leave-active-class="transition-opacity duration-500"
+      enter-from-class="opacity-0"
+      leave-to-class="opacity-0"
+    >
+      <LiquidWaveform v-if="isSpeaking" />
+    </Transition>
+
     <!-- Header with Glassmorphism -->
     <header class="p-4 bg-zinc-800/80 backdrop-blur-md border-b border-zinc-700/50 flex justify-between items-center z-10 sticky top-0">
       <div class="flex items-center gap-4">
@@ -273,13 +291,7 @@ onMounted(() => {
     </div>
 
     <!-- Siri Animation Container -->
-    <div class="siri-container" v-show="isListening">
-      <div class="siri-wave wave-1"></div>
-      <div class="siri-wave wave-2"></div>
-      <div class="siri-wave wave-3"></div>
-      <div class="siri-wave wave-4"></div>
-      <div class="siri-wave wave-5"></div>
-    </div>
+    <SiriAnimation :isListening="isListening" />
 
     <!-- Input Area -->
     <div class="p-4 bg-zinc-800/90 border-t border-zinc-700/50 flex gap-3 items-center backdrop-blur-md">
@@ -417,29 +429,6 @@ onMounted(() => {
   font-style: italic;
   color: #aaa;
 }
-
-/* Animación Siri */
-.siri-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  height: 40px;
-  background-color: #1a1a1a;
-  padding: 0.5rem;
-  border-top: 1px solid #333;
-}
-
-.siri-wave {
-  width: 6px;
-  height: 20px;
-  border-radius: 3px;
-}
-.wave-1 { background-color: #ff3b30; }
-.wave-2 { background-color: #ff9500; }
-.wave-3 { background-color: #4cd964; }
-.wave-4 { background-color: #5ac8fa; }
-.wave-5 { background-color: #007aff; }
 
 .chat-input-area {
   padding: 1rem;
