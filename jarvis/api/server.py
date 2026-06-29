@@ -34,7 +34,7 @@ def create_app(agent) -> FastAPI:
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse
 
-    dist_path = os.path.join(os.path.dirname(__file__), "..", "www", "dist")
+    dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
     if os.path.isdir(dist_path):
         app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
 

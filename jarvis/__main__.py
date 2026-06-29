@@ -218,29 +218,25 @@ def _build_agent(backend: str, name: str, registry=None):
     """
     backend = backend.strip().lower()
 
-    if backend == "lmstudio":
-        from .brain.lmstudio_agent import JarvisLMStudioAgent
-        return JarvisLMStudioAgent(name=name, registry=registry)
-
     if backend == "ollama":
         from .brain.ollama_agent import JarvisOllamaAgent
         return JarvisOllamaAgent(name=name, registry=registry)
 
-    if backend == "gemini":
+    if backend in ("gemini", "lmstudio"):
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=True, name=name, registry=registry)
+        return JarvisADKAgent(backend=backend, name=name, registry=registry)
 
     if backend == "adk":
         from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY
-        use_gemini = bool(GOOGLE_API_KEY) and not bool(ANTHROPIC_API_KEY)
+        adk_backend = "gemini" if (bool(GOOGLE_API_KEY) and not bool(ANTHROPIC_API_KEY)) else "anthropic"
         from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(use_gemini=use_gemini, name=name, registry=registry)
+        return JarvisADKAgent(backend=adk_backend, name=name, registry=registry)
 
     if backend == "anthropic":
         from .brain.agent import JarvisAgent
         return JarvisAgent(name=name, registry=registry)
 
-    raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk', 'gemini', 'ollama' u 'lmstudio'.")
+    raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk', 'gemini', 'ollama' o 'lmstudio'.")
 
 
 def main():

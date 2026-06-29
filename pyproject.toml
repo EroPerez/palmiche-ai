@@ -71,7 +71,7 @@ jarvis = "jarvis.__main__:main"
 packages = ["jarvis"]
 
 [tool.hatch.build]
-artifacts = ["jarvis/www/dist/**"]
+artifacts = ["jarvis/frontend/dist/**"]
 
 [tool.ruff]
 target-version = "py310"

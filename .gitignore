@@ -27,7 +27,7 @@ jarvis/.env
 .ollama-models
 
 # Nodejs
-jarvis/www/node_modules
+jarvis/frontend/node_modules
 
 # Vite
-jarvis/www/dev-dist
+jarvis/frontend/dev-dist

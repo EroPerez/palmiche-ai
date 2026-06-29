@@ -2,7 +2,7 @@
 
 Esta guía documenta los pasos necesarios para instalar, configurar e iniciar la interfaz web de Palmiche JARVIS.
 
-El front-end está construido utilizando **Vue 3**, **Vite** y **Tailwind CSS**, y reside dentro del paquete principal en `jarvis/www/`.
+El front-end está construido utilizando **Vue 3**, **Vite** y **Tailwind CSS**, y reside dentro del paquete principal en `jarvis/frontend/`.
 
 ## Requisitos Previos
 

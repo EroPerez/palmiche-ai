@@ -12,7 +12,7 @@ Platform notes:
   Runs on any OS — requires a modern browser for the frontend.
 
 Requires: pip install 'palmiche-jarvis[web]'
-Optional: pnpm install   (in jarvis/www/ for development)
+Optional: pnpm install   (in jarvis/frontend/ for development)
 """
 import os
 import subprocess
@@ -32,11 +32,11 @@ def run_web(agent, host: str = "127.0.0.1", port: int = 8000):
 
 def run_web_dev(agent, host: str = "127.0.0.1", port: int = 8000, frontend_port: int = 3000):
     """Start backend + Vite dev server for local frontend development."""
-    www_dir = os.path.join(os.path.dirname(__file__), "..", "www")
-    www_dir = os.path.abspath(www_dir)
+    frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+    frontend_dir = os.path.abspath(frontend_dir)
 
-    if not os.path.isdir(www_dir):
-        print(f"[ERROR] Directorio frontend no encontrado: {www_dir}", file=sys.stderr)
+    if not os.path.isdir(frontend_dir):
+        print(f"[ERROR] Directorio frontend no encontrado: {frontend_dir}", file=sys.stderr)
         sys.exit(1)
 
     import threading
@@ -52,7 +52,7 @@ def run_web_dev(agent, host: str = "127.0.0.1", port: int = 8000, frontend_port:
     try:
         subprocess.run(
             ["pnpm", "run", "dev", "--", "--port", str(frontend_port)],
-            cwd=www_dir,
+            cwd=frontend_dir,
             check=True,
         )
     except KeyboardInterrupt:
