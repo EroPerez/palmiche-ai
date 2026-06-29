@@ -15,20 +15,45 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import Optional
 
 
 # ---------------------------------------------------------------------------
 # Async helpers
 # ---------------------------------------------------------------------------
 
-def _run_async(coro):
-    """Run an async coroutine in a fresh event loop (sync bridge)."""
+def _run_async_inner(coro):
+    """Run a coroutine in a brand-new event loop (must be called with no running loop)."""
     loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
         return loop.run_until_complete(coro)
     finally:
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
         loop.close()
+        asyncio.set_event_loop(None)
+
+
+def _run_async(coro):
+    """Run an async coroutine in a fresh event loop (sync bridge).
+
+    If a loop is already running on the current thread (e.g. inside
+    an ``asyncio.run`` or an ADK agent), the coroutine is submitted to a
+    thread pool so the new loop gets a clean thread — avoids the
+    CPython 3.12+ "Cannot run the event loop while another loop is
+    running" error.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return _run_async_inner(coro)
+
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(_run_async_inner, coro).result()
 
 
 def _is_url(spec: str) -> bool:

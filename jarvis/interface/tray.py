@@ -40,7 +40,7 @@ try:
     )
     from PyQt6.QtGui import (
         QColor, QTextCharFormat, QFont, QTextCursor,
-        QShortcut, QKeySequence, QIcon, QPixmap, QImage, QAction,
+        QShortcut, QKeySequence, QIcon, QPixmap, QImage,
     )
     _QT6           = True
     _CURSOR_HAND   = Qt.CursorShape.PointingHandCursor
@@ -55,7 +55,7 @@ except ImportError:
         from PyQt5.QtWidgets import (
             QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
             QTextEdit, QLineEdit, QPushButton, QLabel,
-            QApplication, QSystemTrayIcon, QMenu, QAction, QShortcut,
+            QApplication, QSystemTrayIcon, QMenu, QShortcut,
         )
         from PyQt5.QtCore import (
             Qt, QTimer, QPropertyAnimation, QEasingCurve,
@@ -479,9 +479,9 @@ class _ChatWindow(QMainWindow):
         if self._anim:
             self._anim.set_state("idle")
         if self._voice_mode:
-            from .wake_word import _speak_async
+            from .audio_engine import get_engine
             self._set_status("REPRODUCIENDO ...", "#ffab00")
-            _speak_async(reply, on_done=lambda: self._bridge.call(self._on_tts_done))
+            get_engine().speak_async(reply, on_done=lambda: self._bridge.call(self._on_tts_done))
         else:
             self._entry.setEnabled(True)
             self._entry.setFocus()
@@ -538,11 +538,11 @@ class _ChatWindow(QMainWindow):
             self._mic_btn.setStyleSheet(self._btn_mic_active)
             self._mic_btn.setText("🎤 ON")
         self._append("[Modo voz activado — escuchando continuamente]\n", "wake")
-        from .wake_word import _speak_async
+        from .audio_engine import get_engine
         if self.welcome_message and not self._has_greeted:
             self._has_greeted = True
             self._set_status("REPRODUCIENDO ...", "#ffab00")
-            _speak_async(
+            get_engine().speak_async(
                 self.welcome_message,
                 on_done=lambda: self._bridge.call(self._on_activation_audio_done),
             )
@@ -687,8 +687,8 @@ class _ChatWindow(QMainWindow):
         if self._anim:
             self._anim.stop()
         if self.goodbye_message:
-            from .wake_word import _speak_sync
-            _speak_sync(self.goodbye_message)
+            from .audio_engine import get_engine
+            get_engine().speak(self.goodbye_message, block=True)
         app = QApplication.instance()
         if app:
             app.quit()
@@ -749,9 +749,6 @@ def run_tray(
     tray.activated.connect(_on_tray_activated)
     tray.show()
 
-    # ── Play startup audio (if configured via JARVIS_WELCOME_AUDIO) ──────────
-    _play_startup_audio(app)
-
     app.exec()
 
 
@@ -768,45 +765,8 @@ def _get_welcome_audio_path():
     return path if os.path.isfile(path) else None
 
 
-def _play_audio_file(path: str, on_done=None) -> None:
-    """Play an audio file via subprocess in a daemon thread."""
-    import os
-
-    def _play():
-        import subprocess
-        ext = os.path.splitext(path)[1].lower()
-        candidates = [
-            ["mpg123", "-q", path],
-            ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
-            ["cvlc",   "--play-and-exit", "--quiet", path],
-        ]
-        if ext in (".wav", ".ogg"):
-            candidates += [["paplay", path], ["aplay", path]]
-        try:
-            for cmd in candidates:
-                try:
-                    if subprocess.run(cmd, capture_output=True).returncode == 0:
-                        return
-                except FileNotFoundError:
-                    continue
-        finally:
-            if on_done:
-                on_done()
-
-    threading.Thread(target=_play, daemon=True, name="jarvis-audio-play").start()
-
-
-def _play_activation_audio(on_done=None) -> None:
-    """Play the welcome audio when voice mode is activated."""
-    path = _get_welcome_audio_path()
-    if path:
-        _play_audio_file(path, on_done=on_done)
-    elif on_done:
-        on_done()
-
-
 def _play_startup_audio(app) -> None:
-    """Play JARVIS_WELCOME_AUDIO via QMediaPlayer (primary) or subprocess (fallback)."""
+    """Play JARVIS_WELCOME_AUDIO via QMediaPlayer (primary) or AudioEngine (fallback)."""
     path = _get_welcome_audio_path()
     if not path:
         return
@@ -831,11 +791,11 @@ def _play_startup_audio(app) -> None:
             _player.play()
 
         QTimer.singleShot(300, _start)
-        # Keep references alive for the duration of the session
         app._audio_player = _player
         app._audio_output  = _audio
         return
     except Exception:
-        pass  # QtMultimedia not available — fall through to subprocess
+        pass
 
-    _play_audio_file(path)
+    from .audio_engine import get_engine
+    get_engine().play_file(path)

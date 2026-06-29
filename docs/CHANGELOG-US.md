@@ -4,7 +4,191 @@ All notable changes to the project are documented in this file.
 
 ---
 
-## [Unreleased] — 2026-06-25
+## [Unreleased] — 2026-06-28
+
+### ADK universal multi-provider via LiteLLM (#45)
+
+The `adk` backend is now the default engine and supports any LiteLLM-compatible LLM provider through a single unified interface.
+
+#### New universal agent
+
+- **`jarvis/brain/adk_universal.py`** (new): `JarvisUniversalADKAgent` replaces the previous `JarvisADKAgent`
+  - Supports any provider by changing `JARVIS_MODEL`: Anthropic, OpenAI, Gemini, Ollama, Groq, Mistral, Azure, AWS Bedrock, and any OpenAI-compatible proxy
+  - Auto-normalization of legacy model names (`claude-haiku-*` → `anthropic/claude-haiku-*`, `llama3.2` → `ollama_chat/llama3.2`, etc.)
+  - Smart API key resolution: `JARVIS_API_KEY` > provider-specific variables
+  - Custom endpoint support via `JARVIS_BASE_URL` (local Ollama, vLLM, llama.cpp, Azure)
+  - Native Gemini without LiteLLM when the model string has no provider prefix (e.g. `gemini-2.0-flash`)
+- **`jarvis/brain/adk_agent.py`** (deleted): replaced by `adk_universal.py`
+- **Default backend** changed from `anthropic` to `adk`
+- The `gemini` and `ollama` backends become **compatibility aliases** that internally use `JarvisUniversalADKAgent`
+- MCP security: remote SSE endpoints now require `https://` (only `localhost` accepts HTTP)
+
+#### New environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `JARVIS_API_KEY` | — | Unified API key — replaces all provider-specific keys. LiteLLM uses it for the selected model's provider |
+| `JARVIS_BASE_URL` | — | Provider base URL (local Ollama, vLLM, llama.cpp, Azure, OpenAI-compatible proxies) |
+| `JARVIS_TOOL_LANG` | `en` | Language for tool schemas and the internal system prompt (`en`/`es`). Only affects what the model sees internally — the assistant still replies in the user's language |
+| `JARVIS_CUSTOM_TOOLS_FILE` | `~/.jarvis_custom_tools.txt` | Plain-text file to define custom tools without writing Python |
+
+#### Deprecated variables (still work as fallbacks)
+
+| Variable | Replaced by |
+|---|---|
+| `JARVIS_GEMINI_MODEL` | `JARVIS_MODEL=gemini-2.0-flash` |
+| `JARVIS_OLLAMA_HOST` | `JARVIS_BASE_URL=http://localhost:11434` |
+| `JARVIS_OLLAMA_MODEL` | `JARVIS_MODEL=ollama_chat/llama3.2` |
+
+#### `JARVIS_MODEL` — LiteLLM format
+
+The default value changes from `claude-haiku-4-5-20251001` to `anthropic/claude-haiku-4-5-20251001`. Supported model examples:
+
+```ini
+# Anthropic Claude (default)
+JARVIS_MODEL=anthropic/claude-haiku-4-5-20251001
+JARVIS_MODEL=anthropic/claude-sonnet-4-5-20251001
+
+# OpenAI
+JARVIS_MODEL=openai/gpt-4o
+
+# Google Gemini (ADK native, no LiteLLM)
+JARVIS_MODEL=gemini-2.0-flash
+
+# Google Gemini (via LiteLLM)
+JARVIS_MODEL=gemini/gemini-2.0-flash
+
+# Ollama local
+JARVIS_MODEL=ollama_chat/llama3.2
+JARVIS_BASE_URL=http://localhost:11434
+
+# Groq
+JARVIS_MODEL=groq/llama-3.1-70b-versatile
+
+# Mistral
+JARVIS_MODEL=mistral/mistral-large-latest
+
+# Azure OpenAI
+JARVIS_MODEL=azure/gpt-4o
+JARVIS_BASE_URL=https://my-endpoint.openai.azure.com
+
+# AWS Bedrock
+JARVIS_MODEL=bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0
+```
+
+#### Plain-text custom tools
+
+`JARVIS_CUSTOM_TOOLS_FILE` lets users define tools without writing Python. Each tool maps a name + description + parameters to a shell command template. Available in all backends.
+
+#### New tests
+
+- `tests/test_api_key_resolution.py` — API key resolution per provider
+- `tests/test_brain_skills_lang.py` — tool language (`JARVIS_TOOL_LANG`)
+- `tests/test_dynamic_tools_all_brains.py` — dynamic tools across all backends
+
+#### File changes
+
+| File | Type | Description |
+|---|---|---|
+| `jarvis/brain/adk_universal.py` | New | `JarvisUniversalADKAgent` multi-provider via LiteLLM |
+| `jarvis/brain/adk_agent.py` | Deleted | Replaced by `adk_universal.py` |
+| `jarvis/__main__.py` | Modified | `adk` as default backend; `gemini`/`ollama` aliases; multi-provider key validation |
+| `jarvis/config.py` | Modified | `JARVIS_API_KEY`, `JARVIS_BASE_URL`, `JARVIS_TOOL_LANG`, `JARVIS_CUSTOM_TOOLS_FILE`; `JARVIS_MODEL` default `anthropic/...`; `JARVIS_BACKEND` default `adk` |
+| `jarvis/.env.example` | Modified | Documentation of new model format and unified variables |
+| `pyproject.toml` | Modified | Updated dependencies |
+| `tests/test_api_key_resolution.py` | New | API key resolution tests |
+| `tests/test_brain_skills_lang.py` | New | Tool language tests |
+| `tests/test_dynamic_tools_all_brains.py` | New | Dynamic tools tests |
+
+---
+
+## [Unreleased] — 2026-06-26
+
+### AI Guardrails — AI safety mechanisms
+
+New module `jarvis/guardrails/` implementing a rule-based system between users and AI models to ensure the application behaves reliably, ethically, and securely.
+
+- **Evaluation engine** (`engine.py`): evaluates rules at 4 lifecycle phases (input, output, tool_call, tool_result)
+- **13 built-in rules** (`defaults.py`):
+  - Prompt injection detection (6 regex patterns)
+  - Jailbreak attempt detection (25 patterns: DAN, malicious roleplay, hypothetical framing, opposite day, liberation, permissions, ES/EN jailbreak)
+  - System prompt extraction prevention (15 patterns: show/reveal, how were you programmed, translate/encode/summarize prompt, ES/EN)
+  - Offensive and discriminatory language filter (slurs, hate speech, EN/ES)
+  - Input/output length limits
+  - Credential redaction (API keys, GitHub tokens, AWS keys, private keys)
+  - System prompt leak prevention in model output
+  - Offensive language filter for model output
+  - Harmful content blocking in output
+  - Dangerous shell command blocking (`rm -rf /`, `mkfs`, `dd`, fork bombs)
+  - Mandatory confirmation for destructive actions
+  - Secret redaction in tool results
+- **JSON configuration** (`~/.jarvis_guardrails.json`): override, disable, or add rules
+- **4 actions**: `block` (reject), `warn` (advisory), `redact` (replace), `log` (record only)
+- **Rule types**: regex patterns, keyword lists, tool allow/block lists, argument constraints, max length, custom validators
+- **Integrated into all 3 backends**: Anthropic SDK, Google ADK, Ollama
+- **62 unit tests** in `tests/test_guardrails.py`
+
+#### New environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `JARVIS_GUARDRAILS_ENABLED` | `true` | Enable/disable guardrails globally |
+| `JARVIS_GUARDRAILS_FILE` | `~/.jarvis_guardrails.json` | Custom guardrail rules file |
+
+#### File changes
+
+| File | Type | Description |
+|---|---|---|
+| `jarvis/guardrails/__init__.py` | New | Module public API |
+| `jarvis/guardrails/models.py` | New | Data models (GuardrailRule, GuardrailVerdict) |
+| `jarvis/guardrails/engine.py` | New | Core evaluation engine |
+| `jarvis/guardrails/defaults.py` | New | 13 built-in rules |
+| `jarvis/guardrails/README.md` | New | Full system documentation |
+| `jarvis/guardrails.example.json` | New | Custom configuration example |
+| `jarvis/brain/agent.py` | Modified | Guardrails integration |
+| `jarvis/brain/adk_agent.py` | Modified | Guardrails integration |
+| `jarvis/brain/ollama_agent.py` | Modified | Guardrails integration |
+| `jarvis/config.py` | Modified | `JARVIS_GUARDRAILS_*` variables |
+| `jarvis/.env.example` | Modified | Guardrails variable documentation |
+| `tests/test_guardrails.py` | New | 62 unit tests |
+
+---
+
+### Centralized Audio Engine (AudioEngine)
+
+New module `jarvis/interface/audio_engine.py` replacing scattered audio functions in `wake_word.py` and `tray.py` with a unified, centralized engine.
+
+- **Playback queue**: prevents audio overlap with a dedicated worker thread
+- **TTS cache**: stores gTTS-generated MP3s with SHA-256 hash keys, avoiding re-synthesis of repeated phrases (max 200 files, LRU eviction)
+- **Sentence streaming**: splits long text (>120 chars) at sentence boundaries and plays the first while the rest are synthesized
+- **Interrupt support**: `stop()` terminates current playback and clears the queue
+- **Volume control**: configurable (0-100), normalized per player (mpg123 `-f`, ffplay `-volume`, espeak-ng `-a`)
+- **Async callbacks**: `speak_async()` and `play_file_async()` with `on_done` callback
+- **Interruptible system TTS**: espeak-ng/say backends use tracked Popen instead of `subprocess.run()`
+- **Singleton pattern**: `get_engine()` / `shutdown_engine()` with defaults from `jarvis.config`
+
+#### Migration
+
+- **Removed**: `_speak_sync()`, `_speak_async()`, `_play_audio_file_sync()`, `_play_audio_file_async()` from `wake_word.py`
+- **Removed**: `_play_audio_file()`, `_play_activation_audio()` from `tray.py`
+- **Moved**: `_clean_for_tts()` to `audio_engine.py` as `clean_for_tts()`
+- **Migrated**: `wake_word.py`, `voice.py`, `tray.py` now use `AudioEngine` exclusively
+
+#### New environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `JARVIS_AUDIO_VOLUME` | `100` | Global audio volume (0-100) |
+| `JARVIS_TTS_CACHE` | `true` | Cache generated TTS audio |
+| `JARVIS_TTS_STREAM` | `true` | Stream TTS by sentence |
+
+#### Tests
+
+- 18 unit tests in `tests/test_audio_engine.py` with isolated per-test cache directories
+
+---
+
+## [Previous] — 2026-06-25
 
 ### Computer Use — visual automation with Gemini
 

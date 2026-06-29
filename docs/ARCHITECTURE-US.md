@@ -19,10 +19,13 @@ Palmiche J.A.R.V.I.S. is a personal AI assistant that runs as a CLI, system tray
 ┌────────────────────────────────▼────────────────────────────────────────┐
 │                            AGENT LAYER                                  │
 │                                                                         │
-│  JarvisAgent (Anthropic SDK)  │  JarvisADKAgent (Google ADK)           │
-│  JarvisOllamaAgent (Ollama)   │                                        │
+│  JarvisUniversalADKAgent (ADK + LiteLLM, default)                      │
+│    └─ Anthropic · OpenAI · Gemini · Ollama · Groq · Mistral · Azure   │
+│  JarvisAgent (Anthropic SDK, native loop without ADK)                  │
 │                                                                         │
 │  Agentic loop: user → model → tool_use → execute → response           │
+│                                                                         │
+│  GuardrailsEngine: validates input, output, tool_call and tool_result  │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────────────┐
@@ -74,10 +77,16 @@ palmiche-ai/
 │   ├── custom_tools.example.txt # Example template for custom tools
 │   │
 │   ├── brain/
-│   │   ├── agent.py             # JarvisAgent (Anthropic SDK) — supports DynamicToolRegistry
-│   │   ├── adk_agent.py         # JarvisADKAgent (Google ADK: Claude via LiteLLM or native Gemini)
-│   │   ├── ollama_agent.py      # JarvisOllamaAgent (local models via Ollama)
+│   │   ├── agent.py             # JarvisAgent (Anthropic SDK) — native loop without ADK + guardrails
+│   │   ├── adk_universal.py     # JarvisUniversalADKAgent (ADK + LiteLLM multi-provider) + guardrails
 │   │   └── prompts.py           # System prompts (EN/ES based on JARVIS_TOOL_LANG)
+│   │
+│   ├── guardrails/
+│   │   ├── __init__.py          # Public API: GuardrailsEngine, models
+│   │   ├── models.py            # GuardrailRule, GuardrailVerdict, enums (Phase, Action)
+│   │   ├── engine.py            # Core evaluation engine (regex, keywords, validators)
+│   │   ├── defaults.py          # 13 built-in rules (jailbreak, prompt injection, credential leak, etc.)
+│   │   └── README.md            # Full guardrails system documentation
 │   │
 │   ├── tools/
 │   │   ├── registry.py          # 59 static tools + dispatcher execute_tool()
@@ -120,7 +129,8 @@ palmiche-ai/
 │   │   ├── tray.py              # System tray GUI with PyQt6 (Palmiche palette)
 │   │   ├── hud_animation.py     # Iron Man-style HUD animation (QPainter, 3 rings, radar)
 │   │   ├── animation.py         # WaveformAnimation (QWidget) for visual feedback
-│   │   ├── voice.py             # Speech recognition (SpeechRecognition) and TTS (pyttsx3/gTTS)
+│   │   ├── audio_engine.py      # Centralized audio engine (queue, TTS cache, streaming, volume)
+│   │   ├── voice.py             # Speech recognition (SpeechRecognition) — TTS via AudioEngine
 │   │   ├── wake_word.py         # WakeWordListener — background keyword detection
 │   │   └── splash.py            # Animated welcome screen (Rich, Palmiche green)
 │   │
@@ -419,6 +429,9 @@ All variables are read from `jarvis/.env` (or from the process environment).
 | `JARVIS_GOODBYE_MESSAGE` | `{name} disconnected...` | Farewell phrase (`{name}` = name) |
 | `JARVIS_WAKE_WORD` | `palmiche` | Voice activation keyword (tray mode) |
 | `JARVIS_VOICE_ENABLED` | `false` | Enable voice recognition |
+| `JARVIS_AUDIO_VOLUME` | `100` | Global audio volume (0-100) |
+| `JARVIS_TTS_CACHE` | `true` | Cache generated TTS audio (avoids re-synthesis) |
+| `JARVIS_TTS_STREAM` | `true` | Stream TTS by sentence (lower perceived latency) |
 | `JARVIS_TRAY_ICON` | — | Path to PNG/ICO for tray icon |
 | `JARVIS_WELCOME_AUDIO` | — | Path to MP3/WAV played on tray startup |
 
@@ -445,6 +458,8 @@ All variables are read from `jarvis/.env` (or from the process environment).
 | `JARVIS_LOG_FILE` | `~/.jarvis_tools.log` | Tool execution log file |
 | `JARVIS_LOG_ENABLED` | `true` | Enable/disable tool logging |
 | `JARVIS_SUDO_PASSWORD` | — | Automatic sudo password (optional) |
+| `JARVIS_GUARDRAILS_ENABLED` | `true` | Enable/disable AI safety guardrails |
+| `JARVIS_GUARDRAILS_FILE` | `~/.jarvis_guardrails.json` | Custom guardrail rules file |
 
 ### Computer Use
 | Variable | Default | Description |
@@ -514,3 +529,4 @@ User: "Agent2 thinks that..."
 - **Logging**: all tool calls are logged to `~/.jarvis_tools.log` with timestamp, inputs and result. Can be disabled with `JARVIS_LOG_ENABLED=false`.
 - **Automatic sudo**: when `JARVIS_SUDO_PASSWORD` is configured, the agent uses it via `sudo -S` after requesting user confirmation. If a command fails with "Permission denied", the system detects the error and offers to retry with privileges.
 - **Polkit rules** (`scripts/49-jarvis-power.rules`): allows power actions (shutdown/restart/suspend) without a password for the configured user, without requiring global sudo.
+- **AI Guardrails** (`jarvis/guardrails/`): rule-based system that validates inputs (prompt injection detection), outputs (credential redaction, harmful content blocking), tool calls (dangerous commands, destructive action confirmation), and results (secret redaction). Configurable via `~/.jarvis_guardrails.json`. See `jarvis/guardrails/README.md` for full documentation.

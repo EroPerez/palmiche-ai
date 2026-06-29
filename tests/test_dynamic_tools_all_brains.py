@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Verify dynamic tools (A2A / MCP / plain-text custom) reach every brain.
 
-Covers the registry accessor, the ADK callable synthesis (the trickiest part,
-since ADK builds schemas from Python signatures), and the Ollama routing — all
-without needing google-adk, a running Ollama, or any API key.
+Covers the registry accessor and the ADK callable synthesis (the trickiest
+part, since ADK builds schemas from Python signatures) — all without needing
+google-adk, a running model, or any API key.
 
 Run directly::
 
@@ -19,7 +19,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from jarvis.tools.dynamic import DynamicToolRegistry
 from jarvis.brain.adk_dynamic import make_adk_callable, adk_tools_from_registry
-from jarvis.brain.ollama_agent import JarvisOllamaAgent, _to_ollama_tools
 
 
 def _sample_def():
@@ -99,32 +98,17 @@ def test_adk_tools_from_registry():
     assert adk_tools_from_registry(None) == []
 
 
-def test_ollama_routes_execution_through_registry():
+def test_dynamic_registry_executes_tool():
+    """Dynamic registry routes tool calls to registered handlers."""
     calls = []
     registry = _registry_with_one_dynamic_tool(calls)
-
-    # Build an instance without touching the network (__init__ pings Ollama).
-    agent = object.__new__(JarvisOllamaAgent)
-    agent._registry = registry
-    assert agent._execute_tool("lookup_weather", {"city": "Quito"}) == "weather for Quito"
+    result = registry.execute("lookup_weather", {"city": "Quito"})
+    assert result == "weather for Quito"
     assert calls[-1] == {"city": "Quito"}
-
-    # Without a registry it falls back to the static executor.
-    agent._registry = None
-    out = agent._execute_tool("generate_uuid", {"count": 1})
-    assert isinstance(out, str) and out  # produced a real result, no crash
-
-
-def test_ollama_tool_list_includes_dynamic_tools():
-    registry = _registry_with_one_dynamic_tool([])
-    tools = _to_ollama_tools(registry.definitions)
-    names = {t["function"]["name"] for t in tools}
-    assert "lookup_weather" in names          # custom tool exposed to Ollama
-    assert "get_system_info" in names          # built-ins still present
 
 
 def test_custom_tool_reaches_all_brain_surfaces():
-    """End-to-end: a plain-text custom tool shows up in the Ollama and ADK surfaces."""
+    """End-to-end: a plain-text custom tool shows up in every brain surface."""
     from jarvis.tools.custom import load_custom_tools
 
     registry = DynamicToolRegistry()
@@ -138,9 +122,7 @@ def test_custom_tool_reaches_all_brain_surfaces():
 
     # Anthropic surface: registry.definitions (used directly by JarvisAgent)
     assert "ping_demo" in {d["name"] for d in registry.definitions}
-    # Ollama surface
-    assert "ping_demo" in {t["function"]["name"] for t in _to_ollama_tools(registry.definitions)}
-    # ADK surface
+    # ADK surface: universal agent uses adk_tools_from_registry
     assert "ping_demo" in {t.__name__ for t in adk_tools_from_registry(registry)}
 
 

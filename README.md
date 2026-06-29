@@ -1,10 +1,10 @@
 # J.A.R.V.I.S.
 
-> Just A Rather Very Intelligent System — asistente de IA personal para laptop, impulsado por Claude.
+> Just A Rather Very Intelligent System — asistente de IA personal para laptop, con soporte multi-proveedor vía LiteLLM.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![Backends](https://img.shields.io/badge/backends-Anthropic%20%7C%20ADK%20%7C%20Gemini%20%7C%20Ollama%20%7C%20LM%20Studio-green.svg)](#backends)
+[![Backends](https://img.shields.io/badge/backends-Anthropic%20%7C%20OpenAI%20%7C%20Gemini%20%7C%20Ollama%20%7C%20Groq%20%7C%20Mistral-green.svg)](#backends)
 
 ## Características
 
@@ -13,8 +13,8 @@
 - **Computer Use** — control visual de navegador y escritorio completo usando Gemini (inspirado en [google-gemini/computer-use-preview](https://github.com/google-gemini/computer-use-preview))
 - **Herramientas externas vía MCP** — conecta cualquier servidor MCP (stdio o SSE/HTTP) e inyecta sus herramientas directamente en el agente; el modelo las usa automáticamente
 - **Agentes remotos vía A2A** — delega tareas a otros agentes IA (Google A2A) como si fueran herramientas locales; soporta redes de agentes colaborativos
-- Cinco backends intercambiables: Anthropic SDK, Google ADK + LiteLLM, Google ADK + Gemini, Ollama (local) y LM Studio (local, OpenAI-compatible)
-- **Tres interfaces de usuario**: CLI (Rich), bandeja del sistema (PyQt6) y Web UI (FastAPI + Vue 3)
+- **AI Guardrails** — sistema de seguridad basado en reglas que valida entradas, salidas y llamadas a herramientas para prevenir inyección de prompts, filtración de credenciales y comandos peligrosos; totalmente configurable vía JSON
+- **Backend ADK universal** (default) con soporte multi-proveedor vía LiteLLM: Anthropic, OpenAI, Gemini, Ollama, Groq, Mistral, Azure, AWS Bedrock y cualquier proxy compatible con OpenAI — un solo `JARVIS_MODEL` para cambiar de proveedor sin tocar código. El backend `anthropic` (loop nativo sin ADK) sigue disponible.
 - Entrada por voz opcional con reconocimiento de habla
 - **Servidor unificado** — Web UI y A2A pueden correr en un solo proceso FastAPI
 - **Instalador interactivo** con splash animado de Palmiche-AI, menú de módulos y barras de progreso
@@ -61,43 +61,53 @@ nano jarvis/.env                      # edita con tus API keys
 
 ### Componentes opcionales
 
-#### Backend Anthropic (default)
+#### Backend ADK + LiteLLM (default)
 
-Requiere cuenta en [console.anthropic.com](https://console.anthropic.com).
-
-```bash
-# En .env:
-# ANTHROPIC_API_KEY=sk-ant-...
-# JARVIS_MODEL=claude-haiku-4-5-20251001
-
-python -m jarvis --backend anthropic
-```
-
-#### Backend Google ADK + Claude
+Soporta cualquier proveedor con solo cambiar `JARVIS_MODEL`. Requiere `google-adk` y `litellm`.
 
 ```bash
 pip install "palmiche-jarvis[adk]"
 # o manualmente:
 pip install google-adk litellm
-
-# En .env:
-# ANTHROPIC_API_KEY=sk-ant-...
-python -m jarvis --backend adk
 ```
 
-#### Backend Google ADK + Gemini
-
-Requiere cuenta en [aistudio.google.com](https://aistudio.google.com) para obtener `GOOGLE_API_KEY`.
-
+**Anthropic Claude** (default):
 ```bash
-pip install "palmiche-jarvis[gemini]"
-# o manualmente:
-pip install google-adk
-
 # En .env:
-# GOOGLE_API_KEY=AIza...
-# JARVIS_GEMINI_MODEL=gemini-2.0-flash
-python -m jarvis --backend gemini
+JARVIS_MODEL=anthropic/claude-haiku-4-5-20251001
+JARVIS_API_KEY=sk-ant-...        # o ANTHROPIC_API_KEY=sk-ant-...
+
+python -m jarvis                  # backend adk es el default
+```
+
+**OpenAI**:
+```bash
+# En .env:
+JARVIS_MODEL=openai/gpt-4o
+JARVIS_API_KEY=sk-...            # o OPENAI_API_KEY=sk-...
+
+python -m jarvis
+```
+
+**Google Gemini** (ADK nativo, sin LiteLLM):
+```bash
+# En .env:
+JARVIS_MODEL=gemini-2.0-flash
+JARVIS_API_KEY=AIza...           # o GOOGLE_API_KEY=AIza...
+
+python -m jarvis --backend gemini  # alias de compatibilidad
+```
+
+**Groq / Mistral / Azure / AWS Bedrock**:
+```bash
+# En .env — ejemplos:
+JARVIS_MODEL=groq/llama-3.1-70b-versatile
+JARVIS_MODEL=mistral/mistral-large-latest
+JARVIS_MODEL=azure/gpt-4o
+JARVIS_MODEL=bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0
+
+JARVIS_API_KEY=tu-api-key
+python -m jarvis
 ```
 
 #### Backend Ollama (modelo local, sin API key)
@@ -131,10 +141,23 @@ ollama serve
 4. Ejecutar Jarvis:
 
 ```bash
-# En .env (opcional, estos son los valores por defecto):
-# JARVIS_OLLAMA_HOST=http://localhost:11434
-# JARVIS_OLLAMA_MODEL=llama3.2
-python -m jarvis --backend ollama
+# En .env:
+JARVIS_MODEL=ollama_chat/llama3.2
+JARVIS_BASE_URL=http://localhost:11434
+
+python -m jarvis --backend ollama  # alias de compatibilidad para adk+ollama
+```
+
+#### Backend Anthropic (loop nativo, sin ADK)
+
+Loop agéntico directo con el SDK de Anthropic, sin overhead de ADK. Solo soporta modelos Claude.
+
+```bash
+# En .env:
+# ANTHROPIC_API_KEY=sk-ant-...
+# JARVIS_MODEL=anthropic/claude-haiku-4-5-20251001
+
+python -m jarvis --backend anthropic
 ```
 
 #### Backend LM Studio (modelo local, OpenAI-compatible)
@@ -258,19 +281,20 @@ nano jarvis/.env
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | Requerida para backends `anthropic` y `adk`+Claude |
-| `GOOGLE_API_KEY` | — | Requerida para backends `gemini` y `adk`+Gemini |
-| `JARVIS_MODEL` | `claude-haiku-4-5-20251001` | Modelo Claude (backends anthropic/adk) |
-| `JARVIS_GEMINI_MODEL` | `gemini-2.0-flash` | Modelo Gemini (backend gemini) |
+| `JARVIS_MODEL` | `anthropic/claude-haiku-4-5-20251001` | Modelo en formato LiteLLM `proveedor/nombre`. Soporta Anthropic, OpenAI, Gemini, Ollama, Groq, Mistral, Azure, Bedrock |
+| `JARVIS_API_KEY` | — | Clave API unificada — reemplaza todas las variables de proveedor específico |
+| `JARVIS_BASE_URL` | — | URL base del proveedor (Ollama local, vLLM, llama.cpp, Azure, proxies OpenAI-compatible) |
+| `ANTHROPIC_API_KEY` | — | Fallback cuando `JARVIS_API_KEY` no está y el modelo es `anthropic/*` |
+| `GOOGLE_API_KEY` | — | Fallback cuando `JARVIS_API_KEY` no está y el modelo es `gemini*` |
+| `JARVIS_TOOL_LANG` | `en` | Idioma de los schemas de herramientas y system prompt interno (`en`/`es`) |
+| `JARVIS_CUSTOM_TOOLS_FILE` | `~/.jarvis_custom_tools.txt` | Archivo de texto para definir herramientas personalizadas sin Python |
 | `JARVIS_NAME` | `Jarvis` | Nombre del asistente |
 | `JARVIS_SPLASH_ENABLED` | `true` | Pantalla de bienvenida animada (verde) al iniciar |
 | `JARVIS_WELCOME_MESSAGE` | `Sistemas en línea. ¿En qué puedo ayudarte?` | Frase de bienvenida del splash (override con `--welcome`) |
 | `JARVIS_GOODBYE_MESSAGE` | `{name} desconectado. Hasta luego.` | Frase de despedida al salir (override con `--goodbye`). `{name}` = nombre |
-| `JARVIS_BACKEND` | `anthropic` | Backend: `anthropic`, `adk`, `gemini`, `ollama` o `lmstudio` |
-| `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | URL del servidor Ollama (backend `ollama`) |
-| `JARVIS_OLLAMA_MODEL` | `llama3.2` | Modelo Ollama a usar |
-| `JARVIS_LMSTUDIO_HOST` | `http://localhost:1234/v1` | URL del servidor LM Studio (backend `lmstudio`) |
-| `JARVIS_LMSTUDIO_MODEL` | `local-model` | Modelo LM Studio a usar |
+| `JARVIS_BACKEND` | `adk` | Backend: `adk` (multi-proveedor, default), `anthropic` (loop nativo), `gemini` (alias de compatibilidad), `ollama` (alias de compatibilidad) |
+| `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | **[Deprecado]** Usa `JARVIS_BASE_URL` en su lugar |
+| `JARVIS_OLLAMA_MODEL` | `llama3.2` | **[Deprecado]** Usa `JARVIS_MODEL=ollama_chat/llama3.2` en su lugar |
 | `JARVIS_VOICE_ENABLED` | `false` | Activa voz (requiere dependencias extra) |
 | `JARVIS_MAX_HISTORY` | `50` | Máximo de mensajes en historial |
 | `JARVIS_EVENTS_FILE` | `~/.jarvis_events.json` | Archivo del calendario local de eventos |
@@ -289,16 +313,18 @@ nano jarvis/.env
 | `COMPUTER_USE_MODEL` | `gemini-2.5-flash` | Modelo Gemini para computer use (requiere `GOOGLE_API_KEY`) |
 | `COMPUTER_USE_BACKEND` | `playwright` | Backend de computer use: `playwright` (browser) o `desktop` |
 | `COMPUTER_USE_MAX_ITERATIONS` | `30` | Límite de iteraciones del agente visual por tarea |
+| `JARVIS_GUARDRAILS_ENABLED` | `true` | Activar/desactivar guardrails de seguridad IA |
+| `JARVIS_GUARDRAILS_FILE` | `~/.jarvis_guardrails.json` | Archivo de reglas de guardrails personalizadas |
 
 ## Guía de uso
 
 ### Inicio rápido
 
 ```bash
-# Backend Anthropic (default) — requiere ANTHROPIC_API_KEY en .env
+# Backend ADK + Claude (default) — requiere ANTHROPIC_API_KEY o JARVIS_API_KEY en .env
 python -m jarvis
 
-# Backend local sin API key
+# Backend local sin API key (Ollama)
 python -m jarvis --backend ollama
 
 # Cambiar nombre del asistente
@@ -342,7 +368,7 @@ python -m jarvis --connect-a2a http://otro-agente:8080 --connect-mcp "npx -y @mo
 
 | Opción | Valores | Descripción |
 |---|---|---|
-| `--backend` | `anthropic`, `adk`, `gemini`, `ollama`, `lmstudio` | Motor de IA (default: `anthropic`) |
+| `--backend` | `adk`, `anthropic`, `gemini`, `ollama` | Motor de IA (default: `adk`). `gemini` y `ollama` son aliases de compatibilidad para el backend `adk` |
 | `--name` | cualquier texto | Nombre del asistente (default: `Jarvis`) |
 | `--welcome` | cualquier texto | Frase de bienvenida del splash (default: `JARVIS_WELCOME_MESSAGE`) |
 | `--goodbye` | cualquier texto | Frase de despedida al salir; admite `{name}` |
@@ -522,6 +548,86 @@ JARVIS_A2A_AGENTS=http://agente1:8080,http://agente2:9090
 
 ---
 
+## AI Guardrails — seguridad basada en reglas
+
+Controles que se interponen entre usuarios y modelos de IA para asegurar que la aplicación se comporte de forma confiable, ética y segura. Están **habilitados por defecto** — no requieren configuración adicional.
+
+> Documentación completa con esquema de reglas y ejemplos avanzados: **[guardrails/README.md](jarvis/guardrails/README.md)**
+
+### Fases de evaluación
+
+```
+Usuario  ──►  [INPUT guards]  ──►  Modelo IA  ──►  [OUTPUT guards]  ──►  Respuesta
+                                       │
+                                       ▼
+                                  [TOOL_CALL guards]  ──►  Herramienta
+                                       │
+                                       ▼
+                                  [TOOL_RESULT guards]  ──►  Resultado al modelo
+```
+
+| Fase | Qué evalúa | Protecciones por defecto |
+|---|---|---|
+| `input` | Mensajes del usuario antes de llegar al LLM | Prompt injection, jailbreak, extracción de system prompt, lenguaje ofensivo, límite 50K caracteres |
+| `output` | Respuestas del modelo antes de mostrarse | Redacción de credenciales filtradas, filtración de system prompt, contenido dañino, límite 100K |
+| `tool_call` | Invocaciones de herramientas antes de ejecutarse | Comandos shell peligrosos (`rm -rf /`, `mkfs`, `dd`), acciones destructivas sin confirmación |
+| `tool_result` | Resultados de herramientas antes de devolverse al modelo | Redacción de secretos en salidas de comandos |
+
+### Reglas integradas (13)
+
+| ID | Fase | Acción | Descripción |
+|---|---|---|---|
+| `input-max-length` | input | BLOCK | Entradas > 50,000 caracteres |
+| `input-prompt-injection` | input | BLOCK | 6 patrones de prompt injection |
+| `input-jailbreak` | input | BLOCK | 25 patrones de jailbreak (DAN, roleplay malicioso, EN/ES) |
+| `input-system-prompt-extraction` | input | BLOCK | 15 patrones de extracción del system prompt |
+| `input-offensive-language` | input | BLOCK | Insultos, discurso de odio, lenguaje discriminatorio |
+| `output-no-credentials` | output | REDACT | API keys, tokens GitHub, claves AWS, private keys |
+| `output-no-system-prompt-leak` | output | BLOCK | 13 patrones de filtración del system prompt en respuestas |
+| `output-no-offensive-language` | output | BLOCK | Insultos y discurso de odio en respuestas |
+| `output-no-harmful-instructions` | output | BLOCK | Instrucciones para actividades peligrosas |
+| `output-max-length` | output | BLOCK | Salidas > 100,000 caracteres |
+| `tool-block-dangerous-shell` | tool_call | BLOCK | `rm -rf /`, `mkfs`, `dd of=/dev/`, fork bombs |
+| `tool-require-confirmation` | tool_call | BLOCK | `power_action`/`delete_file` sin `confirmed=true` |
+| `tool-result-no-secrets` | tool_result | REDACT | Passwords y tokens en resultados de herramientas |
+
+### Configuración
+
+```ini
+# .env
+JARVIS_GUARDRAILS_ENABLED=true           # activar/desactivar globalmente
+JARVIS_GUARDRAILS_FILE=~/.jarvis_guardrails.json  # reglas personalizadas
+```
+
+Las reglas del archivo JSON **reemplazan** las integradas con el mismo `id`. Ver `jarvis/guardrails.example.json` para plantillas.
+
+```json
+{
+  "rules": [
+    {
+      "id": "input-prompt-injection",
+      "name": "Prompt injection — solo override de patrones",
+      "phase": "input",
+      "action": "block",
+      "enabled": true,
+      "priority": 20,
+      "patterns": ["(?i)mi-patron-personalizado"],
+      "message": "Intento de prompt injection detectado."
+    },
+    {
+      "id": "solo-herramientas-seguras",
+      "name": "Allowlist de herramientas",
+      "phase": "tool_call",
+      "action": "block",
+      "allowed_tools": ["get_system_info", "get_weather", "calculate"],
+      "message": "Esta herramienta no está en la lista permitida."
+    }
+  ]
+}
+```
+
+---
+
 ## Herramientas disponibles (59)
 
 > Guía completa con preguntas frecuentes por herramienta: **[TOOLS.md](docs/TOOLS.md)**
@@ -677,38 +783,57 @@ Automatización visual de navegador o escritorio completo con inteligencia visua
 
 ## Backends
 
-### Anthropic SDK (default)
+### Google ADK + LiteLLM multi-proveedor (`adk`) — **default**
 
-Loop agéntico manual: envía mensajes al modelo, ejecuta herramientas y repite hasta `end_turn`. Máximo 10 iteraciones por turno. Sin dependencias adicionales.
+ADK orquesta el loop internamente vía `Runner` + `InMemorySessionService`. LiteLLM actúa como puente universal hacia cualquier proveedor. Basta con cambiar `JARVIS_MODEL` para cambiar de proveedor.
 
 ```bash
+pip install "palmiche-jarvis[adk]"   # google-adk + litellm
+
+# Anthropic (default)
+python -m jarvis
+
+# OpenAI
+# En .env: JARVIS_MODEL=openai/gpt-4o  JARVIS_API_KEY=sk-...
+python -m jarvis
+
+# Gemini (ADK nativo)
+# En .env: JARVIS_MODEL=gemini-2.0-flash  JARVIS_API_KEY=AIza...
+python -m jarvis --backend gemini   # alias de compatibilidad
+
+# Ollama local
+# En .env: JARVIS_MODEL=ollama_chat/llama3.2  JARVIS_BASE_URL=http://localhost:11434
+python -m jarvis --backend ollama   # alias de compatibilidad
+```
+
+**Proveedores soportados** (mediante LiteLLM):
+
+| Proveedor | Formato `JARVIS_MODEL` | Key variable |
+|---|---|---|
+| Anthropic | `anthropic/claude-haiku-4-5-20251001` | `ANTHROPIC_API_KEY` |
+| OpenAI | `openai/gpt-4o` | `OPENAI_API_KEY` |
+| Gemini (LiteLLM) | `gemini/gemini-2.0-flash` | `GOOGLE_API_KEY` |
+| Gemini (ADK nativo) | `gemini-2.0-flash` | `GOOGLE_API_KEY` |
+| Ollama | `ollama_chat/llama3.2` | — (local) |
+| Groq | `groq/llama-3.1-70b-versatile` | `GROQ_API_KEY` |
+| Mistral | `mistral/mistral-large-latest` | `MISTRAL_API_KEY` |
+| Azure OpenAI | `azure/gpt-4o` | `AZURE_API_KEY` |
+| AWS Bedrock | `bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0` | AWS credentials |
+
+Todos los proveedores usan `JARVIS_API_KEY` si está definida (tiene prioridad sobre las variables específicas).
+
+### Anthropic SDK (`anthropic`)
+
+Loop agéntico nativo sin ADK: envía mensajes al modelo, ejecuta herramientas y repite hasta `end_turn`. Máximo 10 iteraciones por turno. Sin dependencias adicionales más allá del SDK de Anthropic. Solo soporta modelos Claude.
+
+```bash
+# En .env: ANTHROPIC_API_KEY=sk-ant-...
 python -m jarvis --backend anthropic
-```
-
-### Google ADK + Claude (`adk`)
-
-ADK orquesta el loop internamente vía `Runner` + `InMemorySessionService`, usando LiteLLM como puente hacia la API de Anthropic.
-
-Auto-detección: si solo tienes `GOOGLE_API_KEY` (sin `ANTHROPIC_API_KEY`), el backend `adk` cambia automáticamente a Gemini.
-
-```bash
-pip install google-adk litellm
-python -m jarvis --backend adk
-```
-
-### Google ADK + Gemini (`gemini`)
-
-Usa Gemini de forma nativa sin LiteLLM. Solo requiere `GOOGLE_API_KEY`.
-
-```bash
-pip install google-adk
-# En .env: GOOGLE_API_KEY=tu-key, JARVIS_GEMINI_MODEL=gemini-2.0-flash
-python -m jarvis --backend gemini
 ```
 
 ### Ollama — modelo local (`ollama`)
 
-Ejecuta un LLM localmente sin enviar datos a la nube. No requiere paquetes pip adicionales; usa `requests` (ya incluido).
+Alias de compatibilidad que usa el backend ADK con `ollama_chat/` vía LiteLLM.
 
 **Requisitos:**
 1. Instala Ollama desde [ollama.ai](https://ollama.ai)
@@ -716,9 +841,9 @@ Ejecuta un LLM localmente sin enviar datos a la nube. No requiere paquetes pip a
 3. El servidor inicia automáticamente, o manualmente: `ollama serve`
 
 ```bash
-# En .env (o variables de entorno):
-# JARVIS_OLLAMA_MODEL=llama3.2      # modelo a usar
-# JARVIS_OLLAMA_HOST=http://localhost:11434  # URL del servidor
+# En .env:
+# JARVIS_MODEL=ollama_chat/llama3.2
+# JARVIS_BASE_URL=http://localhost:11434
 
 python -m jarvis --backend ollama
 ```
@@ -812,6 +937,23 @@ Variables `.env` del modo bandeja:
 | `JARVIS_WELCOME_AUDIO` | Ruta a MP3/WAV reproducido al arrancar (genera con `python extract_assets.py`) |
 
 ## Seguridad
+
+### AI Guardrails
+
+Sistema de seguridad basado en reglas que valida el contenido en cuatro fases del ciclo de vida:
+
+| Fase | Protección |
+|---|---|
+| **Input** | Detección de prompt injection, límite de longitud |
+| **Output** | Redacción de credenciales filtradas (API keys, tokens), bloqueo de contenido dañino |
+| **Tool Call** | Bloqueo de comandos shell peligrosos (`rm -rf /`, `mkfs`, `dd`), confirmación obligatoria para acciones destructivas |
+| **Tool Result** | Redacción de secretos en resultados de herramientas |
+
+Las reglas son completamente personalizables vía `~/.jarvis_guardrails.json`. Se pueden sobrescribir, desactivar o añadir reglas nuevas sin modificar código.
+
+> Documentación completa: **[jarvis/guardrails/README.md](jarvis/guardrails/README.md)**
+
+### Otras medidas
 
 - **Herramientas destructivas** (`power_action`, `run_shell_command`, `setup_autostart`) requieren `confirmed=true` en código antes de ejecutarse — no solo en el prompt.
 - Las notificaciones en macOS pasan título y mensaje como argumentos argv a `osascript`, nunca interpolados en el fuente AppleScript.

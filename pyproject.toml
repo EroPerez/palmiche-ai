@@ -35,8 +35,10 @@ adk = [
     "google-adk>=1.0.0",
     "litellm>=1.0.0",
 ]
+# 'gemini' is now an alias for 'adk' — litellm is needed for the universal agent
 gemini = [
     "google-adk>=1.0.0",
+    "litellm>=1.0.0",
 ]
 assets = [
     "yt-dlp>=2024.1.0",
@@ -60,8 +62,11 @@ computer-use = [
     "Pillow>=10.0.0",
     "mss>=9.0.1",
 ]
+vision = [
+    "opencv-python>=4.8.0",
+]
 all = [
-    "palmiche-jarvis[voice,tray,web,adk,assets,a2a,mcp,computer-use]",
+    "palmiche-jarvis[voice,tray,web,adk,assets,a2a,mcp,computer-use,vision]",
 ]
 
 [project.scripts]

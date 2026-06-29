@@ -4,58 +4,191 @@ Todos los cambios notables del proyecto se documentan en este archivo.
 
 ---
 
-## [Unreleased] — 2026-06-29
+## [Unreleased] — 2026-06-28
 
-### Web UI — interfaz web (FastAPI + Vue 3)
+### ADK universal multi-proveedor vía LiteLLM (#45)
 
-- **`jarvis/interface/web.py`** (nuevo): entry point para Web UI, siguiendo el patrón de `tray.py`
-  - `run_web()`: inicia el servidor unificado FastAPI sirviendo el frontend Vue 3
-  - `run_web_dev()`: modo desarrollo con backend en hilo + Vite hot-reload en foreground
-- **`jarvis/api/server.py`** (reescrito): servidor unificado `create_app()` + `run_web_server()`
-  - Web UI (chat, historial, health) y A2A comparten un solo proceso FastAPI
-  - Monta `jarvis/frontend/dist/` como archivos estáticos con catch-all SPA
-  - A2A se monta opcionalmente cuando se provee `agent_factory`
-- **`jarvis/api/routers/a2a.py`** (nuevo): rutas A2A como `APIRouter` de FastAPI
-  - `GET /.well-known/agent.json` → Agent Card
-  - `POST /a2a` → JSON-RPC 2.0 (movido de `POST /` para evitar conflicto con el catch-all del frontend)
-- **`jarvis/frontend/`** (renombrado de `www/`): frontend Vue 3 + Vite + Tailwind reorganizado dentro del paquete
-- **CLI**: `--web`, `--web-dev`, `--web-host`, `--web-port` — la Web UI se inicia como un modo más, igual que `--tray`
-- **Servidor unificado**: `--web --serve-a2a` corre ambos en un solo proceso y puerto
-- **`pyproject.toml`**: nuevo grupo `[web]` con `fastapi`, `uvicorn`, `websockets`; `[all]` actualizado
+El backend `adk` ahora es el motor por defecto y soporta cualquier proveedor LLM compatible con LiteLLM mediante una única interfaz unificada.
 
-### Backend LM Studio integrado en ADK universal
+#### Nuevo agente universal
 
-- **`jarvis/brain/adk_agent.py`** (modificado): `JarvisADKAgent` ahora soporta `backend="lmstudio"` usando LiteLLM con `openai/<model>` para conectar a la API OpenAI-compatible de LM Studio
-- **`jarvis/brain/lmstudio_agent.py`** (eliminado): brain separado removido, funcionalidad absorbida por el agente ADK universal
-- **`jarvis/config.py`** (modificado): nuevas variables `JARVIS_LMSTUDIO_HOST` y `JARVIS_LMSTUDIO_MODEL`
-- **CLI**: `--backend lmstudio` ahora disponible como opción del agente ADK
+- **`jarvis/brain/adk_universal.py`** (nuevo): `JarvisUniversalADKAgent` reemplaza al anterior `JarvisADKAgent`
+  - Soporta cualquier proveedor con solo cambiar `JARVIS_MODEL`: Anthropic, OpenAI, Gemini, Ollama, Groq, Mistral, Azure, AWS Bedrock y cualquier proxy compatible con OpenAI
+  - Auto-normalización de nombres de modelo legacy (`claude-haiku-*` → `anthropic/claude-haiku-*`, `llama3.2` → `ollama_chat/llama3.2`, etc.)
+  - Resolución inteligente de API keys: `JARVIS_API_KEY` > variables de proveedor específico
+  - Soporte para endpoint personalizado vía `JARVIS_BASE_URL` (Ollama local, vLLM, llama.cpp, Azure)
+  - Gemini nativo sin LiteLLM cuando el modelo no contiene prefijo de proveedor (ej. `gemini-2.0-flash`)
+- **`jarvis/brain/adk_agent.py`** (eliminado): reemplazado por `adk_universal.py`
+- **Backend por defecto** cambiado de `anthropic` a `adk`
+- Los backends `gemini` y `ollama` se convierten en **aliases de compatibilidad** que internamente usan `JarvisUniversalADKAgent`
+- Seguridad MCP: los endpoints SSE remotos ahora requieren `https://` (solo `localhost` acepta HTTP)
 
-### Documentación y renombramientos
+#### Nuevas variables de entorno
 
-- **`GEMINI.md`** → **`AGENTS.md`**: renombrado para reflejar que cubre todos los backends ADK (Claude, Gemini, LM Studio)
-- **`www/`** → **`jarvis/frontend/`**: frontend movido dentro del paquete Python
-- Documentación actualizada: README.md, ARCHITECTURE.md, INSTALL.md, CHANGELOG.md, API_WEB.md
+| Variable | Default | Descripción |
+|---|---|---|
+| `JARVIS_API_KEY` | — | Clave API unificada — reemplaza todas las claves de proveedor específico. LiteLLM la usa para el proveedor del modelo seleccionado |
+| `JARVIS_BASE_URL` | — | URL base del proveedor (Ollama local, vLLM, llama.cpp, Azure, proxies compatibles con OpenAI) |
+| `JARVIS_TOOL_LANG` | `en` | Idioma de los schemas de herramientas y el system prompt interno (`en`/`es`). Solo afecta lo que el modelo ve — el asistente responde en el idioma del usuario |
+| `JARVIS_CUSTOM_TOOLS_FILE` | `~/.jarvis_custom_tools.txt` | Archivo de texto plano para definir herramientas personalizadas sin escribir Python |
 
-### Cambios en archivos
+#### Variables deprecadas (siguen funcionando como fallback)
+
+| Variable | Reemplazada por |
+|---|---|
+| `JARVIS_GEMINI_MODEL` | `JARVIS_MODEL=gemini-2.0-flash` |
+| `JARVIS_OLLAMA_HOST` | `JARVIS_BASE_URL=http://localhost:11434` |
+| `JARVIS_OLLAMA_MODEL` | `JARVIS_MODEL=ollama_chat/llama3.2` |
+
+#### `JARVIS_MODEL` — formato LiteLLM
+
+El valor por defecto cambia de `claude-haiku-4-5-20251001` a `anthropic/claude-haiku-4-5-20251001`. Ejemplos de modelos soportados:
+
+```ini
+# Anthropic Claude (default)
+JARVIS_MODEL=anthropic/claude-haiku-4-5-20251001
+JARVIS_MODEL=anthropic/claude-sonnet-4-5-20251001
+
+# OpenAI
+JARVIS_MODEL=openai/gpt-4o
+
+# Google Gemini (ADK nativo, sin LiteLLM)
+JARVIS_MODEL=gemini-2.0-flash
+
+# Google Gemini (vía LiteLLM)
+JARVIS_MODEL=gemini/gemini-2.0-flash
+
+# Ollama local
+JARVIS_MODEL=ollama_chat/llama3.2
+JARVIS_BASE_URL=http://localhost:11434
+
+# Groq
+JARVIS_MODEL=groq/llama-3.1-70b-versatile
+
+# Mistral
+JARVIS_MODEL=mistral/mistral-large-latest
+
+# Azure OpenAI
+JARVIS_MODEL=azure/gpt-4o
+JARVIS_BASE_URL=https://mi-endpoint.openai.azure.com
+
+# AWS Bedrock
+JARVIS_MODEL=bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0
+```
+
+#### Herramientas personalizadas en texto plano
+
+`JARVIS_CUSTOM_TOOLS_FILE` permite definir herramientas sin escribir Python. Cada herramienta mapea un nombre + descripción + parámetros a un comando shell. Disponibles en todos los backends.
+
+#### Tests nuevos
+
+- `tests/test_api_key_resolution.py` — resolución de claves por proveedor
+- `tests/test_brain_skills_lang.py` — idioma de herramientas (`JARVIS_TOOL_LANG`)
+- `tests/test_dynamic_tools_all_brains.py` — herramientas dinámicas en todos los backends
+
+#### Cambios en archivos
 
 | Archivo | Tipo | Descripción |
 |---|---|---|
-| `jarvis/interface/web.py` | Nuevo | Entry point Web UI (run_web, run_web_dev) |
-| `jarvis/api/server.py` | Reescrito | Servidor unificado FastAPI (Web UI + A2A) |
-| `jarvis/api/routers/a2a.py` | Nuevo | Rutas A2A como APIRouter |
-| `jarvis/brain/adk_agent.py` | Modificado | Soporte LM Studio vía LiteLLM |
-| `jarvis/brain/lmstudio_agent.py` | Eliminado | Absorbido por adk_agent.py |
-| `jarvis/config.py` | Modificado | Variables JARVIS_LMSTUDIO_* |
-| `jarvis/__main__.py` | Modificado | Flags --web/--web-dev, backend lmstudio, servidor unificado |
-| `jarvis/a2a/server.py` | Simplificado | Wrapper de compatibilidad |
-| `jarvis/frontend/` | Renombrado | Antes www/ |
-| `AGENTS.md` | Renombrado | Antes GEMINI.md |
-| `pyproject.toml` | Modificado | Grupo [web], artifacts frontend |
-| `.gitignore` | Modificado | Rutas actualizadas |
+| `jarvis/brain/adk_universal.py` | Nuevo | `JarvisUniversalADKAgent` multi-proveedor vía LiteLLM |
+| `jarvis/brain/adk_agent.py` | Eliminado | Reemplazado por `adk_universal.py` |
+| `jarvis/__main__.py` | Modificado | Backend `adk` como default; aliases `gemini`/`ollama`; validación de keys multi-proveedor |
+| `jarvis/config.py` | Modificado | `JARVIS_API_KEY`, `JARVIS_BASE_URL`, `JARVIS_TOOL_LANG`, `JARVIS_CUSTOM_TOOLS_FILE`; `JARVIS_MODEL` default `anthropic/...`; `JARVIS_BACKEND` default `adk` |
+| `jarvis/.env.example` | Modificado | Documentación del nuevo formato de modelo y variables unificadas |
+| `pyproject.toml` | Modificado | Dependencias actualizadas |
+| `tests/test_api_key_resolution.py` | Nuevo | Tests de resolución de API keys |
+| `tests/test_brain_skills_lang.py` | Nuevo | Tests de idioma de herramientas |
+| `tests/test_dynamic_tools_all_brains.py` | Nuevo | Tests de herramientas dinámicas |
 
 ---
 
-## [Unreleased] — 2026-06-25
+## [Unreleased] — 2026-06-26
+
+### AI Guardrails — mecanismos de seguridad para IA
+
+Nuevo módulo `jarvis/guardrails/` que implementa un sistema de reglas entre usuarios y modelos de IA para asegurar que la aplicación se comporte de forma confiable, ética y segura.
+
+- **Motor de evaluación** (`engine.py`): evalúa reglas en 4 fases del ciclo de vida (input, output, tool_call, tool_result)
+- **13 reglas integradas** (`defaults.py`):
+  - Detección de prompt injection (6 patrones regex)
+  - Detección de jailbreak (25 patrones: DAN, roleplay malicioso, hypothetical framing, opposite day, liberación, permisos, jailbreak ES/EN)
+  - Prevención de extracción del system prompt (15 patrones: show/reveal, how were you programmed, translate/encode/summarize prompt, ES/EN)
+  - Filtro de lenguaje ofensivo y discriminatorio (insultos, discurso de odio, EN/ES)
+  - Límite de longitud de entrada/salida
+  - Redacción de credenciales (API keys, tokens GitHub, claves AWS, claves privadas)
+  - Prevención de filtración del prompt del sistema en salida
+  - Filtro de lenguaje ofensivo en salida del modelo
+  - Bloqueo de contenido dañino en salida
+  - Bloqueo de comandos shell peligrosos (`rm -rf /`, `mkfs`, `dd`, fork bombs)
+  - Confirmación obligatoria para acciones destructivas
+  - Redacción de secretos en resultados de herramientas
+- **Configuración vía JSON** (`~/.jarvis_guardrails.json`): sobrescribir, desactivar o añadir reglas
+- **4 acciones**: `block` (rechazar), `warn` (advertir), `redact` (reemplazar), `log` (solo registrar)
+- **Tipos de regla**: patrones regex, listas de keywords, allowlist/blocklist de herramientas, restricciones de argumentos, longitud máxima, validadores personalizados
+- **Integrado en los 3 backends**: Anthropic SDK, Google ADK, Ollama
+- **62 tests unitarios** en `tests/test_guardrails.py`
+
+#### Nuevas variables de entorno
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `JARVIS_GUARDRAILS_ENABLED` | `true` | Activar/desactivar guardrails globalmente |
+| `JARVIS_GUARDRAILS_FILE` | `~/.jarvis_guardrails.json` | Archivo de reglas personalizadas |
+
+#### Cambios en archivos
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `jarvis/guardrails/__init__.py` | Nuevo | API pública del módulo |
+| `jarvis/guardrails/models.py` | Nuevo | Modelos de datos (GuardrailRule, GuardrailVerdict) |
+| `jarvis/guardrails/engine.py` | Nuevo | Motor de evaluación central |
+| `jarvis/guardrails/defaults.py` | Nuevo | 13 reglas integradas |
+| `jarvis/guardrails/README.md` | Nuevo | Documentación completa del sistema |
+| `jarvis/guardrails.example.json` | Nuevo | Ejemplo de configuración personalizada |
+| `jarvis/brain/agent.py` | Modificado | Integración de guardrails |
+| `jarvis/brain/adk_agent.py` | Modificado | Integración de guardrails |
+| `jarvis/brain/ollama_agent.py` | Modificado | Integración de guardrails |
+| `jarvis/config.py` | Modificado | Variables `JARVIS_GUARDRAILS_*` |
+| `jarvis/.env.example` | Modificado | Documentación de variables guardrails |
+| `tests/test_guardrails.py` | Nuevo | 62 tests unitarios |
+
+---
+
+### Motor de audio centralizado (AudioEngine)
+
+Nuevo módulo `jarvis/interface/audio_engine.py` que reemplaza las funciones de audio dispersas en `wake_word.py` y `tray.py` con un motor centralizado y unificado.
+
+- **Cola de reproducción**: previene superposición de audio con un worker thread dedicado
+- **Cache de TTS**: almacena MP3 generados por gTTS con hash SHA-256, evitando re-sintetizar frases repetidas (máx. 200 archivos, LRU)
+- **Streaming por oraciones**: divide textos largos (>120 chars) en oraciones y reproduce la primera mientras las demás se sintetizan
+- **Interrupción**: `stop()` termina la reproducción actual y limpia la cola
+- **Control de volumen**: configurable (0-100), normalizado por reproductor (mpg123 `-f`, ffplay `-volume`, espeak-ng `-a`)
+- **Callbacks async**: `speak_async()` y `play_file_async()` con callback `on_done`
+- **Sistema TTS interruptible**: los backends espeak-ng/say usan Popen rastreado en vez de `subprocess.run()`
+- **Patrón singleton**: `get_engine()` / `shutdown_engine()` con defaults desde `jarvis.config`
+
+#### Migración
+
+- **Eliminado**: `_speak_sync()`, `_speak_async()`, `_play_audio_file_sync()`, `_play_audio_file_async()` de `wake_word.py`
+- **Eliminado**: `_play_audio_file()`, `_play_activation_audio()` de `tray.py`
+- **Movido**: `_clean_for_tts()` a `audio_engine.py` como `clean_for_tts()`
+- **Migrado**: `wake_word.py`, `voice.py`, `tray.py` ahora usan `AudioEngine` exclusivamente
+
+#### Nuevas variables de entorno
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `JARVIS_AUDIO_VOLUME` | `100` | Volumen global de audio (0-100) |
+| `JARVIS_TTS_CACHE` | `true` | Cache de audio TTS generado |
+| `JARVIS_TTS_STREAM` | `true` | Streaming TTS por oraciones |
+
+#### Tests
+
+- 18 tests unitarios en `tests/test_audio_engine.py` con cache aislada por test
+
+---
+
+## [Anterior] — 2026-06-25
 
 ### Computer Use — automatización visual con Gemini
 

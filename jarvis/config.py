@@ -5,9 +5,34 @@ from dotenv import load_dotenv
 _env_file = Path(__file__).parent / ".env"
 load_dotenv(_env_file)
 
+# ---------------------------------------------------------------------------
+# Unified provider config (new — preferred)
+# ---------------------------------------------------------------------------
+
+# LiteLLM model string: "provider/model"  (e.g. anthropic/claude-haiku-4-5-20251001,
+# openai/gpt-4o, gemini/gemini-2.0-flash, gemini-2.0-flash, ollama_chat/llama3.2)
+JARVIS_MODEL: str = os.getenv("JARVIS_MODEL", "anthropic/claude-haiku-4-5-20251001")
+
+# Unified API key — overrides all provider-specific keys below.
+# Leave blank to fall back to ANTHROPIC_API_KEY / GOOGLE_API_KEY / OPENAI_API_KEY, etc.
+JARVIS_API_KEY: str = os.getenv("JARVIS_API_KEY", "")
+
+# Base URL for the provider's API endpoint.
+# Use this for local servers (Ollama, vLLM, llama.cpp), custom OpenAI-compatible
+# proxies, or Azure OpenAI endpoints.
+# Examples:
+#   http://localhost:11434          → Ollama
+#   https://my.azure.endpoint/...  → Azure OpenAI
+#   http://localhost:8000/v1        → vLLM / llama.cpp
+JARVIS_BASE_URL: str = os.getenv("JARVIS_BASE_URL", "")
+
+# ---------------------------------------------------------------------------
+# Legacy / provider-specific keys (still supported as fallbacks)
+# ---------------------------------------------------------------------------
 ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
-JARVIS_MODEL: str = os.getenv("JARVIS_MODEL", "claude-haiku-4-5-20251001")
+
+# Deprecated — use JARVIS_MODEL=gemini/gemini-2.0-flash instead.
 JARVIS_GEMINI_MODEL: str = os.getenv("JARVIS_GEMINI_MODEL", "gemini-2.0-flash")
 JARVIS_NAME: str = os.getenv("JARVIS_NAME", "Jarvis")
 JARVIS_WELCOME_MESSAGE: str = os.getenv(
@@ -37,7 +62,7 @@ def _get_positive_int(name: str, default: int) -> int:
     return value if value > 0 else default
 
 MAX_HISTORY: int = _get_positive_int("JARVIS_MAX_HISTORY", 50)
-JARVIS_BACKEND: str = os.getenv("JARVIS_BACKEND", "anthropic")
+JARVIS_BACKEND: str = os.getenv("JARVIS_BACKEND", "adk")
 
 # Language used for the tool/skill schemas and the internal system prompt that
 # every brain (anthropic, adk, gemini, ollama) sends to its model. "en" tends to
@@ -58,6 +83,10 @@ JARVIS_CUSTOM_TOOLS_FILE: Path = Path(
     os.getenv("JARVIS_CUSTOM_TOOLS_FILE", "~/.jarvis_custom_tools.txt")
 ).expanduser()
 JARVIS_WAKE_WORD: str = os.getenv("JARVIS_WAKE_WORD", "palmiche")
+JARVIS_AUDIO_VOLUME: int = _get_positive_int("JARVIS_AUDIO_VOLUME", 100)
+JARVIS_TTS_CACHE: bool = os.getenv("JARVIS_TTS_CACHE", "true").lower() == "true"
+JARVIS_TTS_STREAM: bool = os.getenv("JARVIS_TTS_STREAM", "true").lower() == "true"
+# Deprecated — use JARVIS_MODEL=ollama_chat/llama3.2 + JARVIS_BASE_URL=http://localhost:11434
 JARVIS_OLLAMA_HOST: str = os.getenv("JARVIS_OLLAMA_HOST", "http://localhost:11434")
 JARVIS_OLLAMA_MODEL: str = os.getenv("JARVIS_OLLAMA_MODEL", "llama3.2")
 JARVIS_LMSTUDIO_HOST: str = os.getenv("JARVIS_LMSTUDIO_HOST", "http://localhost:1234/v1")
@@ -118,6 +147,27 @@ JARVIS_LOG_ENABLED: bool = os.getenv("JARVIS_LOG_ENABLED", "true").lower() == "t
 # instead of prompting interactively (which would hang in a headless context).
 # The agent will ask the user for confirmation before using it.
 JARVIS_SUDO_PASSWORD: str = os.getenv("JARVIS_SUDO_PASSWORD", "")
+
+# ---------------------------------------------------------------------------
+# Guardrails
+# ---------------------------------------------------------------------------
+
+JARVIS_GUARDRAILS_FILE: Path = Path(
+    os.getenv("JARVIS_GUARDRAILS_FILE", "~/.jarvis_guardrails.json")
+).expanduser()
+JARVIS_GUARDRAILS_ENABLED: bool = os.getenv("JARVIS_GUARDRAILS_ENABLED", "true").lower() == "true"
+
+# ---------------------------------------------------------------------------
+# Vision / Camera — multimodal object & gesture recognition
+# ---------------------------------------------------------------------------
+
+# Default camera device index (0 = first camera, 1 = second, etc.)
+VISION_CAMERA_INDEX: int = _get_positive_int("VISION_CAMERA_INDEX", 0)
+
+# Model used for camera/image analysis. Must be a multimodal-capable model.
+# When empty, falls back to JARVIS_MODEL (which must then be multimodal itself).
+# Examples: gemini/gemini-2.0-flash, anthropic/claude-haiku-4-5-20251001, openai/gpt-4o
+VISION_MODEL: str = os.getenv("VISION_MODEL", "")
 
 # ---------------------------------------------------------------------------
 # Computer Use — Gemini-powered visual browser/desktop automation

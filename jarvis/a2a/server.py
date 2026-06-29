@@ -23,7 +23,6 @@ from .models import (  # noqa: F401 — re-export for external consumers
     AgentCapabilities,
     AgentSkill,
     Artifact,
-    Message,
     Task,
     TaskStatus,
     jsonrpc_error,

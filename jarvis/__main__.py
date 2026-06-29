@@ -40,11 +40,14 @@ Ejemplos:
     )
     parser.add_argument(
         "--backend",
-        choices=["anthropic", "adk", "gemini", "ollama"],
+        choices=["adk", "anthropic", "gemini", "ollama"],
         default=None,
         help=(
-            "Backend: 'anthropic' (default), 'adk' (Google ADK+Claude), "
-            "'gemini' (Google ADK+Gemini), 'ollama' (modelo local)"
+            "Backend del agente. 'adk' (default) usa Google ADK + LiteLLM y "
+            "soporta cualquier proveedor según JARVIS_MODEL "
+            "(ej. anthropic/claude-*, openai/gpt-*, gemini-*, ollama_chat/*). "
+            "'anthropic' es el loop nativo sin ADK. "
+            "'gemini' y 'ollama' son aliases de compatibilidad."
         ),
     )
     parser.add_argument(
@@ -207,38 +210,60 @@ def _build_dynamic_registry(a2a_urls: list[str], mcp_specs: list[str]):
     return registry
 
 
-def _build_agent(backend: str, name: str, registry=None):
+def _build_agent(backend: str, name: str, registry=None, mcp_specs=None):
     """Construct the agent for the given backend, using *name* as the assistant name.
 
-    'adk' auto-selects Gemini when GOOGLE_API_KEY is set and
-    ANTHROPIC_API_KEY is not, making it easy to run without Anthropic credentials.
+    'adk' (default) → JarvisUniversalADKAgent with JARVIS_MODEL (LiteLLM format).
+                       Supports any provider: Anthropic, OpenAI, Gemini, Ollama, Groq…
+    'anthropic'      → JarvisAgent (lightweight Anthropic SDK loop, no ADK).
+    'gemini'         → compatibility alias: ADK universal with native Gemini model.
+    'ollama'         → compatibility alias: ADK universal with ollama_chat/... model.
 
     Args:
         registry: Optional DynamicToolRegistry with extra tools (A2A/MCP/custom).
-                  Supported by all backends — each brain injects the dynamic tools
-                  into its own tool surface.
+        mcp_specs: Optional list of MCP specs for native ADK McpToolsets.
     """
     backend = backend.strip().lower()
 
-    if backend == "ollama":
-        from .brain.ollama_agent import JarvisOllamaAgent
-        return JarvisOllamaAgent(name=name, registry=registry)
-
-    if backend in ("gemini", "lmstudio"):
-        from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(backend=backend, name=name, registry=registry)
-
-    if backend == "adk":
-        from .config import ANTHROPIC_API_KEY, GOOGLE_API_KEY
-        adk_backend = "gemini" if (bool(GOOGLE_API_KEY) and not bool(ANTHROPIC_API_KEY)) else "anthropic"
-        from .brain.adk_agent import JarvisADKAgent
-        return JarvisADKAgent(backend=adk_backend, name=name, registry=registry)
-
     if backend == "anthropic":
+        # Pure Anthropic SDK loop — kept for users who prefer no ADK overhead.
+        # JarvisAgent auto-strips any "anthropic/" prefix from JARVIS_MODEL so
+        # the bare model name is sent to the Anthropic SDK.
         from .brain.agent import JarvisAgent
         return JarvisAgent(name=name, registry=registry)
 
-    raise ValueError(f"Backend inválido: '{backend}'. Usa 'anthropic', 'adk', 'gemini', 'ollama' o 'lmstudio'.")
+    if backend == "gemini":
+        # Compatibility alias: universal ADK agent with native Gemini model string.
+        from .config import JARVIS_GEMINI_MODEL, GOOGLE_API_KEY, JARVIS_API_KEY
+        model = JARVIS_GEMINI_MODEL  # bare gemini name → ADK native (no LiteLLM)
+        api_key = JARVIS_API_KEY or GOOGLE_API_KEY
+        from .brain.adk_universal import JarvisUniversalADKAgent
+        return JarvisUniversalADKAgent(
+            name=name, registry=registry, mcp_specs=mcp_specs,
+            _model_override=model,
+            _api_key_override=api_key or None,
+        )
+
+    if backend == "ollama":
+        # Compatibility alias: universal ADK agent with Ollama via LiteLLM.
+        from .config import JARVIS_OLLAMA_HOST, JARVIS_OLLAMA_MODEL, JARVIS_BASE_URL
+        model = f"ollama_chat/{JARVIS_OLLAMA_MODEL}"
+        base_url = JARVIS_BASE_URL or JARVIS_OLLAMA_HOST
+        from .brain.adk_universal import JarvisUniversalADKAgent
+        return JarvisUniversalADKAgent(
+            name=name, registry=registry, mcp_specs=mcp_specs,
+            _model_override=model,
+            _base_url_override=base_url,
+        )
+
+    if backend == "adk":
+        from .brain.adk_universal import JarvisUniversalADKAgent
+        return JarvisUniversalADKAgent(name=name, registry=registry, mcp_specs=mcp_specs)
+
+    raise ValueError(
+        f"Backend inválido: '{backend}'. "
+        "Opciones: 'adk' (default, multi-proveedor), 'anthropic', 'gemini', 'ollama'."
+    )
 
 
 def main():
@@ -251,8 +276,11 @@ def main():
         A2A_PORT,
         ANTHROPIC_API_KEY,
         GOOGLE_API_KEY,
+        JARVIS_API_KEY,
         JARVIS_BACKEND,
+        JARVIS_BASE_URL,
         JARVIS_GOODBYE_MESSAGE,
+        JARVIS_MODEL,
         JARVIS_NAME,
         JARVIS_SPLASH_ENABLED,
         JARVIS_WAKE_WORD,
@@ -290,21 +318,40 @@ def main():
         print("  1. Copia jarvis/.env.example a jarvis/.env")
         print("  2. Edita jarvis/.env y agrega tu clave de API")
         sys.exit(1)
-    if backend == "gemini" and not GOOGLE_API_KEY:
-        print("[ERROR] GOOGLE_API_KEY no configurada para el backend Gemini.")
-        print("  Agrégala a jarvis/.env: GOOGLE_API_KEY=tu-key")
+    if backend == "gemini" and not (JARVIS_API_KEY or GOOGLE_API_KEY):
+        print("[ERROR] Ninguna API key configurada para el backend Gemini.")
+        print("  Agrega a jarvis/.env: JARVIS_API_KEY=tu-key  (o GOOGLE_API_KEY=tu-key)")
         sys.exit(1)
-    # 'ollama' and 'adk' validate their own connections at construction time
+    if backend == "adk":
+        # Use the same normalization as the universal agent to determine the provider
+        # so bare names like "claude-*" or "gpt-*" resolve correctly.
+        from .brain.adk_universal import _normalize_model_str
+        normalized = _normalize_model_str(JARVIS_MODEL)
+        model_provider = normalized.split("/")[0].lower() if "/" in normalized else ""
+        local_providers = {"ollama", "ollama_chat"}
+        needs_key = model_provider not in local_providers and bool(model_provider)
+        has_key = bool(JARVIS_API_KEY or ANTHROPIC_API_KEY or GOOGLE_API_KEY)
+        if needs_key and not has_key and not JARVIS_BASE_URL:
+            print(f"[ERROR] No se encontró una API key para el modelo '{JARVIS_MODEL}'.")
+            print("  Agrega a jarvis/.env: JARVIS_API_KEY=tu-api-key")
+            print("  O usa la variable específica del proveedor (ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.)")
+            sys.exit(1)
+    # 'ollama' validates its own connection at construction time
 
     # Collect A2A and MCP client specs (CLI args override/extend env vars)
     a2a_urls = list(A2A_AGENTS) + list(args.connect_a2a)
     mcp_specs = list(MCP_SERVERS) + list(args.connect_mcp)
 
-    # Build dynamic registry if remote tools are configured
-    registry = _build_dynamic_registry(a2a_urls, mcp_specs)
+    # Build dynamic registry if remote tools are configured.
+    # For ADK backends, MCP tools use the native McpToolset so they're
+    # passed separately — the registry handles A2A and custom tools only.
+    # ADK backends (adk, gemini, ollama) consume mcp_specs as native McpToolsets,
+    # so exclude them from the sync dynamic registry to avoid duplicate connections.
+    _adk_backends = {"adk", "gemini", "ollama"}
+    registry = _build_dynamic_registry(a2a_urls, mcp_specs if backend not in _adk_backends else [])
 
     try:
-        agent = _build_agent(backend, name, registry=registry)
+        agent = _build_agent(backend, name, registry=registry, mcp_specs=mcp_specs)
     except (ImportError, ValueError) as e:
         print_error(str(e))
         sys.exit(1)
@@ -348,7 +395,10 @@ def main():
             return goodbye_template
 
     if args.clear:
-        agent.history.clear()
+        if hasattr(agent, "clear"):
+            agent.clear()
+        else:
+            agent.history.clear()
         print_info("Historial borrado.")
         return
 
@@ -407,7 +457,10 @@ def main():
                 break
 
             if cmd in ("limpiar", "clear", "/clear"):
-                agent.history.clear()
+                if hasattr(agent, "clear"):
+                    agent.clear()
+                else:
+                    agent.history.clear()
                 console.clear()
                 print_banner(name, backend)
                 print_info("Historial borrado.")

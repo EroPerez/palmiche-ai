@@ -1,7 +1,6 @@
 import platform
 import socket
 import subprocess
-from typing import Optional
 
 
 def get_network_info() -> str:

@@ -1,5 +1,11 @@
-"""Optional voice I/O. Requires: pip install SpeechRecognition pyttsx3 pyaudio"""
+"""Optional voice I/O. Requires: pip install SpeechRecognition pyaudio"""
 from typing import Optional
+
+
+_SPEECH_LANG_MAP: dict[str, str] = {
+    "es": "es-ES",
+    "en": "en-US",
+}
 
 
 def listen() -> Optional[str]:
@@ -12,6 +18,7 @@ def listen() -> Optional[str]:
             return None
 
         import speech_recognition as sr
+        from ..config import JARVIS_TOOL_LANG
 
         recognizer = sr.Recognizer()
         with sr.Microphone() as source:
@@ -19,15 +26,18 @@ def listen() -> Optional[str]:
             recognizer.adjust_for_ambient_noise(source, duration=0.5)
             audio = recognizer.listen(source, timeout=6, phrase_time_limit=12)
 
-        return recognizer.recognize_google(audio, language="es-ES")
+        speech_lang = _SPEECH_LANG_MAP.get(JARVIS_TOOL_LANG, f"{JARVIS_TOOL_LANG}-{JARVIS_TOOL_LANG.upper()}")
+        return recognizer.recognize_google(audio, language=speech_lang)
     except Exception:
         return None
 
 
-def speak(text: str):
-    """Convert text to speech. Silently skipped if dependencies missing."""
-    from .wake_word import _speak_sync
+def speak(text: str, block: bool = True):
+    """Convert text to speech via AudioEngine."""
     try:
-        _speak_sync(text)
+        from .audio_engine import get_engine
+
+        engine = get_engine()
+        engine.speak(text, block=block)
     except Exception:
         pass

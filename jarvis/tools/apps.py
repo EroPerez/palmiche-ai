@@ -25,29 +25,85 @@ def open_application(name: str) -> str:
         return f"No se pudo abrir '{name}': {e}"
 
 
+def _snap_name_from_cmdline(cmdline_list: list[str]) -> str | None:
+    """Extract the snap package name from a process cmdline, or None if not a snap process."""
+    for arg in cmdline_list:
+        if arg.startswith("/snap/"):
+            parts = arg.split("/")
+            if len(parts) > 2 and parts[2]:
+                return parts[2]
+    return None
+
+
+def _stop_snap(snap_name: str) -> str:
+    """Stop a snap package and return a status string."""
+    try:
+        result = subprocess.run(
+            ["snap", "stop", snap_name],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode == 0:
+            return f"snap:{snap_name} detenido"
+        return f"snap:{snap_name} falló — {result.stderr.strip()}"
+    except FileNotFoundError:
+        return f"snap:{snap_name} — comando 'snap' no encontrado"
+    except Exception as e:
+        return f"snap:{snap_name} error — {e}"
+
+
 def close_application(name: str, force: bool = False) -> str:
-    """Terminate all processes whose name contains *name*; use SIGKILL if force=True."""
+    """Terminate all processes whose name contains *name*; use SIGKILL if force=True.
+
+    Snap-confined processes that cannot be killed directly are stopped via
+    ``snap stop <package>`` instead.
+    """
     target = name.strip()
     if not target:
         return "Nombre de proceso inválido: no puede estar vacío"
 
+    target_lower = target.lower()
     killed = []
-    for proc in psutil.process_iter(["pid", "name"]):
+    snap_names: set[str] = set()
+
+    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
         try:
             proc_name = proc.info.get("name") or ""
-            if target.lower() in proc_name.lower():
-                if force:
-                    proc.kill()
-                else:
-                    proc.terminate()
-                killed.append(f"{proc_name} (PID {proc.info['pid']})")
+            cmdline_list = proc.info.get("cmdline") or []
+            cmdline = " ".join(cmdline_list)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+        if target_lower not in proc_name.lower() and target_lower not in cmdline.lower():
+            continue
+
+        snap = _snap_name_from_cmdline(cmdline_list)
+        if snap:
+            snap_names.add(snap)
+
+        try:
+            if force:
+                proc.kill()
+            else:
+                proc.terminate()
+            killed.append(f"{proc_name} (PID {proc.info['pid']})")
+        except psutil.AccessDenied:
+            # snap-confined process; handled below via snap stop
+            pass
+        except psutil.NoSuchProcess:
             pass
 
-    if not killed:
+    snap_results = [_stop_snap(s) for s in snap_names]
+
+    if not killed and not snap_results:
         return f"No se encontró ningún proceso con nombre '{target}'"
-    action = "Forzado a cerrar" if force else "Cerrado"
-    return f"{action}: {', '.join(killed)}"
+
+    parts = []
+    if killed:
+        action = "Forzado a cerrar" if force else "Cerrado"
+        parts.append(f"{action}: {', '.join(killed)}")
+    if snap_results:
+        parts.append("; ".join(snap_results))
+    return "\n".join(parts)
 
 
 def list_running_apps(filter_str: Optional[str] = None) -> str:
