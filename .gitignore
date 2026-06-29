@@ -28,3 +28,6 @@ jarvis/.env
 
 # Nodejs
 www/node_modules
+
+# Vite
+www/dev-dist
