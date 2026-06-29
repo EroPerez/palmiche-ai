@@ -97,8 +97,27 @@ El servidor procesará la consulta y responderá con eventos de tipo `ChatRespon
 }
 ```
 
-### Arquitectura y Buenas Prácticas
+## Protocolo A2A (opcional)
 
-- **Escalabilidad**: La API utiliza el sistema de Routers de FastAPI (`APIRouter`) separando las rutas por dominios (ej: `chat.py`, `system.py`).
+Cuando se inicia con `--serve-a2a` (o `--web --serve-a2a`), el mismo servidor FastAPI monta las rutas del protocolo A2A:
+
+### `GET /.well-known/agent.json`
+
+Agent Card de descubrimiento para el protocolo A2A de Google.
+
+### `POST /a2a`
+
+Endpoint JSON-RPC 2.0 para el protocolo A2A. Métodos disponibles:
+- `tasks/send` — tarea síncrona
+- `tasks/sendSubscribe` — tarea con streaming SSE
+- `tasks/get` — consultar estado de tarea
+- `tasks/cancel` — cancelar tarea
+
+> **Nota:** El endpoint A2A está en `POST /a2a` (no en `POST /`) para evitar conflicto con el catch-all del frontend SPA.
+
+## Arquitectura y Buenas Prácticas
+
+- **Servidor unificado**: Web UI y A2A comparten un solo proceso FastAPI (`jarvis/api/server.py`). La función `create_app()` monta las rutas de chat/system siempre, y las de A2A solo cuando se provee `agent_factory`.
+- **Escalabilidad**: La API utiliza el sistema de Routers de FastAPI (`APIRouter`) separando las rutas por dominios (ej: `chat.py`, `system.py`, `a2a.py`).
 - **Esquemas**: Todas las validaciones de datos (JSON) están tipadas estáticamente con Pydantic (`schemas.py`), lo que previene errores y autogenera documentación de Swagger en `/docs`.
 - **Inyección de Dependencias**: El motor de IA (Agente) se inyecta en las rutas de forma desacoplada para evitar dependencias circulares.

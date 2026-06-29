@@ -4,6 +4,57 @@ Todos los cambios notables del proyecto se documentan en este archivo.
 
 ---
 
+## [Unreleased] — 2026-06-29
+
+### Web UI — interfaz web (FastAPI + Vue 3)
+
+- **`jarvis/interface/web.py`** (nuevo): entry point para Web UI, siguiendo el patrón de `tray.py`
+  - `run_web()`: inicia el servidor unificado FastAPI sirviendo el frontend Vue 3
+  - `run_web_dev()`: modo desarrollo con backend en hilo + Vite hot-reload en foreground
+- **`jarvis/api/server.py`** (reescrito): servidor unificado `create_app()` + `run_web_server()`
+  - Web UI (chat, historial, health) y A2A comparten un solo proceso FastAPI
+  - Monta `jarvis/frontend/dist/` como archivos estáticos con catch-all SPA
+  - A2A se monta opcionalmente cuando se provee `agent_factory`
+- **`jarvis/api/routers/a2a.py`** (nuevo): rutas A2A como `APIRouter` de FastAPI
+  - `GET /.well-known/agent.json` → Agent Card
+  - `POST /a2a` → JSON-RPC 2.0 (movido de `POST /` para evitar conflicto con el catch-all del frontend)
+- **`jarvis/frontend/`** (renombrado de `www/`): frontend Vue 3 + Vite + Tailwind reorganizado dentro del paquete
+- **CLI**: `--web`, `--web-dev`, `--web-host`, `--web-port` — la Web UI se inicia como un modo más, igual que `--tray`
+- **Servidor unificado**: `--web --serve-a2a` corre ambos en un solo proceso y puerto
+- **`pyproject.toml`**: nuevo grupo `[web]` con `fastapi`, `uvicorn`, `websockets`; `[all]` actualizado
+
+### Backend LM Studio integrado en ADK universal
+
+- **`jarvis/brain/adk_agent.py`** (modificado): `JarvisADKAgent` ahora soporta `backend="lmstudio"` usando LiteLLM con `openai/<model>` para conectar a la API OpenAI-compatible de LM Studio
+- **`jarvis/brain/lmstudio_agent.py`** (eliminado): brain separado removido, funcionalidad absorbida por el agente ADK universal
+- **`jarvis/config.py`** (modificado): nuevas variables `JARVIS_LMSTUDIO_HOST` y `JARVIS_LMSTUDIO_MODEL`
+- **CLI**: `--backend lmstudio` ahora disponible como opción del agente ADK
+
+### Documentación y renombramientos
+
+- **`GEMINI.md`** → **`AGENTS.md`**: renombrado para reflejar que cubre todos los backends ADK (Claude, Gemini, LM Studio)
+- **`www/`** → **`jarvis/frontend/`**: frontend movido dentro del paquete Python
+- Documentación actualizada: README.md, ARCHITECTURE.md, INSTALL.md, CHANGELOG.md, API_WEB.md
+
+### Cambios en archivos
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `jarvis/interface/web.py` | Nuevo | Entry point Web UI (run_web, run_web_dev) |
+| `jarvis/api/server.py` | Reescrito | Servidor unificado FastAPI (Web UI + A2A) |
+| `jarvis/api/routers/a2a.py` | Nuevo | Rutas A2A como APIRouter |
+| `jarvis/brain/adk_agent.py` | Modificado | Soporte LM Studio vía LiteLLM |
+| `jarvis/brain/lmstudio_agent.py` | Eliminado | Absorbido por adk_agent.py |
+| `jarvis/config.py` | Modificado | Variables JARVIS_LMSTUDIO_* |
+| `jarvis/__main__.py` | Modificado | Flags --web/--web-dev, backend lmstudio, servidor unificado |
+| `jarvis/a2a/server.py` | Simplificado | Wrapper de compatibilidad |
+| `jarvis/frontend/` | Renombrado | Antes www/ |
+| `AGENTS.md` | Renombrado | Antes GEMINI.md |
+| `pyproject.toml` | Modificado | Grupo [web], artifacts frontend |
+| `.gitignore` | Modificado | Rutas actualizadas |
+
+---
+
 ## [Unreleased] — 2026-06-25
 
 ### Computer Use — automatización visual con Gemini

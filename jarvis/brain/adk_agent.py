@@ -1,11 +1,14 @@
-"""Google ADK-based agentic loop for Jarvis.
+"""Google ADK-based universal agentic loop for Jarvis.
 
-Supports two model backends:
-  - LiteLLM bridge to Anthropic Claude  (use_gemini=False, default)
-  - Native Gemini via google-genai       (use_gemini=True)
+Supports multiple model backends through a single agent class:
+  - Native Gemini via google-genai       (backend="gemini")
+  - LiteLLM bridge to Anthropic Claude   (backend="anthropic")
+  - LiteLLM bridge to LM Studio          (backend="lmstudio")
+
+All backends are configured via environment variables in config.py.
 
 Install:
-    pip install google-adk litellm          # for Claude via ADK
+    pip install google-adk litellm          # for Claude/LMStudio via ADK
     pip install google-adk                  # for Gemini native (no litellm needed)
 """
 import asyncio
@@ -16,6 +19,8 @@ from ..config import (
     ANTHROPIC_API_KEY,
     GOOGLE_API_KEY,
     JARVIS_GEMINI_MODEL,
+    JARVIS_LMSTUDIO_HOST,
+    JARVIS_LMSTUDIO_MODEL,
     JARVIS_MODEL,
     JARVIS_NAME,
 )
@@ -25,16 +30,19 @@ from ..memory.history import ConversationHistory
 
 
 class JarvisADKAgent:
-    """Jarvis agent powered by Google ADK.
+    """Universal Jarvis agent powered by Google ADK.
 
-    use_gemini=False  → LiteLLM + Anthropic Claude
-    use_gemini=True   → native Gemini API (GOOGLE_API_KEY required)
+    Backends:
+      "gemini"    → native Gemini API (GOOGLE_API_KEY required)
+      "anthropic" → LiteLLM + Anthropic Claude (ANTHROPIC_API_KEY required)
+      "lmstudio"  → LiteLLM + local LM Studio (OpenAI-compatible)
     """
 
-    def __init__(self, use_gemini: bool = False, name: str = JARVIS_NAME, registry=None):
+    def __init__(self, backend: str = "anthropic", name: str = JARVIS_NAME, registry=None):
         """Set up the ADK Runner with the appropriate model backend and a fresh session.
 
         Args:
+            backend: Model backend — "gemini", "anthropic", or "lmstudio".
             registry: Optional DynamicToolRegistry. Its dynamically registered
                       tools (A2A/MCP/custom) are synthesized into ADK callables
                       so this backend can use them alongside the built-in tools.
@@ -52,31 +60,9 @@ class JarvisADKAgent:
 
         self.history = ConversationHistory()
         self._session_id = str(uuid.uuid4())
-        self._use_gemini = use_gemini
+        self._backend = backend.strip().lower()
 
-        if use_gemini:
-            if not GOOGLE_API_KEY:
-                raise ValueError(
-                    "GOOGLE_API_KEY no está configurada. "
-                    "Agrégala a jarvis/.env para usar el backend Gemini."
-                )
-            os.environ.setdefault("GOOGLE_API_KEY", GOOGLE_API_KEY)
-            model: object = JARVIS_GEMINI_MODEL
-        else:
-            if not ANTHROPIC_API_KEY:
-                raise ValueError(
-                    "ANTHROPIC_API_KEY no está configurada. "
-                    "Agrégala a jarvis/.env para usar el backend ADK+Claude."
-                )
-            try:
-                from google.adk.models.lite_llm import LiteLlm
-            except ImportError as exc:
-                raise ImportError(
-                    "LiteLLM no está instalado (requerido para ADK+Claude).\n"
-                    "Instala con: pip install litellm\n"
-                    f"Error: {exc}"
-                ) from exc
-            model = LiteLlm(model=f"anthropic/{JARVIS_MODEL}")
+        model = self._resolve_model()
 
         from .adk_dynamic import adk_tools_from_registry
         tools = list(get_adk_tools()) + adk_tools_from_registry(registry)
@@ -102,10 +88,47 @@ class JarvisADKAgent:
             )
         )
 
+    def _resolve_model(self):
+        """Build the model object for the configured backend."""
+        if self._backend == "gemini":
+            if not GOOGLE_API_KEY:
+                raise ValueError(
+                    "GOOGLE_API_KEY no está configurada. "
+                    "Agrégala a jarvis/.env para usar el backend Gemini."
+                )
+            os.environ.setdefault("GOOGLE_API_KEY", GOOGLE_API_KEY)
+            return JARVIS_GEMINI_MODEL
+
+        try:
+            from google.adk.models.lite_llm import LiteLlm
+        except ImportError as exc:
+            raise ImportError(
+                "LiteLLM no está instalado (requerido para ADK+LiteLLM backends).\n"
+                "Instala con: pip install litellm\n"
+                f"Error: {exc}"
+            ) from exc
+
+        if self._backend == "lmstudio":
+            os.environ.setdefault("OPENAI_API_KEY", "lm-studio")
+            os.environ.setdefault("OPENAI_API_BASE", JARVIS_LMSTUDIO_HOST)
+            return LiteLlm(model=f"openai/{JARVIS_LMSTUDIO_MODEL}")
+
+        if not ANTHROPIC_API_KEY:
+            raise ValueError(
+                "ANTHROPIC_API_KEY no está configurada. "
+                "Agrégala a jarvis/.env para usar el backend ADK+Claude."
+            )
+        return LiteLlm(model=f"anthropic/{JARVIS_MODEL}")
+
     @property
     def model_label(self) -> str:
         """Return a human-readable identifier for the active model."""
-        return JARVIS_GEMINI_MODEL if self._use_gemini else f"anthropic/{JARVIS_MODEL}"
+        labels = {
+            "gemini": JARVIS_GEMINI_MODEL,
+            "anthropic": f"anthropic/{JARVIS_MODEL}",
+            "lmstudio": f"lmstudio/{JARVIS_LMSTUDIO_MODEL}",
+        }
+        return labels.get(self._backend, self._backend)
 
     def chat(self, user_message: str) -> str:
         """Send a message and return the agent's response (blocks until complete)."""

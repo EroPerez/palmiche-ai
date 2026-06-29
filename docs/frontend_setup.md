@@ -1,76 +1,75 @@
-# Configuración del Front-End (Palmiche JARVIS UI)
+# Configuración del Front-End (Palmiche JARVIS Web UI)
 
 Esta guía documenta los pasos necesarios para instalar, configurar e iniciar la interfaz web de Palmiche JARVIS.
 
-El front-end está construido utilizando **Vue 3**, **Vite** y **Tailwind CSS**.
+El front-end está construido utilizando **Vue 3**, **Vite** y **Tailwind CSS**, y reside dentro del paquete principal en `jarvis/frontend/`.
 
-## 📌 Requisitos Previos
+## Requisitos Previos
 
 Antes de comenzar, asegúrate de tener instalado en tu sistema:
 
-- **Node.js** (versión 18.0 o superior).
-- **pnpm** (recomendado como gestor de paquetes para este proyecto). Si no lo tienes instalado, puedes hacerlo ejecutando:
+- **Python** (versión 3.10 o superior) con las dependencias web instaladas:
+
+  ```bash
+  pip install 'palmiche-jarvis[web]'
+  ```
+
+- **Node.js** (versión 18.0 o superior) — solo para desarrollo del frontend.
+- **pnpm** (recomendado como gestor de paquetes):
 
   ```bash
   npm install -g pnpm
   ```
 
-## 🛠️ Instalación de Dependencias
+## Modo Producción
 
-Todo el código de la interfaz de usuario reside dentro del directorio `www/`. Para instalar las dependencias, navega a este directorio e instala los paquetes:
+Compila el frontend y sirve todo desde FastAPI:
 
 ```bash
-cd www
+cd jarvis/www
 pnpm install
+pnpm run build
+cd ../..
+python -m jarvis --web
 ```
 
-## 🚀 Inicio en Entorno de Desarrollo
+La interfaz estará disponible en `http://127.0.0.1:8000`.
 
-Para iniciar el entorno de desarrollo con Hot Module Replacement (HMR) y Vite, tienes dos opciones:
+## Modo Desarrollo (Hot-Reload)
 
-### Opción 1: Usar el script de ayuda (Recomendado desde la raíz)
-
-Desde el directorio raíz del proyecto (`palmiche-ai`), puedes ejecutar directamente el script Bash destinado a levantar el frontend:
+Inicia el backend FastAPI y el dev server de Vite en paralelo:
 
 ```bash
-./run_web_dev.sh
+cd jarvis/www && pnpm install && cd ../..
+python -m jarvis --web-dev
 ```
 
-### Opción 2: Usar pnpm (Desde el directorio `www/`)
+- Backend API: `http://127.0.0.1:8000`
+- Frontend Vite: `http://localhost:3000` (con HMR)
+
+También puedes iniciar el frontend manualmente:
 
 ```bash
-cd www
+cd jarvis/www
 pnpm run dev
 ```
 
-Esto iniciará el servidor de desarrollo, y la interfaz estará disponible por defecto en `http://localhost:5173`.
+## Conexión con el Backend (Jarvis Core)
 
-## 📦 Compilación para Producción
-
-Si necesitas generar la compilación de producción estática de la interfaz (los archivos minificados y optimizados se generarán en `www/dist/`):
-
-### Opción 1: Usar el script de ayuda
-
-Desde el directorio raíz:
-
-```bash
-./run_web_prod.sh
-```
-
-### Opción 2: Usar pnpm
-
-```bash
-cd www
-pnpm run build
-```
-
-## 🔌 Conexión con el Backend (Jarvis Core)
-
-La interfaz se comunica de forma bidireccional y en tiempo real con el backend de Python a través de WebSockets.
-Por defecto, la interfaz intenta conectarse a la siguiente dirección:
+La interfaz se comunica en tiempo real con el backend de Python a través de WebSockets.
+Por defecto, se conecta a:
 
 ```
 ws://localhost:8000/ws/chat
 ```
 
-Asegúrate de que el núcleo de Jarvis (Backend) esté ejecutándose (`./run_jarvis.sh` o `python run_jarvis.py`) en el puerto 8000 para que la interfaz pase del estado *Offline* a *Online* y puedas interactuar, ver animaciones y enviar/recibir comandos de voz.
+Asegúrate de que el backend esté ejecutándose (`python -m jarvis --web`) para que la interfaz pase del estado *Offline* a *Online*.
+
+## Modos de UI disponibles
+
+| Modo | Comando | Descripción |
+|------|---------|-------------|
+| CLI | `python -m jarvis` | Terminal interactivo (Rich) |
+| Tray | `python -m jarvis --tray` | Bandeja del sistema (PyQt6/PyQt5) |
+| Web | `python -m jarvis --web` | Navegador (FastAPI + Vue 3) |
+| Web Dev | `python -m jarvis --web-dev` | Desarrollo con hot-reload |

@@ -41,6 +41,11 @@ gemini = [
 assets = [
     "yt-dlp>=2024.1.0",
 ]
+web = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "websockets>=12.0",
+]
 a2a = [
     "fastapi>=0.110.0",
     "uvicorn>=0.29.0",
@@ -56,7 +61,7 @@ computer-use = [
     "mss>=9.0.1",
 ]
 all = [
-    "palmiche-jarvis[voice,tray,adk,assets,a2a,mcp,computer-use]",
+    "palmiche-jarvis[voice,tray,web,adk,assets,a2a,mcp,computer-use]",
 ]
 
 [project.scripts]
@@ -64,6 +69,9 @@ jarvis = "jarvis.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["jarvis"]
+
+[tool.hatch.build]
+artifacts = ["jarvis/frontend/dist/**"]
 
 [tool.ruff]
 target-version = "py310"
