@@ -2,7 +2,7 @@
 
 ## Visión general
 
-Palmiche J.A.R.V.I.S. es un asistente personal AI que corre como CLI, bandeja del sistema, servidor A2A y/o servidor MCP. Puede actuar **simultáneamente** como servidor de agentes (A2A/MCP) y como cliente de agentes remotos, formando redes de agentes colaborativos.
+Palmiche J.A.R.V.I.S. es un asistente personal AI que corre como CLI, bandeja del sistema, Web UI, servidor A2A y/o servidor MCP. Puede actuar **simultáneamente** como servidor de agentes (A2A/MCP) y como cliente de agentes remotos, formando redes de agentes colaborativos.
 
 ---
 
@@ -13,7 +13,7 @@ Palmiche J.A.R.V.I.S. es un asistente personal AI que corre como CLI, bandeja de
 │                          INTERFACES DE ENTRADA                           │
 │                                                                         │
 │   CLI interactiva   │   --query (-q)   │   Bandeja (--tray)   │  Voz   │
-│   A2A HTTP server   │   MCP stdio server                               │
+│   Web UI (--web)    │   A2A HTTP server   │   MCP stdio server         │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────────────┐
@@ -61,13 +61,14 @@ Palmiche J.A.R.V.I.S. es un asistente personal AI que corre como CLI, bandeja de
 palmiche-ai/
 ├── README.md
 ├── README-US.md
+├── AGENTS.md                    # Guía de backends ADK, Gemini y LM Studio
 ├── pyproject.toml               # Definición del paquete, grupos opcionales y entrypoint CLI
 ├── extract_assets.py            # Extractor de ícono y audio desde YouTube
 │
 ├── jarvis/                      # Paquete principal
 │   ├── __init__.py
 │   ├── __main__.py              # CLI entry point — argparse, modos: interactivo, query, tray,
-│   │                            #   --serve-a2a, --serve-mcp, --connect-a2a, --connect-mcp
+│   │                            #   --web, --serve-a2a, --serve-mcp, --connect-a2a, --connect-mcp
 │   ├── config.py                # Todas las variables de entorno con valores por defecto
 │   ├── install.sh               # Instalador interactivo (splash, selección de módulos)
 │   ├── requirements.txt         # Dependencias directas del proyecto
@@ -75,7 +76,7 @@ palmiche-ai/
 │   │
 │   ├── brain/
 │   │   ├── agent.py             # JarvisAgent (Anthropic SDK) — soporta DynamicToolRegistry
-│   │   ├── adk_agent.py         # JarvisADKAgent (Google ADK: Claude vía LiteLLM o Gemini nativo)
+│   │   ├── adk_agent.py         # JarvisADKAgent (ADK universal: Claude/Gemini/LMStudio vía LiteLLM)
 │   │   ├── ollama_agent.py      # JarvisOllamaAgent (modelos locales via Ollama)
 │   │   └── prompts.py           # System prompts (ES/EN según JARVIS_TOOL_LANG)
 │   │
@@ -104,10 +105,25 @@ palmiche-ai/
 │   │   ├── text_tools.py        # Procesamiento y transformación de texto
 │   │   └── computer_use.py      # Automatización visual con Gemini (Playwright / pyautogui)
 │   │
+│   ├── api/                     # FastAPI backend compartido (Web UI + A2A)
+│   │   ├── server.py            # create_app() + run_web_server() — servidor unificado
+│   │   ├── schemas.py           # Modelos Pydantic (ChatRequest, ChatResponse)
+│   │   ├── API_WEB.md           # Documentación de la API
+│   │   └── routers/
+│   │       ├── system.py        # GET /api/v1/health, GET /api/v1/history
+│   │       ├── chat.py          # WS /ws/chat — WebSocket streaming
+│   │       └── a2a.py           # A2A protocol router (POST /a2a, GET /.well-known/agent.json)
+│   │
+│   ├── frontend/                # Vue 3 + Vite + Tailwind (Web UI frontend)
+│   │   ├── src/                 # Componentes Vue, App.vue, main.js
+│   │   ├── dist/                # Build de producción (servido por FastAPI)
+│   │   ├── package.json
+│   │   └── vite.config.js
+│   │
 │   ├── a2a/                     # Agent-to-Agent protocol (Google spec)
 │   │   ├── __init__.py
 │   │   ├── models.py            # Modelos de datos A2A (AgentCard, Task, Message, etc.)
-│   │   ├── server.py            # Servidor HTTP A2A con FastAPI + uvicorn
+│   │   ├── server.py            # Wrapper de compatibilidad (delega a api.server)
 │   │   └── client.py            # Cliente A2A para consumir agentes remotos
 │   │
 │   ├── mcp_support/             # Model Context Protocol (Anthropic spec)
@@ -118,6 +134,7 @@ palmiche-ai/
 │   ├── interface/
 │   │   ├── cli.py               # Interfaz CLI con Rich (colores, markdown, paneles)
 │   │   ├── tray.py              # GUI de bandeja del sistema con PyQt6 (paleta Palmiche)
+│   │   ├── web.py               # Entry point Web UI (run_web, run_web_dev)
 │   │   ├── hud_animation.py     # Animación HUD estilo Iron Man (QPainter, 3 anillos, radar)
 │   │   ├── animation.py         # WaveformAnimation (QWidget) para feedback visual
 │   │   ├── voice.py             # Reconocimiento de voz (SpeechRecognition) y TTS (pyttsx3/gTTS)
@@ -172,40 +189,50 @@ python -m jarvis --tray
 ```
 GUI en sistema de bandeja (PyQt6) con ventana de chat, animación HUD y soporte opcional de voz y wake word.
 
-### 4. Servidor A2A (`--serve-a2a`)
+### 4. Web UI (`--web`)
+```bash
+python -m jarvis --web [--web-host 127.0.0.1] [--web-port 8000]
+python -m jarvis --web-dev    # modo desarrollo con Vite hot-reload
+```
+Interfaz web moderna (FastAPI + Vue 3) con chat en tiempo real vía WebSocket, renderizado Markdown, animaciones y soporte PWA. El entry point es `jarvis/interface/web.py` (mismo patrón que `tray.py`), que delega al servidor unificado en `jarvis/api/server.py`.
+
+### 5. Servidor A2A (`--serve-a2a`)
 ```bash
 python -m jarvis --serve-a2a [--a2a-host 0.0.0.0] [--a2a-port 8080]
 ```
-Expone el agente como servidor HTTP compatible con el protocolo A2A de Google.
+Expone el agente como servidor HTTP compatible con el protocolo A2A de Google. Usa el mismo servidor FastAPI que la Web UI — se pueden combinar con `--web --serve-a2a`.
 - `GET /.well-known/agent.json` → Agent Card (descripción del agente)
-- `POST /` → JSON-RPC 2.0 endpoint
+- `POST /a2a` → JSON-RPC 2.0 endpoint
   - `tasks/send` → tarea síncrona
   - `tasks/sendSubscribe` → tarea con streaming SSE
   - `tasks/get` → estado de tarea
   - `tasks/cancel` → cancelar tarea
-- `GET /health` → health check
+- `GET /api/v1/health` → health check
 
-### 5. Servidor MCP (`--serve-mcp`)
+### 6. Servidor MCP (`--serve-mcp`)
 ```bash
 python -m jarvis --serve-mcp
 ```
 Expone las 59 herramientas vía protocolo MCP en stdio. Compatible con Claude Desktop, Cursor, Zed, Continue.dev y cualquier cliente MCP.
 
-### 6. Cliente A2A (`--connect-a2a`)
+### 7. Cliente A2A (`--connect-a2a`)
 ```bash
 python -m jarvis --connect-a2a http://agent1:8080 --connect-a2a http://agent2:9090
 ```
 Descubre agentes A2A remotos y los registra como herramientas (`delegate_to_<nombre>`). El agente local puede delegar tareas a ellos durante el bucle agéntico.
 
-### 7. Cliente MCP (`--connect-mcp`)
+### 8. Cliente MCP (`--connect-mcp`)
 ```bash
 python -m jarvis --connect-mcp "npx -y @modelcontextprotocol/server-filesystem /tmp"
 python -m jarvis --connect-mcp "http://localhost:3000"
 ```
 Conecta a servidores MCP externos (stdio o SSE) y carga sus herramientas como `mcp_<nombre>`.
 
-### 8. Combinaciones
+### 9. Combinaciones
 ```bash
+# Web UI + A2A en un solo servidor
+python -m jarvis --web --serve-a2a
+
 # Servidor A2A que también usa herramientas de otros agentes
 python -m jarvis --serve-a2a --connect-a2a http://specialist:8080
 
@@ -281,7 +308,7 @@ GET /.well-known/agent.json
 
 ### Envío de tarea (síncrono)
 ```json
-POST /
+POST /a2a
 {
   "jsonrpc": "2.0",
   "method": "tasks/send",
@@ -313,7 +340,7 @@ POST /
 
 ### Streaming (SSE)
 ```
-POST /  → method: "tasks/sendSubscribe"
+POST /a2a  → method: "tasks/sendSubscribe"
 
 text/event-stream:
   event: task_status_update   data: {"id": ..., "status": {"state": "working"}, "final": false}
@@ -403,11 +430,13 @@ Todas las variables se leen desde `jarvis/.env` (o del entorno del proceso).
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Requerida para backends `anthropic` y `adk`+Claude |
 | `GOOGLE_API_KEY` | — | Requerida para backends `gemini`, `adk`+Gemini y Computer Use |
-| `JARVIS_BACKEND` | `anthropic` | Backend: `anthropic` \| `adk` \| `gemini` \| `ollama` |
+| `JARVIS_BACKEND` | `anthropic` | Backend: `anthropic` \| `adk` \| `gemini` \| `ollama` \| `lmstudio` |
 | `JARVIS_MODEL` | `claude-haiku-4-5-20251001` | Modelo Claude (backends anthropic/adk) |
 | `JARVIS_GEMINI_MODEL` | `gemini-2.0-flash` | Modelo Gemini (backend gemini) |
 | `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | URL del servidor Ollama |
 | `JARVIS_OLLAMA_MODEL` | `llama3.2` | Modelo Ollama |
+| `JARVIS_LMSTUDIO_HOST` | `http://localhost:1234/v1` | URL del servidor LM Studio |
+| `JARVIS_LMSTUDIO_MODEL` | `local-model` | Modelo LM Studio |
 
 ### Asistente e interfaz
 | Variable | Default | Descripción |
@@ -465,6 +494,7 @@ pip install 'palmiche-jarvis[gemini]'       # google-adk
 pip install 'palmiche-jarvis[assets]'       # yt-dlp
 pip install 'palmiche-jarvis[a2a]'          # fastapi, uvicorn
 pip install 'palmiche-jarvis[mcp]'          # mcp>=1.0.0
+pip install 'palmiche-jarvis[web]'          # fastapi, uvicorn, websockets
 pip install 'palmiche-jarvis[computer-use]' # google-genai, playwright, pyautogui, Pillow, mss
 pip install 'palmiche-jarvis[all]'          # todos los anteriores
 ```

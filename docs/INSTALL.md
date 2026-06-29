@@ -71,7 +71,7 @@ Variables esenciales:
 | `ANTHROPIC_API_KEY` | API key de Anthropic (requerida para el backend por defecto) |
 | `GOOGLE_API_KEY` | API key de Google AI Studio (solo backends `gemini` / `adk`+Gemini) |
 | `JARVIS_NAME` | Nombre del asistente (default: `Jarvis`) |
-| `JARVIS_BACKEND` | Motor de IA: `anthropic` (default), `adk`, `gemini`, `ollama` |
+| `JARVIS_BACKEND` | Motor de IA: `anthropic` (default), `adk`, `gemini`, `ollama`, `lmstudio` |
 
 > Obtén tu API key de Anthropic en [console.anthropic.com](https://console.anthropic.com).
 > Obtén tu API key de Google en [aistudio.google.com](https://aistudio.google.com).
@@ -210,6 +210,57 @@ JARVIS_BACKEND=ollama
 JARVIS_OLLAMA_HOST=http://localhost:11434
 JARVIS_OLLAMA_MODEL=llama3.2
 ```
+
+---
+
+### Backend LM Studio (modelo local, OpenAI-compatible)
+
+[LM Studio](https://lmstudio.ai) expone una API compatible con OpenAI. Jarvis se conecta vía LiteLLM dentro del agente ADK universal.
+
+```bash
+pip install "palmiche-jarvis[adk]"
+# equivale a: pip install google-adk litellm
+```
+
+`.env`:
+
+```ini
+JARVIS_BACKEND=lmstudio
+JARVIS_LMSTUDIO_HOST=http://localhost:1234/v1
+JARVIS_LMSTUDIO_MODEL=local-model
+```
+
+> Asegúrate de tener LM Studio ejecutándose con un modelo cargado y el servidor local activo.
+
+---
+
+### Web UI (FastAPI + Vue 3)
+
+Interfaz web moderna con chat en tiempo real vía WebSocket, renderizado Markdown con syntax highlighting, animaciones Siri-style y soporte PWA.
+
+```bash
+pip install "palmiche-jarvis[web]"
+# equivale a: pip install fastapi uvicorn websockets
+
+# Compilar el frontend (una sola vez)
+cd jarvis/frontend && pnpm install && pnpm build && cd ../..
+```
+
+Uso:
+
+```bash
+# Iniciar Web UI
+python -m jarvis --web
+# Abre http://localhost:8000
+
+# Web UI + A2A en un solo servidor
+python -m jarvis --web --serve-a2a
+
+# Modo desarrollo (backend + Vite hot-reload)
+python -m jarvis --web-dev
+```
+
+La Web UI y el protocolo A2A comparten un único servidor FastAPI. Cuando se combinan con `--web --serve-a2a`, ambos están disponibles en el mismo proceso y puerto.
 
 ---
 
@@ -358,7 +409,7 @@ brew install portaudio ffmpeg
 
 # Paquetes Python (incluye computer-use)
 pip install "palmiche-jarvis[all]"
-# equivale a: voice + tray + adk + assets + a2a + mcp + computer-use
+# equivale a: voice + tray + adk + assets + a2a + mcp + web + computer-use
 
 # Chromium para Computer Use
 playwright install chromium
@@ -440,6 +491,15 @@ python -m jarvis --backend ollama
 
 # Modo bandeja del sistema
 python -m jarvis --tray
+
+# Web UI (navegador)
+python -m jarvis --web
+
+# Web UI + A2A en un solo servidor
+python -m jarvis --web --serve-a2a
+
+# Backend LM Studio (modelo local)
+python -m jarvis --backend lmstudio
 
 # Bandeja + backend Gemini + nombre personalizado
 python -m jarvis --tray --backend gemini --name "Viernes"
