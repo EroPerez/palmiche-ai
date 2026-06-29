@@ -15,6 +15,7 @@ Ejemplos:
   python -m jarvis --backend adk            # Google ADK + Claude (via LiteLLM)
   python -m jarvis --backend gemini         # Google ADK + Gemini nativo
   python -m jarvis --tray                   # Bandeja del sistema + ventana de chat
+  python -m jarvis --web                    # Web UI (FastAPI + Vue 3)
   python -m jarvis -q '¿cuánta RAM tengo?' # Consulta rápida y salir
   python -m jarvis --voice                  # Con reconocimiento de voz
   python -m jarvis --clear                  # Borrar historial y salir
@@ -72,25 +73,32 @@ Ejemplos:
     )
 
     # ------------------------------------------------------------------
-    # Web API flags
+    # Web UI flags
     # ------------------------------------------------------------------
-    web = parser.add_argument_group("Web API")
+    web = parser.add_argument_group("Web UI")
     web.add_argument(
+        "--web",
         "--serve-web",
         action="store_true",
-        help="Iniciar como servidor web (Backend para Frontend UI)",
+        dest="web",
+        help="Iniciar Web UI (FastAPI + Vue 3) en el navegador",
     )
     web.add_argument(
         "--web-host",
         type=str,
         default="127.0.0.1",
-        help="Host del servidor Web API (default: 127.0.0.1)",
+        help="Host del servidor Web UI (default: 127.0.0.1)",
     )
     web.add_argument(
         "--web-port",
         type=int,
         default=8000,
-        help="Puerto del servidor Web API (default: 8000)",
+        help="Puerto del servidor Web UI (default: 8000)",
+    )
+    web.add_argument(
+        "--web-dev",
+        action="store_true",
+        help="Modo desarrollo: Backend + Vite dev server para hot-reload del frontend",
     )
 
     # ------------------------------------------------------------------
@@ -328,15 +336,18 @@ def main():
         return
 
     # ------------------------------------------------------------------
-    # Web API server mode
+    # Web UI mode
     # ------------------------------------------------------------------
-    if args.serve_web:
-        from .api.server import run_web_server
-
+    if args.web or args.web_dev:
         web_host = args.web_host
         web_port = args.web_port
 
-        run_web_server(agent, host=web_host, port=web_port)
+        if args.web_dev:
+            from .interface.web import run_web_dev
+            run_web_dev(agent, host=web_host, port=web_port)
+        else:
+            from .interface.web import run_web
+            run_web(agent, host=web_host, port=web_port)
         return
 
     voice_on = args.voice or VOICE_ENABLED
