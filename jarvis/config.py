@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 _env_file = Path(__file__).parent / ".env"
-load_dotenv(_env_file)
+load_dotenv(_env_file, override=True)
 
 # ---------------------------------------------------------------------------
 # Unified provider config (new — preferred)
