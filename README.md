@@ -16,7 +16,7 @@
 - **AI Guardrails** — sistema de seguridad basado en reglas que valida entradas, salidas y llamadas a herramientas para prevenir inyección de prompts, filtración de credenciales y comandos peligrosos; totalmente configurable vía JSON
 - **Backend ADK universal** (default) con soporte multi-proveedor vía LiteLLM: Anthropic, OpenAI, Gemini, Ollama, Groq, Mistral, Azure, AWS Bedrock y cualquier proxy compatible con OpenAI — un solo `JARVIS_MODEL` para cambiar de proveedor sin tocar código. El backend `anthropic` (loop nativo sin ADK) sigue disponible.
 - Entrada por voz opcional con reconocimiento de habla
-- Interfaz en terminal con Rich (colores, markdown, paneles)
+- **Servidor unificado** — Web UI y A2A pueden correr en un solo proceso FastAPI
 - **Instalador interactivo** con splash animado de Palmiche-AI, menú de módulos y barras de progreso
 
 ## Requisitos
@@ -160,6 +160,42 @@ Loop agéntico directo con el SDK de Anthropic, sin overhead de ADK. Solo soport
 python -m jarvis --backend anthropic
 ```
 
+#### Backend LM Studio (modelo local, OpenAI-compatible)
+
+[LM Studio](https://lmstudio.ai) expone una API compatible con OpenAI. Jarvis se conecta vía LiteLLM dentro del agente ADK universal.
+
+```bash
+pip install "palmiche-jarvis[adk]"
+
+# En .env:
+# JARVIS_LMSTUDIO_HOST=http://localhost:1234/v1
+# JARVIS_LMSTUDIO_MODEL=local-model
+python -m jarvis --backend lmstudio
+```
+
+> Asegúrate de tener un modelo cargado en LM Studio y el servidor local activo antes de iniciar Jarvis.
+
+#### Web UI (FastAPI + Vue 3)
+
+Interfaz web moderna con chat en tiempo real vía WebSocket, renderizado Markdown, animaciones Siri-style y soporte PWA.
+
+```bash
+pip install "palmiche-jarvis[web]"
+# equivale a: pip install fastapi uvicorn websockets
+
+# Compilar el frontend (una sola vez)
+cd jarvis/frontend && pnpm install && pnpm build && cd ../..
+
+python -m jarvis --web
+# Abre http://localhost:8000 en el navegador
+
+# Combinar con A2A en un solo servidor
+python -m jarvis --web --serve-a2a
+
+# Modo desarrollo (backend + Vite hot-reload)
+python -m jarvis --web-dev
+```
+
 #### Modo bandeja del sistema (tray)
 
 Requiere **PyQt6** y Pillow. En Linux también se necesitan las bibliotecas XCB.
@@ -233,7 +269,7 @@ sudo apt install \
     python3-dev portaudio19-dev ffmpeg mpg123
 
 pip install "palmiche-jarvis[all]"
-# equivale a: pip install "palmiche-jarvis[voice,tray,adk,assets,a2a,mcp,computer-use]"
+# equivale a: pip install "palmiche-jarvis[voice,tray,adk,assets,a2a,mcp,web,computer-use]"
 ```
 
 ## Configuración
@@ -306,6 +342,18 @@ python -m jarvis --tray
 # Combinar opciones
 python -m jarvis --backend gemini --name "Jarvis" --tray
 
+# Web UI (navegador)
+python -m jarvis --web
+
+# Web UI + A2A en un solo servidor
+python -m jarvis --web --serve-a2a
+
+# Web UI en modo desarrollo (Vite hot-reload)
+python -m jarvis --web-dev
+
+# Backend LM Studio (modelo local, OpenAI-compatible)
+python -m jarvis --backend lmstudio
+
 # Servidor A2A (expone Jarvis como agente HTTP)
 python -m jarvis --serve-a2a --a2a-port 8080
 
@@ -335,6 +383,10 @@ python -m jarvis --connect-a2a http://otro-agente:8080 --connect-mcp "npx -y @mo
 | `--a2a-port` | puerto | Puerto del servidor A2A (default: `8080`) |
 | `--connect-a2a` | URL | Conectar a un agente A2A remoto como herramienta (repetible) |
 | `--serve-mcp` | — | Iniciar como servidor MCP stdio (Claude Desktop, Cursor, etc.) |
+| `--web` / `--serve-web` | — | Iniciar Web UI (FastAPI + Vue 3) en el navegador |
+| `--web-host` | host | Host del servidor Web UI (default: `127.0.0.1`) |
+| `--web-port` | puerto | Puerto del servidor Web UI (default: `8000`) |
+| `--web-dev` | — | Modo desarrollo: backend + Vite hot-reload para el frontend |
 | `--connect-mcp` | spec | Conectar a un servidor MCP externo (comando stdio o URL SSE, repetible) |
 
 ### Comandos dentro del chat
@@ -804,6 +856,48 @@ python -m jarvis --backend ollama
 | `llama3.2` | ~2 GB | Default recomendado |
 | `qwen2.5:3b` | ~2 GB | Excelente tool-use para su tamaño |
 | `llama3.1:8b` | ~5 GB | Más capaz, requiere más RAM |
+
+### LM Studio — modelo local OpenAI-compatible (`lmstudio`)
+
+Usa [LM Studio](https://lmstudio.ai) que expone una API compatible con OpenAI. Jarvis se conecta a través de LiteLLM dentro del agente ADK universal, sin necesidad de un brain separado.
+
+**Requisitos:**
+1. Instala LM Studio desde [lmstudio.ai](https://lmstudio.ai)
+2. Descarga y carga un modelo
+3. Inicia el servidor local en LM Studio (puerto 1234 por defecto)
+
+```bash
+pip install "palmiche-jarvis[adk]"
+
+# En .env (o variables de entorno):
+# JARVIS_LMSTUDIO_HOST=http://localhost:1234/v1
+# JARVIS_LMSTUDIO_MODEL=local-model
+
+python -m jarvis --backend lmstudio
+```
+
+### Web UI — interfaz web (FastAPI + Vue 3)
+
+Interfaz web moderna con chat en tiempo real, streaming por WebSocket, renderizado Markdown con syntax highlighting, animaciones Siri-style y soporte PWA.
+
+```bash
+pip install "palmiche-jarvis[web]"
+
+# Compilar el frontend (una sola vez)
+cd jarvis/frontend && pnpm install && pnpm build && cd ../..
+
+# Iniciar
+python -m jarvis --web
+# Abre http://localhost:8000
+
+# Con A2A en el mismo servidor
+python -m jarvis --web --serve-a2a
+
+# Modo desarrollo con hot-reload
+python -m jarvis --web-dev
+```
+
+La Web UI y el protocolo A2A comparten un único servidor FastAPI. Cuando se usa `--web --serve-a2a`, ambos están disponibles en el mismo proceso y puerto.
 
 ## Modo bandeja del sistema
 

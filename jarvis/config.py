@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 _env_file = Path(__file__).parent / ".env"
-load_dotenv(_env_file)
+load_dotenv(_env_file, override=True)
 
 # ---------------------------------------------------------------------------
 # Unified provider config (new — preferred)
@@ -89,6 +89,8 @@ JARVIS_TTS_STREAM: bool = os.getenv("JARVIS_TTS_STREAM", "true").lower() == "tru
 # Deprecated — use JARVIS_MODEL=ollama_chat/llama3.2 + JARVIS_BASE_URL=http://localhost:11434
 JARVIS_OLLAMA_HOST: str = os.getenv("JARVIS_OLLAMA_HOST", "http://localhost:11434")
 JARVIS_OLLAMA_MODEL: str = os.getenv("JARVIS_OLLAMA_MODEL", "llama3.2")
+JARVIS_LMSTUDIO_HOST: str = os.getenv("JARVIS_LMSTUDIO_HOST", "http://localhost:1234/v1")
+JARVIS_LMSTUDIO_MODEL: str = os.getenv("JARVIS_LMSTUDIO_MODEL", "local-model")
 # Optional path to a custom tray icon image (PNG/ICO). Empty → use the built-in
 # horse-head icon. Use this to point at your own Palmiche image if you have one.
 JARVIS_TRAY_ICON: str = os.getenv("JARVIS_TRAY_ICON", "")
@@ -100,6 +102,14 @@ JARVIS_WELCOME_AUDIO: str = os.getenv(
     "JARVIS_WELCOME_AUDIO",
     _DEFAULT_WELCOME_AUDIO if Path(_DEFAULT_WELCOME_AUDIO).is_file() else "",
 )
+
+# ---------------------------------------------------------------------------
+# Web UI configuration
+# ---------------------------------------------------------------------------
+
+# Host and port for the built-in Web UI server (--web / --web-dev mode).
+WEB_HOST: str = os.getenv("JARVIS_WEB_HOST", "127.0.0.1")
+WEB_PORT: int = _get_positive_int("JARVIS_WEB_PORT", 8000)
 
 # ---------------------------------------------------------------------------
 # A2A (Agent-to-Agent) configuration

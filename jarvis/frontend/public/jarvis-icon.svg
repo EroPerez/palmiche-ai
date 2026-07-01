@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="1" />
+      <stop offset="50%" stop-color="#0891b2" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#164e63" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="85%" stop-color="#06b6d4" stop-opacity="0" />
+      <stop offset="95%" stop-color="#22d3ee" stop-opacity="1" />
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  
+  <rect width="512" height="512" fill="#09090b" rx="112" />
+  
+  <circle cx="256" cy="256" r="220" fill="url(#ringGlow)" opacity="0.6" />
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#0891b2" stroke-width="4" stroke-dasharray="20 10" opacity="0.8" />
+  <circle cx="256" cy="256" r="140" fill="none" stroke="#22d3ee" stroke-width="2" opacity="0.5" />
+  
+  <circle cx="256" cy="256" r="80" fill="url(#coreGlow)" />
+  <circle cx="256" cy="256" r="40" fill="#cffafe" opacity="0.9" />
+  
+  <path d="M256 76 L256 116 M256 396 L256 436 M76 256 L116 256 M396 256 L436 256" stroke="#06b6d4" stroke-width="4" opacity="0.8" />
+  
+  <path d="M128 128 L156 156 M384 384 L356 356 M128 384 L156 356 M384 128 L356 156" stroke="#0891b2" stroke-width="3" opacity="0.6" />
+</svg>

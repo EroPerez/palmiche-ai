@@ -154,6 +154,7 @@ palmiche-ai/
     ├── INSTALL-US.md            # Step-by-step installation guide (EN)
     ├── MCP-AGENTS.md            # MCP and external agents guide (ES)
     ├── MCP-AGENTS-US.md         # MCP and external agents guide (EN)
+    ├── FRONTEND_SETUP.md        # Frontend setup guide (Vue 3)
     ├── CHANGELOG.md
     └── CHANGELOG-US.md
 ```

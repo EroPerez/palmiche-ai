@@ -22,3 +22,18 @@ jarvis/.env
 .DS_Store
 .idea/
 .vscode/
+
+# Models
+.ollama-models
+
+# Nodejs
+jarvis/frontend/node_modules
+
+# Vite
+jarvis/frontend/dev-dist
+
+# Jarvis Data
+logs
+
+# AI Analysis info
+artefacts/
