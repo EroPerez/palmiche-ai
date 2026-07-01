@@ -87,13 +87,13 @@ This skill governs the visual styling, formatting, and structural constraints of
 
 8. For functions with more than 2 params, set a object as params, e.g:
 
-```javascript
-// Correct
-function getData({ data, pagination, meta }){}
+   ```javascript
+   // Correct
+   function getData({ data, pagination, meta }){}
 
-// Incorrect
-function getData(data, pagination, meta){}
-```
+   // Incorrect
+   function getData(data, pagination, meta){}
+   ```
 
 9. **Object Literal many fields**:
    * If a object literal has more than 2 fields, set a new line for each field, and put the braces in the same line as the object name.

@@ -39,11 +39,12 @@ const initSpeechRecognition = () => {
 
   if (!SpeechRecognition) {
     console.warn('Speech Recognition API not supported in this browser.')
+
     return
   }
 
   recognition = new SpeechRecognition()
-  recognition.lang = 'es-ES'
+  recognition.lang = navigator.language || 'es-ES'
   recognition.interimResults = true // Mostrar resultados parciales mientras habla
   recognition.maxAlternatives = 1
 
@@ -56,7 +57,6 @@ const initSpeechRecognition = () => {
     let interimTranscript = ''
 
     for (let i = event.resultIndex; i < event.results.length; ++i) {
-
       if (event.results[i].isFinal) {
         finalTranscript += event.results[i][0].transcript
       } else {
@@ -88,7 +88,6 @@ const initSpeechRecognition = () => {
 }
 
 const toggleListening = () => {
-
   if (!recognition) {
     alert('Tu navegador no soporta reconocimiento de voz nativo (usa Chrome/Edge).')
     return
@@ -106,7 +105,6 @@ const stopListening = () => {
 }
 
 const speakText = (text) => {
-
   if (!isTTSActive.value || !window.speechSynthesis) {
     return
   }
@@ -115,7 +113,7 @@ const speakText = (text) => {
   window.speechSynthesis.cancel()
 
   const utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = 'es-ES'
+  utterance.lang = navigator.language || 'es-ES'
 
   utterance.onstart = () => {
     isSpeaking.value = true
@@ -135,7 +133,6 @@ const speakText = (text) => {
 
 const connectWebSocket = () => {
   ws = new WebSocket('ws://localhost:8000/ws/chat')
-
   ws.onopen = () => {
     isConnected.value = true
     messages.value.push({ role: 'system', content: 'Conectado a Jarvis Core.' })
@@ -249,7 +246,7 @@ onMounted(() => {
       <ConnectingOverlay v-if="!isConnected" />
     </Transition>
 
-    <!-- Efecto Liquid Waveform (Hablando) -->
+    <!-- Efecto Waveform (Hablando) -->
     <Transition
       enter-active-class="transition-opacity duration-500"
       leave-active-class="transition-opacity duration-500"
@@ -299,7 +296,6 @@ onMounted(() => {
       <TypingIndicator v-if="isTyping" />
     </div>
 
-    <!-- Siri Animation Container -->
     <SiriAnimation :isListening="isListening" />
 
     <!-- Input Area -->
