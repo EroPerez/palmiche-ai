@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
-from ..schemas import HealthResponse, HistoryResponse, ChatMessage
+
+from ..schemas import ChatMessage, HealthResponse, HistoryResponse
 
 router = APIRouter(prefix="/api/v1", tags=["System"])
 
@@ -15,7 +16,7 @@ async def health(request: Request):
 async def get_history(request: Request):
     agent = request.app.state.agent
     messages = agent.history.get_messages()
-    
+
     formatted_msgs = []
     for msg in messages:
         if isinstance(msg, dict) and "role" in msg and "content" in msg:

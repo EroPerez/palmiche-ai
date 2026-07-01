@@ -19,8 +19,8 @@ And send tasks via JSON-RPC 2.0:
 from __future__ import annotations
 
 from .models import (  # noqa: F401 — re-export for external consumers
-    AgentCard,
     AgentCapabilities,
+    AgentCard,
     AgentSkill,
     Artifact,
     Task,
@@ -50,4 +50,5 @@ def run_a2a_server(
         port=port,
         agent_factory=agent_factory,
         name=name,
+        description=description,
     )

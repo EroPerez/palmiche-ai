@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 const classesUser = 'self-end bg-indigo-600 text-white rounded-br-sm'
 const classesAssistant = 'self-start bg-zinc-800 text-zinc-100 rounded-bl-sm border border-zinc-700/50 prose prose-invert prose-cyan prose-p:leading-relaxed prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-700 max-w-none'
@@ -19,7 +20,7 @@ const props = defineProps({
 
 const parsedContent = computed(() => {
   if (props.msg.role === 'assistant') {
-    return marked.parse(props.msg.content)
+    return DOMPurify.sanitize(marked.parse(props.msg.content))
   }
 
   return props.msg.content

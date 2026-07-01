@@ -364,8 +364,12 @@ def main():
         web_port = args.web_port
 
         if args.serve_a2a:
-            web_host = args.a2a_host or web_host
-            web_port = args.a2a_port or web_port
+            if args.web or args.web_dev:
+                web_host = args.a2a_host or web_host
+                web_port = args.a2a_port or web_port
+            else:
+                web_host = args.a2a_host or A2A_HOST
+                web_port = args.a2a_port or A2A_PORT
 
         agent_factory = None
         if args.serve_a2a:

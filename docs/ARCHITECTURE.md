@@ -171,6 +171,7 @@ palmiche-ai/
     ├── INSTALL-US.md
     ├── MCP-AGENTS.md            # Guía de MCP y agentes externos
     ├── MCP-AGENTS-US.md
+    ├── FRONTEND_SETUP.md        # Guía de configuración del frontend (Vue 3)
     ├── CHANGELOG.md
     └── CHANGELOG-US.md
 ```
