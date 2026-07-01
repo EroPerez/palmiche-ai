@@ -279,8 +279,46 @@ _install_sys_deps() {
                     ;;
             esac
             ;;
+        web)
+            case "$_OS" in
+                linux)
+                    case "$_PKG_MANAGER" in
+                        apt)    _run_with_spinner "Deps sistema (web): " _sys_install nodejs npm ;;
+                        dnf)    _run_with_spinner "Deps sistema (web): " _sys_install nodejs npm ;;
+                        pacman) _run_with_spinner "Deps sistema (web): " _sys_install nodejs npm ;;
+                        *)      _warn "Instala manualmente: Node.js 18+ (necesario para pnpm)" ;;
+                    esac
+                    ;;
+                macos)
+                    _run_with_spinner "Deps sistema (web): " _sys_install node
+                    ;;
+            esac
+            _ensure_pnpm
+            ;;
     esac
     return 0
+}
+
+# ─── pnpm (gestor de paquetes del frontend) ──────────────────────────────────
+_ensure_pnpm() {
+    if command -v pnpm &>/dev/null; then
+        _ok "pnpm ya está instalado"
+        return 0
+    fi
+
+    if command -v corepack &>/dev/null; then
+        _run_with_spinner "Activando pnpm (corepack)" \
+            bash -c "corepack enable && corepack prepare pnpm@latest --activate"
+        return $?
+    fi
+
+    if command -v npm &>/dev/null; then
+        _run_with_spinner "Instalando pnpm (npm -g)" npm install -g pnpm
+        return $?
+    fi
+
+    _warn "Node.js no encontrado — instala pnpm manualmente: https://pnpm.io/installation"
+    return 1
 }
 
 # ─── Verificaciones de sistema ────────────────────────────────────────────────
@@ -367,6 +405,20 @@ _install_group() {
             _info "Ollama usa el servidor local — no requiere paquetes Python extra."
             _info "Instala el servidor desde: https://ollama.ai"
             _info "Luego descarga un modelo: ollama pull llama3.2"
+            ;;
+        web)
+            _install_sys_deps web || true
+            _pip_install "Web UI (FastAPI + uvicorn + websockets)" fastapi uvicorn websockets
+            if command -v pnpm &>/dev/null; then
+                _info "Instalando dependencias del frontend (pnpm)..."
+                if (cd "$SCRIPT_DIR/frontend" && pnpm install --silent); then
+                    _ok "Dependencias del frontend instaladas"
+                else
+                    _warn "pnpm install falló — ejecuta manualmente: cd jarvis/frontend && pnpm install"
+                fi
+            else
+                _warn "pnpm no disponible — instala Node.js/pnpm y ejecuta: cd jarvis/frontend && pnpm install"
+            fi
             ;;
         a2a)
             _pip_install "Servidor A2A (FastAPI + uvicorn)" fastapi uvicorn
@@ -482,6 +534,7 @@ _print_module_menu() {
     echo "  ${_BG}[8]${_NC}  Computer Use ★           ${_DIM}google-genai, playwright, pyautogui${_NC}"
     echo "  ${_BG}[9]${_NC}  Extractor de assets      ${_DIM}yt-dlp (icono y audio de bienvenida)${_NC}"
     echo "  ${_BG}[10]${_NC} Herramientas del sistema  ${_DIM}playerctl, scrot, brightnessctl, libnotify${_NC}"
+    echo "  ${_BG}[11]${_NC} Web UI (Vue 3)           ${_DIM}FastAPI + Node.js/pnpm + deps del frontend${_NC}"
     echo ""
     _hr
     echo ""
@@ -535,7 +588,7 @@ main() {
             _print_center "Instalando todos los módulos…" "$_CY"
             echo ""
             _install_sys_deps tools || true
-            local all_groups=(voice tray adk gemini a2a mcp "computer-use" assets)
+            local all_groups=(voice tray adk gemini a2a mcp "computer-use" assets web)
             _progress_sequence "${all_groups[@]}"
             ;;
         2)
@@ -559,6 +612,7 @@ main() {
                     8) selected_groups+=("computer-use") ;;
                     9) selected_groups+=(assets) ;;
                     10) selected_groups+=(tools) ;;
+                    11) selected_groups+=(web) ;;
                     *) _warn "Opción '$sel' ignorada" ;;
                 esac
             done

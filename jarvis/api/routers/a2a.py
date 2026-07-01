@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from collections import OrderedDict
 from datetime import datetime, timezone
@@ -17,8 +18,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ...a2a.models import (
-    AgentCard,
     AgentCapabilities,
+    AgentCard,
     AgentSkill,
     Artifact,
     Task,
@@ -26,6 +27,8 @@ from ...a2a.models import (
     jsonrpc_error,
     jsonrpc_result,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class _SessionStore:
@@ -97,7 +100,7 @@ def create_a2a_router(
     """
     router = APIRouter(tags=["A2A"])
     sessions: _SessionStore = _SessionStore()
-    tasks: dict[str, Task] = {}
+    tasks: _SessionStore = _SessionStore(max_size=200)
 
     def _get_or_create_agent(session_id: str):
         agent = sessions.get(session_id)
@@ -116,12 +119,19 @@ def create_a2a_router(
     async def jsonrpc_dispatch(request: Request):
         try:
             body = await request.json()
-        except Exception:
+        except ValueError:
             return JSONResponse(jsonrpc_error(None, -32700, "Parse error"), status_code=400)
 
-        method = body.get("method", "")
-        params = body.get("params", {})
+        if not isinstance(body, dict):
+            return JSONResponse(jsonrpc_error(None, -32600, "Invalid Request"), status_code=400)
+
         rpc_id = body.get("id")
+        method = body.get("method")
+        params = body.get("params") or {}
+        if not isinstance(method, str) or not isinstance(params, dict):
+            return JSONResponse(
+                jsonrpc_error(rpc_id, -32600, "Invalid Request"), status_code=400
+            )
 
         handlers = {
             "tasks/send": _handle_tasks_send,
@@ -148,16 +158,21 @@ def create_a2a_router(
             sessionId=session_id,
             status=TaskStatus(state="working", timestamp=_now_iso()),
         )
-        tasks[task_id] = task
+        tasks.set(task_id, task)
 
         try:
             agent = _get_or_create_agent(session_id)
             response_text = await asyncio.to_thread(agent.chat, user_text)
-            task.status = TaskStatus(state="completed", timestamp=_now_iso())
-            task.artifacts = [Artifact.text(response_text)]
-        except Exception as exc:
-            task.status = TaskStatus(state="failed", timestamp=_now_iso())
-            return JSONResponse(jsonrpc_error(rpc_id, -32603, str(exc)))
+            if task.status.state != "cancelled":
+                task.status = TaskStatus(state="completed", timestamp=_now_iso())
+                task.artifacts = [Artifact.text(response_text)]
+        except Exception:
+            logger.exception("A2A task failed", extra={"task_id": task_id, "session_id": session_id})
+            if task.status.state != "cancelled":
+                task.status = TaskStatus(state="failed", timestamp=_now_iso())
+            return JSONResponse(
+                jsonrpc_error(rpc_id, -32603, "Agent execution failed"), status_code=500
+            )
 
         return JSONResponse(jsonrpc_result(rpc_id, task.to_dict()))
 
@@ -172,7 +187,7 @@ def create_a2a_router(
             sessionId=session_id,
             status=TaskStatus(state="working", timestamp=_now_iso()),
         )
-        tasks[task_id] = task
+        tasks.set(task_id, task)
 
         async def event_stream():
             yield _sse_event(
@@ -183,6 +198,8 @@ def create_a2a_router(
             try:
                 agent = _get_or_create_agent(session_id)
                 response_text = await asyncio.to_thread(agent.chat, user_text)
+                if task.status.state == "cancelled":
+                    return
                 task.status = TaskStatus(state="completed", timestamp=_now_iso())
                 task.artifacts = [Artifact.text(response_text)]
 
@@ -199,11 +216,13 @@ def create_a2a_router(
                     {"id": task_id, "status": {"state": "completed", "timestamp": _now_iso()}, "final": True},
                 )
 
-            except Exception as exc:
-                task.status = TaskStatus(state="failed", timestamp=_now_iso())
+            except Exception:
+                logger.exception("A2A task failed", extra={"task_id": task_id, "session_id": session_id})
+                if task.status.state != "cancelled":
+                    task.status = TaskStatus(state="failed", timestamp=_now_iso())
                 yield _sse_event(
                     "task_status_update",
-                    {"id": task_id, "status": {"state": "failed", "timestamp": _now_iso()}, "error": str(exc), "final": True},
+                    {"id": task_id, "status": {"state": "failed", "timestamp": _now_iso()}, "error": "Agent execution failed", "final": True},
                 )
 
         return StreamingResponse(
@@ -214,15 +233,16 @@ def create_a2a_router(
 
     async def _handle_tasks_get(params: dict, rpc_id: Any) -> JSONResponse:
         task_id = params.get("id")
-        if not task_id or task_id not in tasks:
+        task = tasks.get(task_id) if task_id else None
+        if task is None:
             return JSONResponse(jsonrpc_error(rpc_id, -32001, f"Task not found: {task_id}"))
-        return JSONResponse(jsonrpc_result(rpc_id, tasks[task_id].to_dict()))
+        return JSONResponse(jsonrpc_result(rpc_id, task.to_dict()))
 
     async def _handle_tasks_cancel(params: dict, rpc_id: Any) -> JSONResponse:
         task_id = params.get("id")
-        if not task_id or task_id not in tasks:
+        task = tasks.get(task_id) if task_id else None
+        if task is None:
             return JSONResponse(jsonrpc_error(rpc_id, -32001, f"Task not found: {task_id}"))
-        task = tasks[task_id]
         if task.status.state not in ("completed", "failed", "cancelled"):
             task.status = TaskStatus(state="cancelled", timestamp=_now_iso())
         return JSONResponse(jsonrpc_result(rpc_id, task.to_dict()))

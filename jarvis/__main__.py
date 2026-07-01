@@ -91,14 +91,16 @@ Ejemplos:
     web.add_argument(
         "--web-host",
         type=str,
-        default="127.0.0.1",
-        help="Host del servidor Web UI (default: 127.0.0.1)",
+        default=None,
+        metavar="HOST",
+        help="Host del servidor Web UI (default: JARVIS_WEB_HOST / 127.0.0.1)",
     )
     web.add_argument(
         "--web-port",
         type=int,
-        default=8000,
-        help="Puerto del servidor Web UI (default: 8000)",
+        default=None,
+        metavar="PUERTO",
+        help="Puerto del servidor Web UI (default: JARVIS_WEB_PORT / 8000)",
     )
     web.add_argument(
         "--web-dev",
@@ -287,6 +289,8 @@ def main():
         JARVIS_WELCOME_MESSAGE,
         MCP_SERVERS,
         VOICE_ENABLED,
+        WEB_HOST,
+        WEB_PORT,
     )
     from .interface.cli import (
         print_banner,
@@ -360,12 +364,16 @@ def main():
     # Web UI / A2A server mode — single FastAPI server for both
     # ------------------------------------------------------------------
     if args.web or args.web_dev or args.serve_a2a:
-        web_host = args.web_host
-        web_port = args.web_port
+        web_host = args.web_host or WEB_HOST
+        web_port = args.web_port or WEB_PORT
 
         if args.serve_a2a:
-            web_host = args.a2a_host or web_host
-            web_port = args.a2a_port or web_port
+            if args.web or args.web_dev:
+                web_host = args.a2a_host or web_host
+                web_port = args.a2a_port or web_port
+            else:
+                web_host = args.a2a_host or A2A_HOST
+                web_port = args.a2a_port or A2A_PORT
 
         agent_factory = None
         if args.serve_a2a:

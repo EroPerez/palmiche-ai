@@ -5,13 +5,14 @@ from typing import Callable, Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import system, chat
+from .routers import chat, system
 
 
 def create_app(
     agent,
     agent_factory: Optional[Callable] = None,
     name: str = "Jarvis",
+    description: str = "",
 ) -> FastAPI:
     """Create and configure the shared FastAPI application.
 
@@ -20,6 +21,7 @@ def create_app(
         agent_factory: When provided, A2A protocol routes are mounted too.
                        Called once per A2A session to create an isolated agent.
         name: Agent display name (used in A2A agent card).
+        description: Short description for the A2A agent card.
     """
     app = FastAPI(
         title="Jarvis API",
@@ -30,7 +32,7 @@ def create_app(
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -42,13 +44,15 @@ def create_app(
 
     if agent_factory is not None:
         from .routers.a2a import create_a2a_router
-        a2a_router = create_a2a_router(agent_factory=agent_factory, name=name)
+        a2a_router = create_a2a_router(
+            agent_factory=agent_factory, name=name, description=description,
+        )
         app.include_router(a2a_router)
 
     dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
     if os.path.isdir(dist_path):
-        from fastapi.staticfiles import StaticFiles
         from fastapi.responses import FileResponse
+        from fastapi.staticfiles import StaticFiles
 
         app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
 
@@ -58,6 +62,12 @@ def create_app(
 
         @app.get("/{catchall:path}")
         async def serve_fallback(catchall: str):
+            requested = os.path.normpath(os.path.join(dist_path, catchall))
+            if (
+                os.path.commonpath([requested, dist_path]) == dist_path
+                and os.path.isfile(requested)
+            ):
+                return FileResponse(requested)
             return FileResponse(os.path.join(dist_path, "index.html"))
 
     return app
@@ -69,6 +79,7 @@ def run_web_server(
     port: int = 8000,
     agent_factory: Optional[Callable] = None,
     name: str = "Jarvis",
+    description: str = "",
 ):
     """Run the shared FastAPI server using uvicorn."""
     try:
@@ -81,7 +92,9 @@ def run_web_server(
         )
         sys.exit(1)
 
-    app = create_app(agent, agent_factory=agent_factory, name=name)
+    app = create_app(
+        agent, agent_factory=agent_factory, name=name, description=description,
+    )
 
     features = ["Web UI"]
     if agent_factory is not None:

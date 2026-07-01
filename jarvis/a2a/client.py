@@ -22,7 +22,7 @@ try:
 except ImportError:
     requests = None  # type: ignore
 
-from .models import AgentCard, AgentCapabilities, AgentSkill
+from .models import AgentCapabilities, AgentCard, AgentSkill
 
 
 class A2AClient:

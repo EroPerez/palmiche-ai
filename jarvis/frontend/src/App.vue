@@ -132,7 +132,11 @@ const speakText = (text) => {
 }
 
 const connectWebSocket = () => {
-  ws = new WebSocket('ws://localhost:8000/ws/chat')
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  // In dev mode, Vite serves the frontend on its own port (3000) while the
+  // FastAPI backend keeps running on 8000, so target it explicitly.
+  const host = import.meta.env.DEV ? `${window.location.hostname}:8000` : window.location.host
+  ws = new WebSocket(`${protocol}//${host}/ws/chat`)
   ws.onopen = () => {
     isConnected.value = true
     messages.value.push({ role: 'system', content: 'Conectado a Jarvis Core.' })

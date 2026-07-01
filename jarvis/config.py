@@ -104,6 +104,14 @@ JARVIS_WELCOME_AUDIO: str = os.getenv(
 )
 
 # ---------------------------------------------------------------------------
+# Web UI configuration
+# ---------------------------------------------------------------------------
+
+# Host and port for the built-in Web UI server (--web / --web-dev mode).
+WEB_HOST: str = os.getenv("JARVIS_WEB_HOST", "127.0.0.1")
+WEB_PORT: int = _get_positive_int("JARVIS_WEB_PORT", 8000)
+
+# ---------------------------------------------------------------------------
 # A2A (Agent-to-Agent) configuration
 # ---------------------------------------------------------------------------
 

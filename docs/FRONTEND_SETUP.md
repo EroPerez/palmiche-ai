@@ -26,7 +26,7 @@ Antes de comenzar, asegúrate de tener instalado en tu sistema:
 Compila el frontend y sirve todo desde FastAPI:
 
 ```bash
-cd jarvis/www
+cd jarvis/frontend
 pnpm install
 pnpm run build
 cd ../..
@@ -40,7 +40,7 @@ La interfaz estará disponible en `http://127.0.0.1:8000`.
 Inicia el backend FastAPI y el dev server de Vite en paralelo:
 
 ```bash
-cd jarvis/www && pnpm install && cd ../..
+cd jarvis/frontend && pnpm install && cd ../..
 python -m jarvis --web-dev
 ```
 
@@ -50,7 +50,7 @@ python -m jarvis --web-dev
 También puedes iniciar el frontend manualmente:
 
 ```bash
-cd jarvis/www
+cd jarvis/frontend
 pnpm run dev
 ```
 
